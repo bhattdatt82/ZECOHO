@@ -25,6 +25,31 @@ The platform supports various property types including hotels, villas, hostels, 
 - Created frontend booking form with date pickers and guest selector
 - Bookings can be created successfully with proper validation
 
+**Messaging System** ✅
+- Created conversations and messages tables with proper indexing
+- Implemented WebSocket server for real-time message delivery
+- Built REST API endpoints (GET /api/conversations, POST /api/messages/:conversationId/messages)
+- Added conversation list with sidebar navigation
+- Created chat interface with message bubbles and real-time updates
+- Implemented unread message tracking with header badge
+- Added "Contact Owner" button on property details page
+- Fixed critical unread count bug: invalidate conversations query when viewing chat
+- Optimized queries with single-query unread count calculation
+
+**Review System** ✅
+- Created reviews table schema (rating, comment, helpful count, owner response)
+- Implemented POST /api/reviews with booking validation (completed bookings only)
+- Added GET /api/properties/:id/reviews with guest data joins
+- Built PATCH /api/reviews/:id/response for owner responses
+- Created review submission form with RadioGroup rating widget (1-5 stars)
+- Fixed rating type coercion: z.coerce.number() for RadioGroup compatibility
+- Implemented multi-booking support: auto-selects most recent unreviewed booking
+- Added reviews display on property details page
+- Built owner response interface with dialog
+- Implemented helpful voting with localStorage persistence (user-scoped)
+- Added PATCH /api/reviews/:id/helpful endpoint with atomic increment
+- E2E tested: review submission, rating persistence, helpful voting
+
 **Seed Data with Images** ✅
 - Populated database with 12 properties across global destinations (Paris, Tokyo, NYC, Bali, Barcelona, Malibu, Brooklyn, Cape Town, Iceland, Dubai, Kyoto, Switzerland)
 - Fixed critical schema bug: Updated from single `imageUrl` to `images` array
