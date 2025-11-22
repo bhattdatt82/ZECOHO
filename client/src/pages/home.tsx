@@ -45,6 +45,11 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 container px-4 md:px-6 text-center">
+          <div className="mb-3">
+            <span className="text-sm font-semibold text-white/80 tracking-wider uppercase">
+              Powered by ZECOHO
+            </span>
+          </div>
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
             Welcome back, {user?.firstName || "Guest"}!
           </h1>
