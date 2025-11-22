@@ -14,6 +14,7 @@ import Wishlist from "@/pages/wishlist";
 import Messages from "@/pages/messages";
 import OwnerProperties from "@/pages/owner-properties";
 import AddProperty from "@/pages/add-property";
+import ListProperty from "@/pages/list-property";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
@@ -28,6 +29,7 @@ function Router() {
       {isAuthenticated && !isLoading && (
         <>
           <Route path="/" component={Home} />
+          <Route path="/list-property" component={ListProperty} />
           <Route path="/wishlist" component={Wishlist} />
           <Route path="/messages" component={Messages} />
           <Route path="/owner/properties" component={OwnerProperties} />

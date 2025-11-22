@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { PropertyCard } from "@/components/PropertyCard";
 import { SearchBar } from "@/components/SearchBar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { Home as HomeIcon } from "lucide-react";
 import type { Property } from "@shared/schema";
 import heroImage from "@assets/generated_images/luxury_villa_hero_image.png";
 
@@ -35,6 +37,28 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* List Your Property CTA Banner */}
+      <div className="bg-primary text-white py-4 px-4 md:px-6">
+        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <HomeIcon className="h-6 w-6" />
+            <div>
+              <h3 className="font-semibold text-lg">Become a Property Owner</h3>
+              <p className="text-sm text-white/90">List your property and start earning today</p>
+            </div>
+          </div>
+          <Button 
+            variant="secondary"
+            size="lg"
+            onClick={() => setLocation("/list-property")}
+            data-testid="button-list-property-cta"
+            className="whitespace-nowrap"
+          >
+            List Your Property
+          </Button>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="relative h-[500px] flex items-center justify-center mb-12">
         <div 

@@ -21,6 +21,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/user/kyc', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { firstName, lastName, phone, kycAddress, governmentIdType, governmentIdNumber, userRole } = req.body;
+      
+      const updatedUser = await storage.upsertUser({
+        ...currentUser,
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
+        ...(phone && { phone }),
+        ...(kycAddress && { kycAddress }),
+        ...(governmentIdType && { governmentIdType }),
+        ...(governmentIdNumber && { governmentIdNumber, kycStatus: "pending" }),
+        ...(userRole && { userRole }),
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user KYC:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
   // Properties routes
   app.get("/api/properties", async (req, res) => {
     try {

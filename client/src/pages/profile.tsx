@@ -72,7 +72,7 @@ export default function Profile() {
   const preferredPropertyTypes = watch("preferredPropertyTypes") || [];
 
   useEffect(() => {
-    if (preferences) {
+    if (preferences && typeof preferences === 'object' && 'tripPurpose' in preferences) {
       setValue("tripPurpose", preferences.tripPurpose || "");
       setValue("budgetMin", preferences.budgetMin || "0");
       setValue("budgetMax", preferences.budgetMax || "89000");
