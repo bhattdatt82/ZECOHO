@@ -260,14 +260,14 @@ export default function AddProperty() {
                   </div>
 
                   <div>
-                    <Label htmlFor="pricePerNight">Price per night (USD) *</Label>
+                    <Label htmlFor="pricePerNight">Price per night (INR) *</Label>
                     <Input
                       id="pricePerNight"
                       type="number"
                       {...register("pricePerNight")}
                       step="0.01"
                       min="0"
-                      placeholder="100.00"
+                      placeholder="10000.00"
                       data-testid="input-price"
                     />
                     {errors.pricePerNight && (

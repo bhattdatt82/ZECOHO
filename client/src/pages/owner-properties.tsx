@@ -100,7 +100,7 @@ export default function OwnerProperties() {
                     </div>
                     <div className="flex items-baseline gap-1 mb-4">
                       <span className="text-xl font-semibold">
-                        ${Number(property.pricePerNight).toFixed(0)}
+                        ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
                       </span>
                       <span className="text-sm text-muted-foreground">/ night</span>
                     </div>
