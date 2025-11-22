@@ -76,6 +76,29 @@ The platform supports various property types including hotels, villas, hostels, 
 - Booking calculations correctly use INR values without additional conversion
 - Files modified: seed-data.ts, PropertyCard.tsx, property-details.tsx, add-property.tsx, owner-properties.tsx, search.tsx, profile.tsx
 
+**KYC & Property Listing Feature** ✅
+- Added prominent "List Your Property" CTA banner on homepage hero section
+- Created multi-step property listing wizard with progress indicator:
+  - Step 1: Personal Details (firstName, lastName, phone)
+  - Step 2: KYC Verification (address, government ID type/number)
+  - Step 3: Property Information (title, description, amenities, pricing, images)
+- Extended users schema with KYC fields: phone, kycAddress, governmentIdType, governmentIdNumber, kycStatus
+- Implemented kycStatus enum: not_started, pending, verified, rejected
+- Built secure backend validation with Zod schemas:
+  - updateKYCSchema: Allows optional KYC field updates
+  - becomeOwnerSchema: Enforces ALL KYC fields required when promoting to owner role
+- Security measures implemented:
+  - PATCH /api/user/kyc validates ALL KYC fields when userRole="owner" requested
+  - Sets kycStatus to "pending" upon owner promotion
+  - POST /api/properties checks kycStatus (blocks not_started/rejected)
+  - Server-side forces all new properties to status="pending" (prevents bypass)
+- Frontend wizard flow:
+  - Step 1 saves personal details without role change
+  - Step 2 collects complete KYC data, submits consolidated payload with userRole="owner"
+  - Step 3 creates property after KYC validation
+- E2E tested: Complete flow from guest → verified owner → property submission
+- Files modified: shared/schema.ts, server/routes.ts, server/storage.ts, client/src/pages/list-property.tsx, client/src/pages/home.tsx
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
