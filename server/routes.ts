@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertPropertySchema, insertWishlistSchema, insertUserPreferencesSchema } from "@shared/schema";
+import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
