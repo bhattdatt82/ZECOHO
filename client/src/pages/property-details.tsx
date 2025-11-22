@@ -913,7 +913,7 @@ export default function PropertyDetails() {
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1 mb-2">
                     <span className="text-3xl font-semibold" data-testid="text-price-detail">
-                      ${Number(property.pricePerNight).toFixed(0)}
+                      ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
                     </span>
                     <span className="text-muted-foreground">/ night</span>
                   </div>
@@ -977,13 +977,13 @@ export default function PropertyDetails() {
                   <div className="mb-6 p-4 bg-muted rounded-lg space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        ${Number(property.pricePerNight).toFixed(0)} x {nights} {nights === 1 ? 'night' : 'nights'}
+                        ₹{Number(property.pricePerNight).toLocaleString('en-IN')} x {nights} {nights === 1 ? 'night' : 'nights'}
                       </span>
-                      <span className="font-semibold">${totalPrice.toFixed(2)}</span>
+                      <span className="font-semibold">₹{totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between text-base font-semibold pt-2 border-t">
                       <span>Total</span>
-                      <span>${totalPrice.toFixed(2)}</span>
+                      <span>₹{totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 )}
