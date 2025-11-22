@@ -16,6 +16,9 @@ import OwnerProperties from "@/pages/owner-properties";
 import AddProperty from "@/pages/add-property";
 import ListProperty from "@/pages/list-property";
 import Profile from "@/pages/profile";
+import Destinations from "@/pages/destinations";
+import DestinationDetails from "@/pages/destination-details";
+import AdminDestinations from "@/pages/admin-destinations";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -35,12 +38,15 @@ function Router() {
           <Route path="/owner/properties" component={OwnerProperties} />
           <Route path="/owner/properties/new" component={AddProperty} />
           <Route path="/owner/properties/:id/edit" component={AddProperty} />
+          <Route path="/admin/destinations" component={AdminDestinations} />
           <Route path="/profile" component={Profile} />
         </>
       )}
       <Route path="/search" component={Search} />
       <Route path="/properties" component={Search} />
       <Route path="/properties/:id" component={PropertyDetails} />
+      <Route path="/destinations" component={Destinations} />
+      <Route path="/destinations/:id" component={DestinationDetails} />
       <Route component={NotFound} />
     </Switch>
   );
