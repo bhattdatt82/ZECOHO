@@ -82,7 +82,7 @@ export function PropertyCard({ property, onWishlistToggle }: PropertyCardProps) 
           <div className="pt-2 border-t">
             <div className="flex items-baseline gap-1">
               <span className="text-xl font-semibold" data-testid={`text-price-${property.id}`}>
-                ${Number(property.pricePerNight).toFixed(0)}
+                ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
               </span>
               <span className="text-sm text-muted-foreground">/ night</span>
             </div>
