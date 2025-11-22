@@ -210,6 +210,24 @@ export const reviews = pgTable("reviews", {
   index("idx_property_rating").on(table.propertyId, table.rating),
 ]);
 
+// Destinations table - Best places to visit in India
+export const destinations = pgTable("destinations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  state: varchar("state", { length: 100 }).notNull(),
+  shortDescription: text("short_description").notNull(),
+  detailedInsight: text("detailed_insight").notNull(),
+  highlights: text("highlights").array().notNull().default(sql`ARRAY[]::text[]`),
+  imageUrl: text("image_url").notNull(),
+  bestSeason: varchar("best_season", { length: 100 }),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  featuredDate: timestamp("featured_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_featured").on(table.isFeatured, table.featuredDate),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   properties: many(properties),
@@ -437,3 +455,13 @@ export const becomeOwnerSchema = z.object({
   governmentIdNumber: z.string().min(5, "Valid ID number is required"),
   userRole: z.literal("owner"),
 });
+
+// Destinations insert schema and types
+export const insertDestinationSchema = createInsertSchema(destinations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDestination = z.infer<typeof insertDestinationSchema>;
+export type Destination = typeof destinations.$inferSelect;

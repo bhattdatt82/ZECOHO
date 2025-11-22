@@ -11,6 +11,7 @@ import {
   conversations,
   messages,
   reviews,
+  destinations,
   type User,
   type UpsertUser,
   type Property,
@@ -31,6 +32,8 @@ import {
   type InsertMessage,
   type Review,
   type InsertReview,
+  type Destination,
+  type InsertDestination,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not } from "drizzle-orm";
@@ -99,6 +102,15 @@ export interface IStorage {
   getReview(id: string): Promise<Review | undefined>;
   updateOwnerResponse(reviewId: string, response: string): Promise<Review | undefined>;
   getAverageRating(propertyId: string): Promise<number>;
+
+  // Destination operations
+  getAllDestinations(): Promise<Destination[]>;
+  getFeaturedDestinations(): Promise<Destination[]>;
+  getDestination(id: string): Promise<Destination | undefined>;
+  createDestination(destination: InsertDestination): Promise<Destination>;
+  updateDestination(id: string, destination: Partial<InsertDestination>): Promise<Destination | undefined>;
+  deleteDestination(id: string): Promise<void>;
+  setFeaturedDestination(id: string, isFeatured: boolean): Promise<Destination | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -630,6 +642,70 @@ export class DatabaseStorage implements IStorage {
       .where(eq(reviews.propertyId, propertyId));
 
     return Math.round((result[0]?.avg || 0) * 10) / 10;
+  }
+
+  // Destination operations
+  async getAllDestinations(): Promise<Destination[]> {
+    const results = await db
+      .select()
+      .from(destinations)
+      .orderBy(sql`${destinations.createdAt} DESC`);
+    return results;
+  }
+
+  async getFeaturedDestinations(): Promise<Destination[]> {
+    const results = await db
+      .select()
+      .from(destinations)
+      .where(eq(destinations.isFeatured, true))
+      .orderBy(sql`${destinations.featuredDate} DESC`)
+      .limit(3);
+    return results;
+  }
+
+  async getDestination(id: string): Promise<Destination | undefined> {
+    const [destination] = await db
+      .select()
+      .from(destinations)
+      .where(eq(destinations.id, id));
+    return destination;
+  }
+
+  async createDestination(destinationData: InsertDestination): Promise<Destination> {
+    const [destination] = await db
+      .insert(destinations)
+      .values(destinationData)
+      .returning();
+    return destination;
+  }
+
+  async updateDestination(id: string, destinationData: Partial<InsertDestination>): Promise<Destination | undefined> {
+    const [updated] = await db
+      .update(destinations)
+      .set({
+        ...destinationData,
+        updatedAt: new Date(),
+      })
+      .where(eq(destinations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDestination(id: string): Promise<void> {
+    await db.delete(destinations).where(eq(destinations.id, id));
+  }
+
+  async setFeaturedDestination(id: string, isFeatured: boolean): Promise<Destination | undefined> {
+    const [updated] = await db
+      .update(destinations)
+      .set({
+        isFeatured,
+        featuredDate: isFeatured ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(destinations.id, id))
+      .returning();
+    return updated;
   }
 }
 

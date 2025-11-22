@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, updateKYCSchema, becomeOwnerSchema } from "@shared/schema";
+import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, updateKYCSchema, becomeOwnerSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -788,6 +788,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking review as helpful:", error);
       res.status(500).json({ message: "Failed to mark review as helpful" });
+    }
+  });
+
+  // Destinations routes
+  app.get("/api/destinations", async (req, res) => {
+    try {
+      const destinations = await storage.getAllDestinations();
+      res.json(destinations);
+    } catch (error) {
+      console.error("Error fetching destinations:", error);
+      res.status(500).json({ message: "Failed to fetch destinations" });
+    }
+  });
+
+  app.get("/api/destinations/featured", async (req, res) => {
+    try {
+      const destinations = await storage.getFeaturedDestinations();
+      res.json(destinations);
+    } catch (error) {
+      console.error("Error fetching featured destinations:", error);
+      res.status(500).json({ message: "Failed to fetch featured destinations" });
+    }
+  });
+
+  app.get("/api/destinations/:id", async (req, res) => {
+    try {
+      const destination = await storage.getDestination(req.params.id);
+      if (!destination) {
+        return res.status(404).json({ message: "Destination not found" });
+      }
+      res.json(destination);
+    } catch (error) {
+      console.error("Error fetching destination:", error);
+      res.status(500).json({ message: "Failed to fetch destination" });
+    }
+  });
+
+  app.post("/api/destinations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.userRole !== "owner") {
+        return res.status(403).json({ message: "Only owners can create destinations" });
+      }
+
+      const validatedData = insertDestinationSchema.parse(req.body);
+      const destination = await storage.createDestination(validatedData);
+      res.json(destination);
+    } catch (error) {
+      console.error("Error creating destination:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid destination data" });
+      }
+      res.status(500).json({ message: "Failed to create destination" });
+    }
+  });
+
+  app.patch("/api/destinations/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.userRole !== "owner") {
+        return res.status(403).json({ message: "Only owners can update destinations" });
+      }
+
+      const destination = await storage.updateDestination(req.params.id, req.body);
+      if (!destination) {
+        return res.status(404).json({ message: "Destination not found" });
+      }
+      res.json(destination);
+    } catch (error) {
+      console.error("Error updating destination:", error);
+      res.status(500).json({ message: "Failed to update destination" });
+    }
+  });
+
+  app.delete("/api/destinations/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.userRole !== "owner") {
+        return res.status(403).json({ message: "Only owners can delete destinations" });
+      }
+
+      await storage.deleteDestination(req.params.id);
+      res.json({ message: "Destination deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting destination:", error);
+      res.status(500).json({ message: "Failed to delete destination" });
+    }
+  });
+
+  app.patch("/api/destinations/:id/feature", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.userRole !== "owner") {
+        return res.status(403).json({ message: "Only owners can feature destinations" });
+      }
+
+      const { isFeatured } = req.body;
+      const destination = await storage.setFeaturedDestination(req.params.id, isFeatured);
+      if (!destination) {
+        return res.status(404).json({ message: "Destination not found" });
+      }
+      res.json(destination);
+    } catch (error) {
+      console.error("Error featuring destination:", error);
+      res.status(500).json({ message: "Failed to feature destination" });
     }
   });
 
