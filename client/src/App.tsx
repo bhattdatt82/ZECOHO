@@ -21,13 +21,12 @@ function Router() {
 
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {!isAuthenticated && !isLoading && (
         <Route path="/" component={Landing} />
-      ) : (
+      )}
+      {isAuthenticated && !isLoading && (
         <>
           <Route path="/" component={Home} />
-          <Route path="/search" component={Search} />
-          <Route path="/properties/:id" component={PropertyDetails} />
           <Route path="/wishlist" component={Wishlist} />
           <Route path="/owner/properties" component={OwnerProperties} />
           <Route path="/owner/properties/new" component={AddProperty} />
@@ -35,6 +34,8 @@ function Router() {
           <Route path="/profile" component={Profile} />
         </>
       )}
+      <Route path="/search" component={Search} />
+      <Route path="/properties/:id" component={PropertyDetails} />
       <Route component={NotFound} />
     </Switch>
   );

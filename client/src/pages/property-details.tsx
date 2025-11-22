@@ -58,7 +58,12 @@ export default function PropertyDetails() {
         `/api/properties/${propertyId}/booked-dates?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
       );
       
-      if (!response.ok) return [];
+      if (!response.ok) {
+        console.error(`Failed to fetch booked dates: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`Error body: ${errorText}`);
+        throw new Error(`Failed to fetch booked dates: ${response.statusText}`);
+      }
       
       const data = await response.json();
       return data.map((d: any) => ({
@@ -67,6 +72,7 @@ export default function PropertyDetails() {
       }));
     },
     enabled: !!propertyId,
+    retry: 1,
   });
 
   const isWishlisted = wishlists.some((w: any) => w.propertyId === propertyId);

@@ -272,4 +272,8 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  checkIn: z.coerce.date(),
+  checkOut: z.coerce.date(),
+  totalPrice: z.string().or(z.number().transform(v => v.toString())),
 });
