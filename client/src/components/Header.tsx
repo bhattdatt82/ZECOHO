@@ -8,13 +8,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Home, Heart, User, LogOut, Menu, Building } from "lucide-react";
+import { Home, Heart, User, LogOut, Menu, Building, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import type { Conversation } from "@shared/schema";
+
+type ConversationWithUnread = Conversation & { unreadCount: number };
 
 export function Header() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
+
+  const { data: conversations = [] } = useQuery<ConversationWithUnread[]>({
+    queryKey: ["/api/conversations"],
+    enabled: !!isAuthenticated,
+  });
+
+  const totalUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
 
   const getInitials = () => {
     if (!user) return "G";
@@ -81,6 +92,27 @@ export function Header() {
                   </Button>
                 </Link>
               )}
+
+              <Link href="/messages">
+                <Button 
+                  variant={location === "/messages" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="relative"
+                  data-testid="link-messages"
+                >
+                  <MessageCircle className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Messages</span>
+                  {totalUnreadCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs rounded-full"
+                      data-testid="badge-unread-count"
+                    >
+                      {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                    </Badge>
+                  )}
+                </Button>
+              </Link>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

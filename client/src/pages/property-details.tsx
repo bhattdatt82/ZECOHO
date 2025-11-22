@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,8 @@ import {
   Users, 
   Bed, 
   Bath,
-  Check
+  Check,
+  MessageCircle
 } from "lucide-react";
 import type { Property, Amenity } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -22,6 +23,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 
 export default function PropertyDetails() {
   const [, params] = useRoute("/properties/:id");
+  const [, setLocation] = useLocation();
   const propertyId = params?.id;
   const { toast } = useToast();
   const { user } = useAuth();
@@ -107,6 +109,35 @@ export default function PropertyDetails() {
       toast({
         title: "Error",
         description: "Failed to update wishlist",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const contactOwnerMutation = useMutation({
+    mutationFn: async () => {
+      if (!propertyId) throw new Error("Property ID not found");
+      return await apiRequest("POST", "/api/conversations", { propertyId });
+    },
+    onSuccess: (conversation: any) => {
+      setLocation("/messages");
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "Please log in to contact the owner",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start conversation",
         variant: "destructive",
       });
     },
@@ -495,6 +526,20 @@ export default function PropertyDetails() {
                 >
                   {bookingMutation.isPending ? "Processing..." : "Reserve"}
                 </Button>
+                
+                {user?.userRole === "guest" && (
+                  <Button
+                    className="w-full mt-3"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => contactOwnerMutation.mutate()}
+                    disabled={contactOwnerMutation.isPending}
+                    data-testid="button-contact-owner"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    {contactOwnerMutation.isPending ? "Loading..." : "Contact Owner"}
+                  </Button>
+                )}
                 
                 <p className="text-sm text-center text-muted-foreground mt-4">
                   You won't be charged yet

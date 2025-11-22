@@ -11,6 +11,7 @@ import Home from "@/pages/home";
 import Search from "@/pages/search";
 import PropertyDetails from "@/pages/property-details";
 import Wishlist from "@/pages/wishlist";
+import Messages from "@/pages/messages";
 import OwnerProperties from "@/pages/owner-properties";
 import AddProperty from "@/pages/add-property";
 import Profile from "@/pages/profile";
@@ -28,6 +29,7 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/wishlist" component={Wishlist} />
+          <Route path="/messages" component={Messages} />
           <Route path="/owner/properties" component={OwnerProperties} />
           <Route path="/owner/properties/new" component={AddProperty} />
           <Route path="/owner/properties/:id/edit" component={AddProperty} />
