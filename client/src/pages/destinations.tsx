@@ -19,7 +19,7 @@ export default function Destinations() {
     queryKey: ["/api/destinations"],
   });
 
-  const suggestions = searchQuery.length >= 3
+  const suggestions = searchQuery.length >= 1
     ? destinations.filter((dest) =>
         dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         dest.state.toLowerCase().includes(searchQuery.toLowerCase())
@@ -63,9 +63,9 @@ export default function Destinations() {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    setOpen(e.target.value.length >= 3 && suggestions.length > 0);
+                    setOpen(e.target.value.length >= 1 && suggestions.length > 0);
                   }}
-                  onFocus={() => setOpen(searchQuery.length >= 3 && suggestions.length > 0)}
+                  onFocus={() => setOpen(searchQuery.length >= 1 && suggestions.length > 0)}
                   data-testid="input-search-destinations"
                   className="h-12"
                 />
