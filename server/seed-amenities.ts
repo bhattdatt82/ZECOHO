@@ -82,12 +82,14 @@ async function seedAmenities() {
 export { seedAmenities };
 
 // Run if executed directly
-seedAmenities()
-  .then(() => {
-    console.log("Amenities seed completed successfully");
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error("Amenities seed failed:", error);
-    process.exit(1);
-  });
+if (import.meta.url === `file://${process.argv[1]}`) {
+  seedAmenities()
+    .then(() => {
+      console.log("Amenities seed completed successfully");
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("Amenities seed failed:", error);
+      process.exit(1);
+    });
+}

@@ -8,6 +8,7 @@ import express, {
 } from "express";
 
 import { registerRoutes } from "./routes";
+import { seedAmenities } from "./seed-amenities";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -67,6 +68,13 @@ app.use((req, res, next) => {
 export default async function runApp(
   setup: (app: Express, server: Server) => Promise<void>,
 ) {
+  // Seed amenities on app start
+  try {
+    await seedAmenities();
+  } catch (error) {
+    console.warn("Amenities seed failed or already seeded:", error);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
