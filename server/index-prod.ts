@@ -23,5 +23,18 @@ export async function serveStatic(app: Express, _server: Server) {
 }
 
 (async () => {
-  await runApp(serveStatic);
+  try {
+    await runApp(serveStatic);
+    // Process will stay alive due to server.listen() keeping a handle open
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
 })();
+
+// Prevent Node.js from exiting - ensure at least one handle is open
+// This is a safeguard in case all other handles close
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
