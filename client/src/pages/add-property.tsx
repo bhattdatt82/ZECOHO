@@ -22,6 +22,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { insertPropertySchema, type Amenity } from "@shared/schema";
 import { z } from "zod";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import { PlacesInput, type PlaceDetails } from "@/components/PlacesInput";
 import { Upload, X, Play } from "lucide-react";
 import hotelImage from "@assets/generated_images/modern_hotel_room.png";
 import cabinImage from "@assets/generated_images/mountain_cabin_exterior.png";
@@ -40,6 +41,7 @@ export default function AddProperty() {
   const totalSteps = 3;
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceDetails | null>(null);
 
   const {
     register,
@@ -136,6 +138,8 @@ export default function AddProperty() {
     createPropertyMutation.mutate({
       ...data,
       videos: videos.length > 0 ? videos : data.videos,
+      latitude: selectedPlace?.latitude ? selectedPlace.latitude.toString() : data.latitude,
+      longitude: selectedPlace?.longitude ? selectedPlace.longitude.toString() : data.longitude,
     });
   };
 
@@ -211,14 +215,23 @@ export default function AddProperty() {
 
                   <div>
                     <Label htmlFor="destination">Location *</Label>
-                    <Input
-                      id="destination"
-                      {...register("destination")}
-                      placeholder="Paris, France"
-                      data-testid="input-destination"
+                    <PlacesInput
+                      value={watch("destination")}
+                      onChange={(value) => setValue("destination", value)}
+                      onPlaceSelect={(place) => {
+                        setSelectedPlace(place);
+                        setValue("address", place.address);
+                      }}
+                      placeholder="Search for a location..."
+                      testId="input-destination"
                     />
                     {errors.destination && (
                       <p className="text-sm text-destructive mt-1">{errors.destination.message}</p>
+                    )}
+                    {selectedPlace && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        📍 {selectedPlace.address} (Lat: {selectedPlace.latitude.toFixed(4)}, Lng: {selectedPlace.longitude.toFixed(4)})
+                      </p>
                     )}
                   </div>
 
