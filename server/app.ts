@@ -80,7 +80,9 @@ app.use((req, res, next) => {
 
 export default async function runApp(
   setup: (app: Express, server: Server) => Promise<void>,
-) {
+): Promise<never> {
+  // This function must never return to keep the process alive
+  // It returns Promise<never> to indicate it's a long-lived operation
 
   const server = await registerRoutes(app);
 
@@ -101,21 +103,25 @@ export default async function runApp(
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-    
-    // Seed amenities in the background ONLY in development, or if explicitly enabled
-    // Skip seeding in production to avoid startup delays and health check timeouts
-    const shouldSeedAmenities = process.env.NODE_ENV !== 'production' || process.env.SEED_AMENITIES === 'true';
-    
-    if (shouldSeedAmenities) {
-      // Fire-and-forget seeding - don't await, don't chain .catch()
-      // Just invoke the function and let it run in the background
-      seedAmenities();
-    }
+
+  // Return a promise that never resolves - keeping the process alive
+  return new Promise(() => {
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`serving on port ${port}`);
+      
+      // Seed amenities in the background ONLY in development, or if explicitly enabled
+      // Skip seeding in production to avoid startup delays and health check timeouts
+      const shouldSeedAmenities = process.env.NODE_ENV !== 'production' || process.env.SEED_AMENITIES === 'true';
+      
+      if (shouldSeedAmenities) {
+        // Fire-and-forget seeding - don't await, don't chain .catch()
+        // Just invoke the function and let it run in the background
+        seedAmenities();
+      }
+    });
   });
 }

@@ -89,18 +89,13 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-(async () => {
-  try {
-    await runApp(setupVite);
-    // Process will stay alive due to server.listen() keeping a handle open
-  } catch (error) {
-    console.error("Failed to start server:", error);
-    process.exit(1);
-  }
-})();
+// Start the server and let it run indefinitely
+runApp(setupVite).catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});
 
-// Prevent Node.js from exiting - ensure at least one handle is open
-// This is a safeguard in case all other handles close
+// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
   process.exit(1);
