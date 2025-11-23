@@ -43,6 +43,7 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  promoteUserToAdmin(email: string): Promise<User | undefined>;
 
   // Property operations
   getProperties(filters?: {
@@ -132,6 +133,15 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(),
         },
       })
+      .returning();
+    return user;
+  }
+
+  async promoteUserToAdmin(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ userRole: "admin", updatedAt: new Date() })
+      .where(eq(users.email, email))
       .returning();
     return user;
   }

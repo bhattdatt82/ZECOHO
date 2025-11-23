@@ -23,6 +23,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin promotion endpoint - requires email in body
+  app.post('/api/admin/promote', async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const updatedUser = await storage.promoteUserToAdmin(email);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ message: "User promoted to admin", user: updatedUser });
+    } catch (error) {
+      console.error("Error promoting user to admin:", error);
+      res.status(500).json({ message: "Failed to promote user to admin" });
+    }
+  });
+
   app.patch('/api/user/kyc', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
