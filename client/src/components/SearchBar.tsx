@@ -22,23 +22,20 @@ export function SearchBar({ onSearch, compact = false }: SearchBarProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  // Fetch all destinations for autocomplete
-  const { data: allDestinations = [] } = useQuery({
-    queryKey: ['/api/destinations'],
+  // Fetch destinations with search - use backend filtering for better performance
+  const { data: filteredDestinations = [] } = useQuery({
+    queryKey: ['/api/destinations', destination],
     queryFn: async () => {
-      const res = await fetch('/api/destinations');
+      if (destination.trim().length === 0) {
+        return [];
+      }
+      const searchParams = new URLSearchParams({ search: destination.trim() });
+      const res = await fetch(`/api/destinations?${searchParams}`);
       if (!res.ok) throw new Error('Failed to fetch destinations');
       return res.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // Don't cache search results
   });
-
-  // Filter destinations based on input
-  const filteredDestinations = destination.trim().length > 0
-    ? allDestinations.filter((dest: any) =>
-        dest.name.toLowerCase().includes(destination.toLowerCase())
-      )
-    : [];
 
   // Close suggestions when clicking outside
   useEffect(() => {

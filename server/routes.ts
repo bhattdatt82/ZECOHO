@@ -847,7 +847,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Destinations routes
   app.get("/api/destinations", async (req, res) => {
     try {
-      const destinations = await storage.getAllDestinations();
+      const { search } = req.query;
+      let destinations = await storage.getAllDestinations();
+      
+      // Filter by search term if provided
+      if (search && typeof search === "string" && search.trim().length > 0) {
+        const searchLower = search.toLowerCase().trim();
+        destinations = destinations.filter((dest: any) =>
+          dest.name.toLowerCase().includes(searchLower) ||
+          dest.state?.toLowerCase().includes(searchLower) ||
+          dest.shortDescription?.toLowerCase().includes(searchLower)
+        );
+      }
+      
       res.json(destinations);
     } catch (error) {
       console.error("Error fetching destinations:", error);
