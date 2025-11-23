@@ -28,6 +28,18 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+// Add health check endpoints BEFORE any middleware
+// These MUST respond immediately without any processing
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+app.head('/', (_req, res) => {
+  res.status(200).send();
+});
+
+// NOW add middleware after health checks
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
@@ -35,6 +47,7 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
+// Request logging middleware - only logs API calls, doesn't affect health checks
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -68,16 +81,6 @@ app.use((req, res, next) => {
 export default async function runApp(
   setup: (app: Express, server: Server) => Promise<void>,
 ) {
-  // Add health check endpoint at the very beginning - responds immediately without database access
-  // This MUST be before any other middleware/routes so it responds quickly for deployment health checks
-  app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok' });
-  });
-
-  // Also handle root path as a health check for deployment systems
-  app.head('/', (_req, res) => {
-    res.status(200).send();
-  });
 
   const server = await registerRoutes(app);
 
