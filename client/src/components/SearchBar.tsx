@@ -30,10 +30,11 @@ export function SearchBar({ onSearch, compact = false }: SearchBarProps) {
       if (!res.ok) throw new Error('Failed to fetch destinations');
       return res.json();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Filter destinations based on input
-  const filteredDestinations = destination.length > 0
+  const filteredDestinations = destination.trim().length > 0
     ? allDestinations.filter((dest: any) =>
         dest.name.toLowerCase().includes(destination.toLowerCase())
       )
@@ -103,95 +104,97 @@ export function SearchBar({ onSearch, compact = false }: SearchBarProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-2 flex items-center gap-2 w-full max-w-4xl" ref={suggestionsRef}>
-      <div className="flex-1 px-4 py-2 border-r relative">
-        <label className="text-xs font-semibold block mb-1">Destination</label>
-        <div className="relative">
-          <MapPin className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Where are you going?"
-            value={destination}
-            onChange={(e) => {
-              setDestination(e.target.value);
-              setShowSuggestions(e.target.value.length > 0);
-            }}
-            onFocus={() => destination.length > 0 && setShowSuggestions(true)}
-            className="w-full pl-6 bg-transparent focus:outline-none text-sm"
-            data-testid="input-destination-full"
-          />
-          
-          {/* Suggestions dropdown */}
-          {showSuggestions && filteredDestinations.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-md z-50 max-h-60 overflow-y-auto">
-              {filteredDestinations.map((dest: any) => (
-                <button
-                  key={dest.id}
-                  onClick={() => handleSelectDestination(dest.name)}
-                  className="w-full text-left px-4 py-2 hover:bg-muted text-sm"
-                  data-testid={`suggestion-destination-${dest.id}`}
-                >
-                  <MapPin className="inline h-3 w-3 mr-2 text-muted-foreground" />
-                  {dest.name}
-                </button>
-              ))}
-            </div>
-          )}
+    <div className="w-full max-w-4xl" ref={suggestionsRef}>
+      <div className="bg-white rounded-lg shadow-lg p-2 flex items-center gap-2 w-full">
+        <div className="flex-1 px-4 py-2 border-r relative">
+          <label className="text-xs font-semibold block mb-1">Destination</label>
+          <div className="relative">
+            <MapPin className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Where are you going?"
+              value={destination}
+              onChange={(e) => {
+                setDestination(e.target.value);
+                setShowSuggestions(e.target.value.length > 0);
+              }}
+              onFocus={() => destination.length > 0 && setShowSuggestions(true)}
+              className="w-full pl-6 bg-transparent focus:outline-none text-sm"
+              data-testid="input-destination-full"
+            />
+            
+            {/* Suggestions dropdown - positioned outside of rounded container */}
+            {showSuggestions && filteredDestinations.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-md z-50 max-h-60 overflow-y-auto">
+                {filteredDestinations.map((dest: any) => (
+                  <button
+                    key={dest.id}
+                    onClick={() => handleSelectDestination(dest.name)}
+                    className="w-full text-left px-4 py-2 hover:bg-muted text-sm transition-colors"
+                    data-testid={`suggestion-destination-${dest.id}`}
+                  >
+                    <MapPin className="inline h-3 w-3 mr-2 text-muted-foreground" />
+                    {dest.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       
-      <div className="flex-1 px-4 py-2 border-r">
-        <label className="text-xs font-semibold block mb-1">Check in</label>
-        <div className="relative">
-          <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="date"
-            value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-            className="w-full pl-6 bg-transparent focus:outline-none text-sm"
-            data-testid="input-checkin"
-          />
+        <div className="flex-1 px-4 py-2 border-r">
+          <label className="text-xs font-semibold block mb-1">Check in</label>
+          <div className="relative">
+            <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="date"
+              value={checkIn}
+              onChange={(e) => setCheckIn(e.target.value)}
+              className="w-full pl-6 bg-transparent focus:outline-none text-sm"
+              data-testid="input-checkin"
+            />
+          </div>
         </div>
-      </div>
-      
-      <div className="flex-1 px-4 py-2 border-r">
-        <label className="text-xs font-semibold block mb-1">Check out</label>
-        <div className="relative">
-          <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="date"
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-            className="w-full pl-6 bg-transparent focus:outline-none text-sm"
-            data-testid="input-checkout"
-          />
+        
+        <div className="flex-1 px-4 py-2 border-r">
+          <label className="text-xs font-semibold block mb-1">Check out</label>
+          <div className="relative">
+            <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="date"
+              value={checkOut}
+              onChange={(e) => setCheckOut(e.target.value)}
+              className="w-full pl-6 bg-transparent focus:outline-none text-sm"
+              data-testid="input-checkout"
+            />
+          </div>
         </div>
-      </div>
-      
-      <div className="flex-1 px-4 py-2">
-        <label className="text-xs font-semibold block mb-1">Guests</label>
-        <div className="relative">
-          <Users className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="number"
-            min="1"
-            value={guests}
-            onChange={(e) => setGuests(Number(e.target.value))}
-            className="w-full pl-6 bg-transparent focus:outline-none text-sm"
-            data-testid="input-guests"
-          />
+        
+        <div className="flex-1 px-4 py-2">
+          <label className="text-xs font-semibold block mb-1">Guests</label>
+          <div className="relative">
+            <Users className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="number"
+              min="1"
+              value={guests}
+              onChange={(e) => setGuests(Number(e.target.value))}
+              className="w-full pl-6 bg-transparent focus:outline-none text-sm"
+              data-testid="input-guests"
+            />
+          </div>
         </div>
+        
+        <Button 
+          size="lg" 
+          className="rounded-full px-8" 
+          onClick={handleSearch}
+          data-testid="button-search-full"
+        >
+          <Search className="h-5 w-5 mr-2" />
+          Search
+        </Button>
       </div>
-      
-      <Button 
-        size="lg" 
-        className="rounded-full px-8" 
-        onClick={handleSearch}
-        data-testid="button-search-full"
-      >
-        <Search className="h-5 w-5 mr-2" />
-        Search
-      </Button>
     </div>
   );
 }
