@@ -85,9 +85,9 @@ export function SearchBar({ onSearch, compact = false }: SearchBarProps) {
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 w-full max-w-2xl" ref={suggestionsRef}>
-        <div className="relative flex-1">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+      <div className="flex items-center gap-2 w-full max-w-2xl relative" ref={suggestionsRef}>
+        <div className="flex-1">
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
           <Input
             type="text"
             placeholder="Where are you going?"
@@ -100,27 +100,32 @@ export function SearchBar({ onSearch, compact = false }: SearchBarProps) {
             className="pl-10 h-12 text-base"
             data-testid="input-destination"
           />
-          
-          {/* Suggestions dropdown for compact */}
-          {showSuggestions && filteredDestinations.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-md z-50 max-h-60 overflow-y-auto">
-              {filteredDestinations.map((dest: any) => (
-                <button
-                  key={dest.id}
-                  onClick={() => handleSelectDestination(dest.name)}
-                  className="w-full text-left px-4 py-2 hover:bg-muted text-sm"
-                  data-testid={`suggestion-destination-compact-${dest.id}`}
-                >
-                  <MapPin className="inline h-3 w-3 mr-2 text-muted-foreground" />
-                  {dest.name}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <Button size="lg" onClick={handleSearch} data-testid="button-search">
           <Search className="h-5 w-5" />
         </Button>
+        
+        {/* Suggestions dropdown - positioned absolutely relative to outer container */}
+        {showSuggestions && filteredDestinations.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-card border rounded-md shadow-lg z-[100] max-h-60 overflow-y-auto">
+            {filteredDestinations.map((dest: any) => (
+              <button
+                key={dest.id}
+                onClick={() => handleSelectDestination(dest.name)}
+                className="w-full text-left px-4 py-3 hover:bg-muted text-sm transition-colors border-b last:border-b-0"
+                data-testid={`suggestion-destination-compact-${dest.id}`}
+              >
+                <MapPin className="inline h-4 w-4 mr-2 text-muted-foreground" />
+                <span className="font-medium">{dest.name}</span>
+                {dest.state && (
+                  <span className="text-muted-foreground ml-2 text-xs">
+                    {dest.state}, {dest.country || 'India'}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
