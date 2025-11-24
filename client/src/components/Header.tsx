@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Home, Heart, User, LogOut, Menu, Building, MessageCircle } from "lucide-react";
+import { Home, Heart, User, LogOut, Menu, Building, MessageCircle, History } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -68,16 +68,29 @@ export function Header() {
               </Link>
 
               {user?.userRole === "guest" && (
-                <Link href="/wishlist">
-                  <Button 
-                    variant={location === "/wishlist" ? "secondary" : "ghost"}
-                    size="sm"
-                    data-testid="link-wishlist"
-                  >
-                    <Heart className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">Wishlist</span>
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/wishlist">
+                    <Button 
+                      variant={location === "/wishlist" ? "secondary" : "ghost"}
+                      size="sm"
+                      data-testid="link-wishlist"
+                    >
+                      <Heart className="h-4 w-4 md:mr-2" />
+                      <span className="hidden md:inline">Wishlist</span>
+                    </Button>
+                  </Link>
+
+                  <Link href="/search-history">
+                    <Button 
+                      variant={location === "/search-history" ? "secondary" : "ghost"}
+                      size="sm"
+                      data-testid="link-search-history"
+                    >
+                      <History className="h-4 w-4 md:mr-2" />
+                      <span className="hidden md:inline">History</span>
+                    </Button>
+                  </Link>
+                </>
               )}
 
               {user?.userRole === "owner" && (

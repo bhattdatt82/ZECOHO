@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Calendar, Users } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SearchBarProps {
   onSearch?: (params: {
@@ -15,12 +16,26 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ onSearch, compact = false }: SearchBarProps) {
+  const { isAuthenticated } = useAuth();
   const [destination, setDestination] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(2);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Mutation to save search history
+  const saveSearchMutation = useMutation({
+    mutationFn: async (searchData: any) => {
+      const res = await fetch('/api/search-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(searchData),
+      });
+      if (!res.ok) throw new Error('Failed to save search');
+      return res.json();
+    },
+  });
 
   // Fetch destinations with search - use backend filtering for better performance
   const { data: filteredDestinations = [] } = useQuery({
@@ -56,6 +71,16 @@ export function SearchBar({ onSearch, compact = false }: SearchBarProps) {
 
   const handleSearch = () => {
     onSearch?.({ destination, checkIn, checkOut, guests });
+    
+    // Save search history if user is authenticated
+    if (isAuthenticated && destination.trim()) {
+      saveSearchMutation.mutate({
+        destination,
+        checkIn: checkIn || null,
+        checkOut: checkOut || null,
+        guests: guests || null,
+      });
+    }
   };
 
   if (compact) {

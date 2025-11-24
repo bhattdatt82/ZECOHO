@@ -12,6 +12,7 @@ import {
   messages,
   reviews,
   destinations,
+  searchHistory,
   type User,
   type UpsertUser,
   type Property,
@@ -34,6 +35,8 @@ import {
   type InsertReview,
   type Destination,
   type InsertDestination,
+  type SearchHistory,
+  type InsertSearchHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not } from "drizzle-orm";
@@ -113,6 +116,11 @@ export interface IStorage {
   updateDestination(id: string, destination: Partial<InsertDestination>): Promise<Destination | undefined>;
   deleteDestination(id: string): Promise<void>;
   setFeaturedDestination(id: string, isFeatured: boolean): Promise<Destination | undefined>;
+
+  // Search history operations
+  createSearchHistory(userId: string, search: InsertSearchHistory): Promise<SearchHistory>;
+  getUserSearchHistory(userId: string, limit?: number): Promise<SearchHistory[]>;
+  deleteSearchHistory(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -744,6 +752,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(destinations.id, id))
       .returning();
     return updated;
+  }
+
+  // Search history operations
+  async createSearchHistory(userId: string, search: InsertSearchHistory): Promise<SearchHistory> {
+    const [history] = await db
+      .insert(searchHistory)
+      .values({
+        ...search,
+        userId,
+      })
+      .returning();
+    return history;
+  }
+
+  async getUserSearchHistory(userId: string, limit: number = 10): Promise<SearchHistory[]> {
+    return await db
+      .select()
+      .from(searchHistory)
+      .where(eq(searchHistory.userId, userId))
+      .orderBy(searchHistory.createdAt)
+      .limit(limit);
+  }
+
+  async deleteSearchHistory(id: string): Promise<void> {
+    await db.delete(searchHistory).where(eq(searchHistory.id, id));
   }
 }
 

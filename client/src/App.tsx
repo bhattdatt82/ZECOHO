@@ -9,6 +9,7 @@ import { Header } from "@/components/Header";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Search from "@/pages/search";
+import SearchHistoryPage from "@/pages/search-history";
 import PropertyDetails from "@/pages/property-details";
 import Wishlist from "@/pages/wishlist";
 import Messages from "@/pages/messages";
@@ -36,6 +37,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/list-property" component={ListProperty} />
           <Route path="/wishlist" component={Wishlist} />
+          <Route path="/search-history" component={SearchHistoryPage} />
           <Route path="/messages" component={Messages} />
           <Route path="/owner/properties" component={OwnerProperties} />
           <Route path="/owner/properties/new" component={AddProperty} />

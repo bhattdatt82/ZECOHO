@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, updateKYCSchema, becomeOwnerSchema } from "@shared/schema";
+import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 
@@ -1053,6 +1053,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting property:", error);
       res.status(500).json({ message: "Failed to delete property" });
+    }
+  });
+
+  // Search history routes
+  app.post("/api/search-history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertSearchHistorySchema.parse(req.body);
+      const search = await storage.createSearchHistory(userId, validatedData);
+      res.json(search);
+    } catch (error) {
+      console.error("Error saving search history:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid search data" });
+      }
+      res.status(500).json({ message: "Failed to save search history" });
+    }
+  });
+
+  app.get("/api/search-history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+      const searches = await storage.getUserSearchHistory(userId, limit);
+      res.json(searches);
+    } catch (error) {
+      console.error("Error fetching search history:", error);
+      res.status(500).json({ message: "Failed to fetch search history" });
+    }
+  });
+
+  app.delete("/api/search-history/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteSearchHistory(req.params.id);
+      res.json({ message: "Search history deleted" });
+    } catch (error) {
+      console.error("Error deleting search history:", error);
+      res.status(500).json({ message: "Failed to delete search history" });
     }
   });
 

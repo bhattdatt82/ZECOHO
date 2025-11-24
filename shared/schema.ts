@@ -229,11 +229,25 @@ export const destinations = pgTable("destinations", {
   index("idx_featured").on(table.isFeatured, table.featuredDate),
 ]);
 
+// Search history table - tracks user searches for personalization
+export const searchHistory = pgTable("search_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  destination: varchar("destination", { length: 255 }).notNull(),
+  checkIn: timestamp("check_in"),
+  checkOut: timestamp("check_out"),
+  guests: integer("guests"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_user_created").on(table.userId, table.createdAt),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   properties: many(properties),
   wishlists: many(wishlists),
   preferences: one(userPreferences),
+  searchHistory: many(searchHistory),
   bookingsAsGuest: many(bookings, { relationName: "guestBookings" }),
   conversationsAsGuest: many(conversations, { relationName: "guestConversations" }),
   conversationsAsOwner: many(conversations, { relationName: "ownerConversations" }),
@@ -344,6 +358,13 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   booking: one(bookings, {
     fields: [reviews.bookingId],
     references: [bookings.id],
+  }),
+}));
+
+export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [searchHistory.userId],
+    references: [users.id],
   }),
 }));
 
@@ -470,3 +491,13 @@ export const insertDestinationSchema = createInsertSchema(destinations).omit({
 
 export type InsertDestination = z.infer<typeof insertDestinationSchema>;
 export type Destination = typeof destinations.$inferSelect;
+
+// Search history insert schema and types
+export const insertSearchHistorySchema = createInsertSchema(searchHistory).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export type InsertSearchHistory = z.infer<typeof insertSearchHistorySchema>;
+export type SearchHistory = typeof searchHistory.$inferSelect;
