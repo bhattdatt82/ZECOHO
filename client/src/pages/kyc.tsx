@@ -35,7 +35,7 @@ const kycSchema = z.object({
   panNumber: z.string().min(10, "Valid PAN number is required"),
   
   // Additional Information
-  numberOfRooms: z.string().min(1, "Number of rooms is required"),
+  numberOfRooms: z.coerce.number().min(1, "Number of rooms must be at least 1"),
   description: z.string().min(50, "Please provide at least 50 characters description"),
 });
 
@@ -62,7 +62,7 @@ export default function KYC() {
       businessName: "",
       gstNumber: "",
       panNumber: "",
-      numberOfRooms: "",
+      numberOfRooms: 0,
       description: "",
     },
   });
@@ -109,11 +109,8 @@ export default function KYC() {
 
   const submitKYC = useMutation({
     mutationFn: async (data: KYCFormData) => {
-      return await apiRequest("/api/kyc/submit", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
+      const response = await apiRequest("POST", "/api/kyc/submit", data);
+      return await response.json();
     },
     onSuccess: () => {
       setIsSubmitted(true);
