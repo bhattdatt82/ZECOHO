@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Search from "@/pages/search";
@@ -65,11 +66,14 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       {!isLoading && isAuthenticated && <Header />}
-      <Router />
+      <div className="flex-1">
+        <Router />
+      </div>
+      <Footer />
       <Toaster />
-    </>
+    </div>
   );
 }
 
