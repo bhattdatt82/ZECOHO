@@ -2,6 +2,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { users } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -71,6 +73,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in test admin login:", error);
       res.status(500).json({ message: "Test admin login failed" });
+    }
+  });
+
+  // Self-promotion to admin (only works if no admin exists)
+  app.post('/api/promote-me-to-admin', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user is already admin
+      if (currentUser.userRole === 'admin') {
+        return res.json({ 
+          message: "You are already an admin", 
+          user: currentUser 
+        });
+      }
+
+      // Check if any admin exists in the system
+      const allUsers = await db.select().from(users);
+      const existingAdmin = allUsers.find(u => u.userRole === 'admin');
+
+      if (existingAdmin) {
+        return res.status(403).json({ 
+          message: "An admin already exists. Please contact the existing admin for promotion.",
+          adminEmail: existingAdmin.email
+        });
+      }
+
+      // No admin exists - promote this user to be the first admin
+      const updatedUser = await storage.upsertUser({
+        ...currentUser,
+        userRole: 'admin',
+      });
+
+      res.json({ 
+        message: "Successfully promoted to admin! You are now the first admin of ZECOHO.", 
+        user: updatedUser 
+      });
+    } catch (error) {
+      console.error("Error promoting to admin:", error);
+      res.status(500).json({ message: "Failed to promote to admin" });
     }
   });
 
