@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { Home as HomeIcon, MapPin, Calendar, DollarSign, Check, Shield, TrendingDown, Sparkles, Award, Handshake, Users } from "lucide-react";
+import { Home as HomeIcon, MapPin, Calendar, Check, Shield, TrendingDown, Sparkles, Award, Handshake, Users } from "lucide-react";
 import type { Property, Destination } from "@shared/schema";
 import heroImage from "@assets/generated_images/luxury_villa_hero_image.png";
 
@@ -67,7 +67,6 @@ export default function Home() {
           {/* ZERO Commission Badge */}
           <div className="mb-6 flex justify-center">
             <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 text-sm font-bold border-2 border-white/20">
-              <DollarSign className="h-4 w-4 mr-2" />
               ZERO COMMISSION PLATFORM
             </Badge>
           </div>
