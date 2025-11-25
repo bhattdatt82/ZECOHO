@@ -1,5 +1,5 @@
 // Referenced from blueprint:javascript_log_in_with_replit
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,7 +15,6 @@ import Wishlist from "@/pages/wishlist";
 import Messages from "@/pages/messages";
 import OwnerProperties from "@/pages/owner-properties";
 import AddProperty from "@/pages/add-property";
-import ListProperty from "@/pages/list-property";
 import Profile from "@/pages/profile";
 import Destinations from "@/pages/destinations";
 import DestinationDetails from "@/pages/destination-details";
@@ -36,7 +35,9 @@ function Router() {
       {isAuthenticated && !isLoading && (
         <>
           <Route path="/" component={Home} />
-          <Route path="/list-property" component={ListProperty} />
+          <Route path="/list-property">
+            <Redirect to="/kyc" />
+          </Route>
           <Route path="/wishlist" component={Wishlist} />
           <Route path="/search-history" component={SearchHistoryPage} />
           <Route path="/messages" component={Messages} />

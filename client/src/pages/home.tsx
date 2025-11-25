@@ -198,7 +198,7 @@ export default function Home() {
           <Button 
             variant="secondary"
             size="lg"
-            onClick={() => setLocation("/list-property")}
+            onClick={() => setLocation("/kyc")}
             data-testid="button-list-property-cta"
             className="whitespace-nowrap"
           >
