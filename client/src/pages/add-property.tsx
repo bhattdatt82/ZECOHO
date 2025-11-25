@@ -53,7 +53,7 @@ export default function AddProperty() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       propertyType: "hotel",
-      status: "draft",
+      status: "pending",
       images: [],
       videos: [],
       maxGuests: 2,
@@ -110,7 +110,7 @@ export default function AddProperty() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Property created successfully",
+        description: "Property submitted for review. You'll be notified once it's approved.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/owner/properties"] });
       setLocation("/owner/properties");
@@ -487,23 +487,15 @@ export default function AddProperty() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Publish</CardTitle>
+                  <CardTitle>Submit for Review</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      value={watch("status")}
-                      onValueChange={(value) => setValue("status", value as any)}
-                    >
-                      <SelectTrigger data-testid="select-status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Save as draft</SelectItem>
-                        <SelectItem value="published">Publish now</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Admin Approval Required</h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Your property will be submitted for admin review. Once approved, it will be visible to all guests on ZECOHO. 
+                      You'll be notified when the review is complete.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -517,7 +509,7 @@ export default function AddProperty() {
                   disabled={createPropertyMutation.isPending}
                   data-testid="button-submit-property"
                 >
-                  {createPropertyMutation.isPending ? "Creating..." : "Create property"}
+                  {createPropertyMutation.isPending ? "Submitting..." : "Submit for Review"}
                 </Button>
               </div>
             </div>

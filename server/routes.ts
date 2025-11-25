@@ -999,7 +999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only admins can access this endpoint" });
       }
 
-      const properties = await storage.getProperties();
+      const properties = await storage.getProperties({ includeAllStatuses: true });
       res.json(properties);
     } catch (error) {
       console.error("Error fetching admin properties:", error);

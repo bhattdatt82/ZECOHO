@@ -170,10 +170,24 @@ export class DatabaseStorage implements IStorage {
     maxPrice?: number;
     minGuests?: number;
     ownerId?: string;
+    status?: string;
+    includeAllStatuses?: boolean;
   }): Promise<Property[]> {
     let query = db.select().from(properties);
 
     const conditions = [];
+    
+    // By default, only show published properties for public search
+    // Unless explicitly requesting all statuses (for admin/owner views)
+    if (!filters?.includeAllStatuses) {
+      if (filters?.status) {
+        conditions.push(eq(properties.status, filters.status as any));
+      } else if (!filters?.ownerId) {
+        // For public searches (no ownerId), only show published
+        conditions.push(eq(properties.status, "published"));
+      }
+    }
+    
     if (filters?.destination) {
       conditions.push(sql`${properties.destination} ILIKE ${`%${filters.destination}%`}`);
     }
