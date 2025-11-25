@@ -23,6 +23,7 @@ import AdminDestinations from "@/pages/admin-destinations";
 import AdminProperties from "@/pages/admin-properties";
 import AdminAccess from "@/pages/admin-access";
 import KYC from "@/pages/kyc";
+import DevAdminLogin from "@/pages/dev-admin-login";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -51,6 +52,7 @@ function Router() {
         </>
       )}
       <Route path="/admin-access" component={AdminAccess} />
+      <Route path="/dev-admin" component={DevAdminLogin} />
       <Route path="/kyc" component={KYC} />
       <Route path="/search" component={Search} />
       <Route path="/properties" component={Search} />
