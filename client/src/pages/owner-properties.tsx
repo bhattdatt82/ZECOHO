@@ -1,13 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Eye, MapPin } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, Edit, Eye, MapPin, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Property } from "@shared/schema";
 
 export default function OwnerProperties() {
@@ -30,6 +42,26 @@ export default function OwnerProperties() {
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/owner/properties"],
     enabled: isAuthenticated && !authLoading,
+  });
+
+  const deletePropertyMutation = useMutation({
+    mutationFn: async (propertyId: string) => {
+      await apiRequest("DELETE", `/api/properties/${propertyId}`, undefined);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Property Deleted",
+        description: "Your property has been removed successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/properties"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete property",
+        variant: "destructive",
+      });
+    },
   });
 
   // Show loading state while auth is being verified
@@ -128,18 +160,47 @@ export default function OwnerProperties() {
                       <span className="text-sm text-muted-foreground">/ night</span>
                     </div>
                     <div className="flex gap-2">
-                      <Button asChild variant="outline" className="flex-1" data-testid={`button-view-${property.id}`}>
+                      <Button asChild variant="outline" size="icon" data-testid={`button-view-${property.id}`}>
                         <Link href={`/properties/${property.id}`}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
+                          <Eye className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button asChild className="flex-1" data-testid={`button-edit-${property.id}`}>
+                      <Button asChild variant="outline" size="icon" data-testid={`button-edit-${property.id}`}>
                         <Link href={`/owner/properties/${property.id}/edit`}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          <Edit className="h-4 w-4" />
                         </Link>
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            data-testid={`button-delete-${property.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Property?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{property.title}"? This action cannot be undone and will permanently remove the property from your listings.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel data-testid={`button-cancel-delete-${property.id}`}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deletePropertyMutation.mutate(property.id)}
+                              className="bg-destructive hover:bg-destructive/90"
+                              data-testid={`button-confirm-delete-${property.id}`}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </CardContent>
                 </Card>
