@@ -13,6 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, FileText, User, MapPin, Phone, Mail, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
 
 const kycSchema = z.object({
   // Personal Information
@@ -359,6 +360,7 @@ export default function KYC() {
                   />
 
                   <div className="grid md:grid-cols-2 gap-4">
+                    {/* City Autocomplete with datalist */}
                     <FormField
                       control={form.control}
                       name="city"
@@ -366,16 +368,27 @@ export default function KYC() {
                         <FormItem>
                           <FormLabel>City</FormLabel>
                           <FormControl>
-                            <Input placeholder="Mumbai" {...field} data-testid="input-city" />
+                            <Input
+                              placeholder="Type city name..."
+                              list="cities-list"
+                              {...field}
+                              data-testid="input-city"
+                            />
                           </FormControl>
+                          <datalist id="cities-list">
+                            {INDIAN_CITIES.map((city) => (
+                              <option key={city} value={city} />
+                            ))}
+                          </datalist>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Auto-filled from PIN code or enter manually
+                            Auto-filled from PIN code or type to search
                           </p>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                     
+                    {/* State Autocomplete with datalist */}
                     <FormField
                       control={form.control}
                       name="state"
@@ -383,10 +396,20 @@ export default function KYC() {
                         <FormItem>
                           <FormLabel>State</FormLabel>
                           <FormControl>
-                            <Input placeholder="Maharashtra" {...field} data-testid="input-state" />
+                            <Input
+                              placeholder="Type state name..."
+                              list="states-list"
+                              {...field}
+                              data-testid="input-state"
+                            />
                           </FormControl>
+                          <datalist id="states-list">
+                            {INDIAN_STATES.map((state) => (
+                              <option key={state} value={state} />
+                            ))}
+                          </datalist>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Auto-filled from PIN code or enter manually
+                            Auto-filled from PIN code or type to search
                           </p>
                           <FormMessage />
                         </FormItem>
