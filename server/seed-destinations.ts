@@ -1,6 +1,48 @@
 import { storage } from "./storage";
 
-const destinationsData = [
+interface DestinationData {
+  name: string;
+  state: string;
+  shortDescription: string;
+  detailedInsight?: string;
+  highlights?: string[];
+  imageUrl?: string;
+  bestSeason?: string;
+  isFeatured?: boolean;
+  featuredDate?: Date;
+}
+
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=800";
+
+function generateDetailedInsight(name: string, state: string, shortDescription: string): string {
+  return `${name} is a captivating destination in ${state}. ${shortDescription}. This destination offers travelers a unique blend of culture, history, and natural beauty. Whether you're seeking adventure, relaxation, or cultural immersion, ${name} has something special to offer every visitor.`;
+}
+
+function generateHighlights(shortDescription: string): string[] {
+  const highlights = [
+    "Rich cultural heritage",
+    "Local cuisine",
+    "Warm hospitality"
+  ];
+  if (shortDescription.toLowerCase().includes("temple") || shortDescription.toLowerCase().includes("pilgrimage")) {
+    highlights.push("Religious significance");
+  }
+  if (shortDescription.toLowerCase().includes("beach")) {
+    highlights.push("Beautiful beaches");
+  }
+  if (shortDescription.toLowerCase().includes("hill") || shortDescription.toLowerCase().includes("mountain")) {
+    highlights.push("Scenic mountain views");
+  }
+  if (shortDescription.toLowerCase().includes("fort") || shortDescription.toLowerCase().includes("palace")) {
+    highlights.push("Historic architecture");
+  }
+  if (shortDescription.toLowerCase().includes("wildlife") || shortDescription.toLowerCase().includes("tiger") || shortDescription.toLowerCase().includes("sanctuary")) {
+    highlights.push("Wildlife experiences");
+  }
+  return highlights;
+}
+
+const destinationsData: DestinationData[] = [
   // FEATURED DESTINATIONS
   {
     name: "Goa",
@@ -49,6 +91,11 @@ const destinationsData = [
   { name: "Machilipatnam", state: "Andhra Pradesh", shortDescription: "Historic port with Kalamkari art" },
   { name: "Tenali", state: "Andhra Pradesh", shortDescription: "Rice bowl of Andhra Pradesh" },
   { name: "Proddatur", state: "Andhra Pradesh", shortDescription: "Historic town with temples" },
+  { name: "Hindupur", state: "Andhra Pradesh", shortDescription: "Gateway to Penukonda Fort" },
+  { name: "Tadepalligudem", state: "Andhra Pradesh", shortDescription: "Agricultural hub in West Godavari" },
+  { name: "Narasaraopet", state: "Andhra Pradesh", shortDescription: "Historic town with Kotappakonda Temple" },
+  { name: "Vizianagaram", state: "Andhra Pradesh", shortDescription: "Fort city with rich history" },
+  { name: "Amaravati", state: "Andhra Pradesh", shortDescription: "New capital with Buddhist heritage" },
   
   // ARUNACHAL PRADESH
   { name: "Itanagar", state: "Arunachal Pradesh", shortDescription: "Capital city with Ita Fort ruins" },
@@ -59,6 +106,11 @@ const destinationsData = [
   { name: "Along", state: "Arunachal Pradesh", shortDescription: "Tribal town with hanging bridges" },
   { name: "Tezu", state: "Arunachal Pradesh", shortDescription: "Gateway to Glow Lake" },
   { name: "Naharlagun", state: "Arunachal Pradesh", shortDescription: "Twin city of Itanagar" },
+  { name: "Roing", state: "Arunachal Pradesh", shortDescription: "Gateway to Mehao Wildlife Sanctuary" },
+  { name: "Anini", state: "Arunachal Pradesh", shortDescription: "Remote town with pristine nature" },
+  { name: "Dirang", state: "Arunachal Pradesh", shortDescription: "Valley town with hot springs" },
+  { name: "Seppa", state: "Arunachal Pradesh", shortDescription: "District headquarters of East Kameng" },
+  { name: "Daporijo", state: "Arunachal Pradesh", shortDescription: "Town on Subansiri River banks" },
   
   // ASSAM
   { name: "Guwahati", state: "Assam", shortDescription: "Gateway to Northeast India with Kamakhya Temple" },
@@ -72,6 +124,12 @@ const destinationsData = [
   { name: "Sibsagar", state: "Assam", shortDescription: "Ahom dynasty capital with heritage sites" },
   { name: "Majuli", state: "Assam", shortDescription: "World's largest river island" },
   { name: "Kaziranga", state: "Assam", shortDescription: "UNESCO site famous for one-horned rhinos" },
+  { name: "Barpeta", state: "Assam", shortDescription: "Religious town with satras" },
+  { name: "Goalpara", state: "Assam", shortDescription: "Gateway to Manas National Park" },
+  { name: "Haflong", state: "Assam", shortDescription: "Only hill station of Assam" },
+  { name: "Diphu", state: "Assam", shortDescription: "Karbi Anglong district headquarters" },
+  { name: "Dhubri", state: "Assam", shortDescription: "Border town on Brahmaputra" },
+  { name: "Nalbari", state: "Assam", shortDescription: "Agricultural hub of lower Assam" },
   
   // BIHAR
   { name: "Patna", state: "Bihar", shortDescription: "Ancient capital on the Ganges with rich history" },
@@ -85,6 +143,17 @@ const destinationsData = [
   { name: "Rajgir", state: "Bihar", shortDescription: "Ancient city with hot springs" },
   { name: "Sasaram", state: "Bihar", shortDescription: "Tomb of Sher Shah Suri" },
   { name: "Vaishali", state: "Bihar", shortDescription: "Ancient republic and Buddhist site" },
+  { name: "Araria", state: "Bihar", shortDescription: "Border town near Nepal" },
+  { name: "Begusarai", state: "Bihar", shortDescription: "Industrial town with refineries" },
+  { name: "Bihar Sharif", state: "Bihar", shortDescription: "Historic town with Sufi shrines" },
+  { name: "Chhapra", state: "Bihar", shortDescription: "Town on Ganga-Ghaghara confluence" },
+  { name: "Hajipur", state: "Bihar", shortDescription: "Famous for banana cultivation" },
+  { name: "Katihar", state: "Bihar", shortDescription: "Railway junction town" },
+  { name: "Madhubani", state: "Bihar", shortDescription: "Famous for Madhubani paintings" },
+  { name: "Motihari", state: "Bihar", shortDescription: "Associated with Mahatma Gandhi" },
+  { name: "Saharsa", state: "Bihar", shortDescription: "Town in Kosi region" },
+  { name: "Sitamarhi", state: "Bihar", shortDescription: "Birthplace of Goddess Sita" },
+  { name: "Siwan", state: "Bihar", shortDescription: "Historic town with sugar mills" },
   
   // CHHATTISGARH
   { name: "Raipur", state: "Chhattisgarh", shortDescription: "Capital city with lakes and temples" },
@@ -96,6 +165,13 @@ const destinationsData = [
   { name: "Raigarh", state: "Chhattisgarh", shortDescription: "Cultural capital with music tradition" },
   { name: "Ambikapur", state: "Chhattisgarh", shortDescription: "Cleanest city with tribal culture" },
   { name: "Chitrakote", state: "Chhattisgarh", shortDescription: "Niagara Falls of India" },
+  { name: "Dhamtari", state: "Chhattisgarh", shortDescription: "Rice bowl with Gangrel Dam" },
+  { name: "Rajnandgaon", state: "Chhattisgarh", shortDescription: "Industrial town with handlooms" },
+  { name: "Kawardha", state: "Chhattisgarh", shortDescription: "Royal heritage with palace" },
+  { name: "Dongargarh", state: "Chhattisgarh", shortDescription: "Pilgrimage with Maa Bamleshwari Temple" },
+  { name: "Mahasamund", state: "Chhattisgarh", shortDescription: "Agricultural hub with temples" },
+  { name: "Surguja", state: "Chhattisgarh", shortDescription: "Tribal region with natural beauty" },
+  { name: "Bastar", state: "Chhattisgarh", shortDescription: "Tribal heartland with Dussehra" },
   
   // GOA
   { name: "Panaji", state: "Goa", shortDescription: "Capital city with Portuguese architecture" },
@@ -113,6 +189,11 @@ const destinationsData = [
   { name: "Morjim", state: "Goa", shortDescription: "Turtle nesting beach" },
   { name: "Colva", state: "Goa", shortDescription: "Popular beach in South Goa" },
   { name: "Old Goa", state: "Goa", shortDescription: "UNESCO churches and cathedrals" },
+  { name: "Benaulim", state: "Goa", shortDescription: "Quiet beach village in South Goa" },
+  { name: "Agonda", state: "Goa", shortDescription: "Pristine beach with dolphins" },
+  { name: "Cavelossim", state: "Goa", shortDescription: "Upscale beach destination" },
+  { name: "Dudhsagar", state: "Goa", shortDescription: "Famous waterfall on Karnataka border" },
+  { name: "Sinquerim", state: "Goa", shortDescription: "Beach with Aguada Fort" },
   
   // GUJARAT
   { name: "Ahmedabad", state: "Gujarat", shortDescription: "UNESCO heritage city with rich textile history" },
@@ -135,6 +216,21 @@ const destinationsData = [
   { name: "Palitana", state: "Gujarat", shortDescription: "City of temples on Shatrunjaya hill" },
   { name: "Modhera", state: "Gujarat", shortDescription: "Famous Sun Temple" },
   { name: "Patan", state: "Gujarat", shortDescription: "UNESCO Rani ki Vav stepwell" },
+  { name: "Anand", state: "Gujarat", shortDescription: "Milk capital of India" },
+  { name: "Navsari", state: "Gujarat", shortDescription: "Historic Parsi settlement" },
+  { name: "Morbi", state: "Gujarat", shortDescription: "Ceramic tile hub" },
+  { name: "Veraval", state: "Gujarat", shortDescription: "Fishing port near Somnath" },
+  { name: "Mehsana", state: "Gujarat", shortDescription: "Gateway to Modhera Sun Temple" },
+  { name: "Nadiad", state: "Gujarat", shortDescription: "Pilgrimage town with Santram Mandir" },
+  { name: "Surendranagar", state: "Gujarat", shortDescription: "Gateway to Little Rann" },
+  { name: "Bharuch", state: "Gujarat", shortDescription: "Ancient port on Narmada River" },
+  { name: "Valsad", state: "Gujarat", shortDescription: "Southern coastal district" },
+  { name: "Godhra", state: "Gujarat", shortDescription: "Historic town in Panchmahal" },
+  { name: "Mandvi", state: "Gujarat", shortDescription: "Beach town with ship building" },
+  { name: "Adalaj", state: "Gujarat", shortDescription: "Famous stepwell architecture" },
+  { name: "Lothal", state: "Gujarat", shortDescription: "Indus Valley Civilization site" },
+  { name: "Champaner", state: "Gujarat", shortDescription: "UNESCO archaeological park" },
+  { name: "Pavagadh", state: "Gujarat", shortDescription: "Pilgrimage with Kalika Mata Temple" },
   
   // HARYANA
   { name: "Gurugram", state: "Haryana", shortDescription: "Millennium City and IT hub" },
@@ -149,6 +245,14 @@ const destinationsData = [
   { name: "Kurukshetra", state: "Haryana", shortDescription: "Land of Mahabharata war" },
   { name: "Panchkula", state: "Haryana", shortDescription: "Planned city with Morni Hills" },
   { name: "Yamunanagar", state: "Haryana", shortDescription: "Paper industry hub" },
+  { name: "Bhiwani", state: "Haryana", shortDescription: "Wrestling hub with boxers" },
+  { name: "Jind", state: "Haryana", shortDescription: "Ancient town with temples" },
+  { name: "Kaithal", state: "Haryana", shortDescription: "Historic town with baolis" },
+  { name: "Palwal", state: "Haryana", shortDescription: "Agricultural town near Delhi" },
+  { name: "Rewari", state: "Haryana", shortDescription: "Brass industry center" },
+  { name: "Sirsa", state: "Haryana", shortDescription: "Cotton growing region" },
+  { name: "Morni Hills", state: "Haryana", shortDescription: "Only hill station in Haryana" },
+  { name: "Sultanpur", state: "Haryana", shortDescription: "Bird sanctuary near Gurugram" },
   
   // HIMACHAL PRADESH
   { name: "Shimla", state: "Himachal Pradesh", shortDescription: "Queen of Hills and former summer capital" },
@@ -170,6 +274,27 @@ const destinationsData = [
   { name: "Tirthan Valley", state: "Himachal Pradesh", shortDescription: "Offbeat destination with trout fishing" },
   { name: "Jibhi", state: "Himachal Pradesh", shortDescription: "Serene village in Tirthan Valley" },
   { name: "Malana", state: "Himachal Pradesh", shortDescription: "Ancient village with unique culture" },
+  { name: "Narkanda", state: "Himachal Pradesh", shortDescription: "Apple orchards and skiing" },
+  { name: "Palampur", state: "Himachal Pradesh", shortDescription: "Tea capital of North India" },
+  { name: "Barot", state: "Himachal Pradesh", shortDescription: "Offbeat valley with trout fishing" },
+  { name: "Chitkul", state: "Himachal Pradesh", shortDescription: "Last inhabited village near Tibet" },
+  { name: "Kalpa", state: "Himachal Pradesh", shortDescription: "Kinner Kailash views and apples" },
+  { name: "Sangla Valley", state: "Himachal Pradesh", shortDescription: "Beautiful valley in Kinnaur" },
+  { name: "Manikaran", state: "Himachal Pradesh", shortDescription: "Hot springs and Sikh shrine" },
+  { name: "Prashar Lake", state: "Himachal Pradesh", shortDescription: "Sacred lake with floating island" },
+  { name: "Kaza", state: "Himachal Pradesh", shortDescription: "Headquarters of Spiti Valley" },
+  { name: "Tabo", state: "Himachal Pradesh", shortDescription: "Ajanta of Himalayas monastery" },
+  { name: "Key Monastery", state: "Himachal Pradesh", shortDescription: "Largest monastery in Spiti" },
+  { name: "Triund", state: "Himachal Pradesh", shortDescription: "Popular trek near Dharamshala" },
+  { name: "Solan", state: "Himachal Pradesh", shortDescription: "Mushroom capital with breweries" },
+  { name: "Mandi", state: "Himachal Pradesh", shortDescription: "Gateway to Kullu and Dharamshala" },
+  { name: "Bilaspur", state: "Himachal Pradesh", shortDescription: "Gobind Sagar Lake destination" },
+  { name: "Una", state: "Himachal Pradesh", shortDescription: "Gateway to Himachal from Punjab" },
+  { name: "Hamirpur", state: "Himachal Pradesh", shortDescription: "Most literate district in India" },
+  { name: "Nahan", state: "Himachal Pradesh", shortDescription: "Capital of Sirmaur with Renuka Lake" },
+  { name: "Sarahan", state: "Himachal Pradesh", shortDescription: "Bhimakali Temple and views" },
+  { name: "Tattapani", state: "Himachal Pradesh", shortDescription: "Hot springs on Sutlej banks" },
+  { name: "Chail", state: "Himachal Pradesh", shortDescription: "Highest cricket ground location" },
   
   // JHARKHAND
   { name: "Ranchi", state: "Jharkhand", shortDescription: "City of waterfalls and capital" },
@@ -181,6 +306,12 @@ const destinationsData = [
   { name: "Giridih", state: "Jharkhand", shortDescription: "Known for mica and Jain temples" },
   { name: "Netarhat", state: "Jharkhand", shortDescription: "Queen of Chotanagpur" },
   { name: "Betla", state: "Jharkhand", shortDescription: "National park with tigers" },
+  { name: "Hundru Falls", state: "Jharkhand", shortDescription: "Highest waterfall in Jharkhand" },
+  { name: "Parasnath", state: "Jharkhand", shortDescription: "Highest peak and Jain pilgrimage" },
+  { name: "Dalma", state: "Jharkhand", shortDescription: "Wildlife sanctuary with elephants" },
+  { name: "Rajmahal", state: "Jharkhand", shortDescription: "Historic town on Ganges" },
+  { name: "Chandil", state: "Jharkhand", shortDescription: "Dam and water sports" },
+  { name: "McCluskieganj", state: "Jharkhand", shortDescription: "Anglo-Indian heritage town" },
   
   // KARNATAKA
   { name: "Bengaluru", state: "Karnataka", shortDescription: "Silicon Valley of India with pleasant weather" },
@@ -203,6 +334,26 @@ const destinationsData = [
   { name: "Shravanabelagola", state: "Karnataka", shortDescription: "Jain pilgrimage with Gommateshwara" },
   { name: "Murudeshwar", state: "Karnataka", shortDescription: "Temple with world's second tallest Shiva" },
   { name: "Agumbe", state: "Karnataka", shortDescription: "Cherrapunji of South India" },
+  { name: "Davangere", state: "Karnataka", shortDescription: "Famous for Benne Dosa" },
+  { name: "Chitradurga", state: "Karnataka", shortDescription: "Stone fortress and history" },
+  { name: "Karwar", state: "Karnataka", shortDescription: "Beach town and naval base" },
+  { name: "Jog Falls", state: "Karnataka", shortDescription: "Second highest plunge waterfall" },
+  { name: "Pattadakal", state: "Karnataka", shortDescription: "UNESCO Chalukyan temples" },
+  { name: "Aihole", state: "Karnataka", shortDescription: "Cradle of Indian temple architecture" },
+  { name: "Hassan", state: "Karnataka", shortDescription: "Gateway to Belur and Halebidu" },
+  { name: "Belur", state: "Karnataka", shortDescription: "Hoysala temple architecture" },
+  { name: "Halebidu", state: "Karnataka", shortDescription: "Hoysala capital with temples" },
+  { name: "Srirangapatna", state: "Karnataka", shortDescription: "Tipu Sultan's capital" },
+  { name: "Melukote", state: "Karnataka", shortDescription: "Temple town on hills" },
+  { name: "Channapatna", state: "Karnataka", shortDescription: "Toy town with wooden crafts" },
+  { name: "Shimoga", state: "Karnataka", shortDescription: "Gateway to Jog Falls" },
+  { name: "Raichur", state: "Karnataka", shortDescription: "Historic fort city" },
+  { name: "Gulbarga", state: "Karnataka", shortDescription: "Historic city with fort" },
+  { name: "BR Hills", state: "Karnataka", shortDescription: "Biligiriranga Hills wildlife" },
+  { name: "Sakleshpur", state: "Karnataka", shortDescription: "Coffee estates and trekking" },
+  { name: "Kudremukh", state: "Karnataka", shortDescription: "National park and trekking" },
+  { name: "Bhadra", state: "Karnataka", shortDescription: "Tiger reserve with safari" },
+  { name: "Nagarhole", state: "Karnataka", shortDescription: "Rajiv Gandhi National Park" },
   
   // KERALA
   { name: "Thiruvananthapuram", state: "Kerala", shortDescription: "Capital city with Padmanabhaswamy Temple" },
@@ -222,6 +373,19 @@ const destinationsData = [
   { name: "Fort Kochi", state: "Kerala", shortDescription: "Historic quarter with Chinese nets" },
   { name: "Marari", state: "Kerala", shortDescription: "Secluded beach destination" },
   { name: "Vagamon", state: "Kerala", shortDescription: "Hill station with meadows" },
+  { name: "Kollam", state: "Kerala", shortDescription: "Cashew capital and backwaters" },
+  { name: "Palakkad", state: "Kerala", shortDescription: "Gateway of Kerala with fort" },
+  { name: "Guruvayur", state: "Kerala", shortDescription: "Sacred Krishna Temple town" },
+  { name: "Kottayam", state: "Kerala", shortDescription: "Land of letters and rubber" },
+  { name: "Poovar", state: "Kerala", shortDescription: "Backwater island destination" },
+  { name: "Cherai", state: "Kerala", shortDescription: "Beach near Kochi" },
+  { name: "Alappuzha", state: "Kerala", shortDescription: "Houseboat capital of Kerala" },
+  { name: "Malappuram", state: "Kerala", shortDescription: "Football hub of Kerala" },
+  { name: "Kasaragod", state: "Kerala", shortDescription: "Northernmost district with forts" },
+  { name: "Idukki", state: "Kerala", shortDescription: "Arch dam and hill stations" },
+  { name: "Nelliampathy", state: "Kerala", shortDescription: "Mini Ooty of Kerala" },
+  { name: "Silent Valley", state: "Kerala", shortDescription: "Last evergreen tropical forest" },
+  { name: "Ponmudi", state: "Kerala", shortDescription: "Golden peak hill station" },
   
   // LADAKH
   { name: "Leh", state: "Ladakh", shortDescription: "High-altitude desert capital with monasteries" },
@@ -234,6 +398,14 @@ const destinationsData = [
   { name: "Hemis", state: "Ladakh", shortDescription: "Famous monastery with festival" },
   { name: "Lamayuru", state: "Ladakh", shortDescription: "Moonland landscape monastery" },
   { name: "Diskit", state: "Ladakh", shortDescription: "Monastery with giant Buddha statue" },
+  { name: "Thiksey", state: "Ladakh", shortDescription: "Mini Potala Palace monastery" },
+  { name: "Shey", state: "Ladakh", shortDescription: "Ancient capital with palace" },
+  { name: "Alchi", state: "Ladakh", shortDescription: "Ancient monastery with murals" },
+  { name: "Likir", state: "Ladakh", shortDescription: "Monastery with giant Buddha" },
+  { name: "Stok", state: "Ladakh", shortDescription: "Royal palace and museum" },
+  { name: "Changthang", state: "Ladakh", shortDescription: "High altitude plateau with nomads" },
+  { name: "Turtuk", state: "Ladakh", shortDescription: "Northernmost village of India" },
+  { name: "Hanle", state: "Ladakh", shortDescription: "Dark sky reserve for stargazing" },
   
   // MADHYA PRADESH
   { name: "Bhopal", state: "Madhya Pradesh", shortDescription: "City of Lakes and capital" },
@@ -252,6 +424,18 @@ const destinationsData = [
   { name: "Omkareshwar", state: "Madhya Pradesh", shortDescription: "Om-shaped island Jyotirlinga" },
   { name: "Maheshwar", state: "Madhya Pradesh", shortDescription: "Temple town on Narmada with sarees" },
   { name: "Bhimbetka", state: "Madhya Pradesh", shortDescription: "UNESCO rock shelters with cave paintings" },
+  { name: "Satna", state: "Madhya Pradesh", shortDescription: "Gateway to Chitrakoot" },
+  { name: "Rewa", state: "Madhya Pradesh", shortDescription: "Historic Rewa state capital" },
+  { name: "Sagar", state: "Madhya Pradesh", shortDescription: "Lake city with university" },
+  { name: "Burhanpur", state: "Madhya Pradesh", shortDescription: "Mughal city where Mumtaz died" },
+  { name: "Datia", state: "Madhya Pradesh", shortDescription: "Seven-storey palace wonder" },
+  { name: "Shivpuri", state: "Madhya Pradesh", shortDescription: "Former Scindia hunting grounds" },
+  { name: "Chanderi", state: "Madhya Pradesh", shortDescription: "Handloom sarees and ruins" },
+  { name: "Amarkantak", state: "Madhya Pradesh", shortDescription: "Source of Narmada and Son rivers" },
+  { name: "Bhojpur", state: "Madhya Pradesh", shortDescription: "Bhojeshwar Temple with massive Shiva" },
+  { name: "Vidisha", state: "Madhya Pradesh", shortDescription: "Ancient city near Sanchi" },
+  { name: "Dhar", state: "Madhya Pradesh", shortDescription: "Historic Malwa capital" },
+  { name: "Satpura", state: "Madhya Pradesh", shortDescription: "Tiger reserve with boat safaris" },
   
   // MAHARASHTRA
   { name: "Mumbai", state: "Maharashtra", shortDescription: "City of Dreams and financial capital" },
@@ -277,6 +461,25 @@ const destinationsData = [
   { name: "Bhandardara", state: "Maharashtra", shortDescription: "Lake surrounded by Sahyadri hills" },
   { name: "Khandala", state: "Maharashtra", shortDescription: "Twin hill station of Lonavala" },
   { name: "Igatpuri", state: "Maharashtra", shortDescription: "Vipassana center and trekking" },
+  { name: "Solapur", state: "Maharashtra", shortDescription: "Textile city with temples" },
+  { name: "Sangli", state: "Maharashtra", shortDescription: "Turmeric trading center" },
+  { name: "Satara", state: "Maharashtra", shortDescription: "Historic Maratha capital" },
+  { name: "Ahmednagar", state: "Maharashtra", shortDescription: "Historic city with fort" },
+  { name: "Amravati", state: "Maharashtra", shortDescription: "Gateway to Melghat" },
+  { name: "Chandrapur", state: "Maharashtra", shortDescription: "Gateway to Tadoba" },
+  { name: "Jalgaon", state: "Maharashtra", shortDescription: "Banana capital of India" },
+  { name: "Latur", state: "Maharashtra", shortDescription: "Dal processing hub" },
+  { name: "Nanded", state: "Maharashtra", shortDescription: "Sikh pilgrimage Hazur Sahib" },
+  { name: "Wardha", state: "Maharashtra", shortDescription: "Sevagram Ashram of Gandhi" },
+  { name: "Murud Janjira", state: "Maharashtra", shortDescription: "Sea fort fortress" },
+  { name: "Diveagar", state: "Maharashtra", shortDescription: "Serene Konkan beach" },
+  { name: "Harihareshwar", state: "Maharashtra", shortDescription: "Temple beach destination" },
+  { name: "Malshej Ghat", state: "Maharashtra", shortDescription: "Waterfalls and flamingos" },
+  { name: "Panhala", state: "Maharashtra", shortDescription: "Largest fort in Deccan" },
+  { name: "Rajmachi", state: "Maharashtra", shortDescription: "Twin forts for trekking" },
+  { name: "Sinhagad", state: "Maharashtra", shortDescription: "Historic fort near Pune" },
+  { name: "Pratapgad", state: "Maharashtra", shortDescription: "Maratha fort of Shivaji" },
+  { name: "Raigad", state: "Maharashtra", shortDescription: "Capital fort of Shivaji" },
   
   // MANIPUR
   { name: "Imphal", state: "Manipur", shortDescription: "Capital with Kangla Fort and Ima Keithel" },
@@ -284,6 +487,11 @@ const destinationsData = [
   { name: "Moirang", state: "Manipur", shortDescription: "INA memorial and Loktak nearby" },
   { name: "Ukhrul", state: "Manipur", shortDescription: "Land of Shirui lily flower" },
   { name: "Churachandpur", state: "Manipur", shortDescription: "Hill district with tribal culture" },
+  { name: "Senapati", state: "Manipur", shortDescription: "Hill district with Mao Gate" },
+  { name: "Thoubal", state: "Manipur", shortDescription: "River valley district" },
+  { name: "Bishnupur", state: "Manipur", shortDescription: "Historic district with traditions" },
+  { name: "Moreh", state: "Manipur", shortDescription: "Border town with Myanmar" },
+  { name: "Andro", state: "Manipur", shortDescription: "Tribal village with pottery" },
   
   // MEGHALAYA
   { name: "Shillong", state: "Meghalaya", shortDescription: "Scotland of the East with waterfalls" },
@@ -294,6 +502,12 @@ const destinationsData = [
   { name: "Nongriat", state: "Meghalaya", shortDescription: "Double decker living root bridge" },
   { name: "Tura", state: "Meghalaya", shortDescription: "Gateway to Nokrek National Park" },
   { name: "Jowai", state: "Meghalaya", shortDescription: "Krang Suri waterfall nearby" },
+  { name: "Nongpoh", state: "Meghalaya", shortDescription: "Gateway to Meghalaya from Guwahati" },
+  { name: "Laitlum Canyon", state: "Meghalaya", shortDescription: "Grand Canyon of India" },
+  { name: "Mawphlang", state: "Meghalaya", shortDescription: "Sacred forest reserve" },
+  { name: "Elephant Falls", state: "Meghalaya", shortDescription: "Three-tiered waterfall" },
+  { name: "Nohkalikai Falls", state: "Meghalaya", shortDescription: "Tallest plunge waterfall in India" },
+  { name: "Umiam Lake", state: "Meghalaya", shortDescription: "Man-made reservoir near Shillong" },
   
   // MIZORAM
   { name: "Aizawl", state: "Mizoram", shortDescription: "Hill capital with unique culture" },
@@ -301,6 +515,11 @@ const destinationsData = [
   { name: "Champhai", state: "Mizoram", shortDescription: "Rice bowl of Mizoram near Myanmar" },
   { name: "Reiek", state: "Mizoram", shortDescription: "Mountain peak with heritage village" },
   { name: "Phawngpui", state: "Mizoram", shortDescription: "Blue Mountain highest peak" },
+  { name: "Serchhip", state: "Mizoram", shortDescription: "Cleanest town with waterfalls" },
+  { name: "Kolasib", state: "Mizoram", shortDescription: "Gateway from Assam" },
+  { name: "Mamit", state: "Mizoram", shortDescription: "Wildlife sanctuary district" },
+  { name: "Lawngtlai", state: "Mizoram", shortDescription: "Southern district with biodiversity" },
+  { name: "Saiha", state: "Mizoram", shortDescription: "Mara district headquarters" },
   
   // NAGALAND
   { name: "Kohima", state: "Nagaland", shortDescription: "WWII memorial and Hornbill festival" },
@@ -308,6 +527,12 @@ const destinationsData = [
   { name: "Mokokchung", state: "Nagaland", shortDescription: "Ao Naga cultural center" },
   { name: "Khonoma", state: "Nagaland", shortDescription: "Green village with warrior history" },
   { name: "Dzukou Valley", state: "Nagaland", shortDescription: "Valley of flowers trek" },
+  { name: "Tuensang", state: "Nagaland", shortDescription: "Largest district with tribes" },
+  { name: "Mon", state: "Nagaland", shortDescription: "Land of Konyak headhunters" },
+  { name: "Wokha", state: "Nagaland", shortDescription: "Lotha Naga homeland" },
+  { name: "Zunheboto", state: "Nagaland", shortDescription: "Sumi Naga district" },
+  { name: "Phek", state: "Nagaland", shortDescription: "Shilloi Lake and Dzukou" },
+  { name: "Longwa", state: "Nagaland", shortDescription: "Village on India-Myanmar border" },
   
   // ODISHA
   { name: "Bhubaneswar", state: "Odisha", shortDescription: "Temple City with ancient architecture" },
@@ -318,9 +543,24 @@ const destinationsData = [
   { name: "Gopalpur", state: "Odisha", shortDescription: "Beach resort with lighthouse" },
   { name: "Simlipal", state: "Odisha", shortDescription: "Tiger reserve with waterfalls" },
   { name: "Sambalpur", state: "Odisha", shortDescription: "Hirakud Dam and handlooms" },
+  { name: "Rourkela", state: "Odisha", shortDescription: "Steel city in Sundargarh" },
+  { name: "Berhampur", state: "Odisha", shortDescription: "Silk city of Odisha" },
+  { name: "Balasore", state: "Odisha", shortDescription: "Coastal town with missile range" },
   { name: "Bhitarkanika", state: "Odisha", shortDescription: "Mangrove and crocodile sanctuary" },
-  { name: "Chandipur", state: "Odisha", shortDescription: "Hide and seek beach" },
-  { name: "Daringbadi", state: "Odisha", shortDescription: "Kashmir of Odisha hill station" },
+  { name: "Dhauli", state: "Odisha", shortDescription: "Kalinga War site and peace pagoda" },
+  { name: "Ratnagiri", state: "Odisha", shortDescription: "Buddhist excavation site" },
+  { name: "Lalitgiri", state: "Odisha", shortDescription: "Buddhist diamond triangle" },
+  { name: "Udayagiri", state: "Odisha", shortDescription: "Ancient Jain rock caves" },
+  { name: "Chandipur", state: "Odisha", shortDescription: "Disappearing sea beach" },
+  { name: "Jeypore", state: "Odisha", shortDescription: "Gateway to tribal areas" },
+  { name: "Rayagada", state: "Odisha", shortDescription: "Tribal district with Dongriya Kondh" },
+  { name: "Koraput", state: "Odisha", shortDescription: "Coffee and tribal culture" },
+  { name: "Baripada", state: "Odisha", shortDescription: "Gateway to Simlipal" },
+  { name: "Satkosia", state: "Odisha", shortDescription: "Tiger reserve gorge" },
+  { name: "Debrigarh", state: "Odisha", shortDescription: "Wildlife sanctuary with Hirakud" },
+  { name: "Angul", state: "Odisha", shortDescription: "Industrial town with Satkosia" },
+  { name: "Kendrapara", state: "Odisha", shortDescription: "Gateway to Bhitarkanika" },
+  { name: "Paradip", state: "Odisha", shortDescription: "Major port city" },
   
   // PUNJAB
   { name: "Amritsar", state: "Punjab", shortDescription: "Golden Temple and Wagah Border" },
@@ -331,6 +571,18 @@ const destinationsData = [
   { name: "Mohali", state: "Punjab", shortDescription: "IT city with cricket stadium" },
   { name: "Kapurthala", state: "Punjab", shortDescription: "City of palaces and gardens" },
   { name: "Anandpur Sahib", state: "Punjab", shortDescription: "Sikh holy city birthplace of Khalsa" },
+  { name: "Pathankot", state: "Punjab", shortDescription: "Gateway to Himachal and Jammu" },
+  { name: "Hoshiarpur", state: "Punjab", shortDescription: "Wooden furniture hub" },
+  { name: "Firozpur", state: "Punjab", shortDescription: "Historic border town" },
+  { name: "Moga", state: "Punjab", shortDescription: "Agricultural hub" },
+  { name: "Sangrur", state: "Punjab", shortDescription: "Historic town with gurudwaras" },
+  { name: "Nawanshahr", state: "Punjab", shortDescription: "New city with industrial growth" },
+  { name: "Fatehgarh Sahib", state: "Punjab", shortDescription: "Sikh pilgrimage center" },
+  { name: "Ropar", state: "Punjab", shortDescription: "Indus Valley site and dam" },
+  { name: "Tarn Taran", state: "Punjab", shortDescription: "Sikh shrine with large sarovar" },
+  { name: "Faridkot", state: "Punjab", shortDescription: "Historic princely state" },
+  { name: "Muktsar", state: "Punjab", shortDescription: "Maghi Mela pilgrimage" },
+  { name: "Mansa", state: "Punjab", shortDescription: "Cotton region town" },
   
   // RAJASTHAN
   { name: "Udaipur", state: "Rajasthan", shortDescription: "City of Lakes with romantic palaces" },
@@ -350,6 +602,27 @@ const destinationsData = [
   { name: "Shekhawati", state: "Rajasthan", shortDescription: "Open art gallery with havelis" },
   { name: "Mandawa", state: "Rajasthan", shortDescription: "Painted town of Shekhawati" },
   { name: "Ranakpur", state: "Rajasthan", shortDescription: "Intricate Jain temple complex" },
+  { name: "Nathdwara", state: "Rajasthan", shortDescription: "Shrinathji Temple pilgrimage" },
+  { name: "Kota", state: "Rajasthan", shortDescription: "Coaching hub on Chambal" },
+  { name: "Sikar", state: "Rajasthan", shortDescription: "Shekhawati gateway town" },
+  { name: "Jhunjhunu", state: "Rajasthan", shortDescription: "Rani Sati Temple town" },
+  { name: "Pali", state: "Rajasthan", shortDescription: "Ranakpur temple gateway" },
+  { name: "Barmer", state: "Rajasthan", shortDescription: "Desert town with handicrafts" },
+  { name: "Dungarpur", state: "Rajasthan", shortDescription: "City of hills with palaces" },
+  { name: "Banswara", state: "Rajasthan", shortDescription: "City of hundred islands" },
+  { name: "Jhalawar", state: "Rajasthan", shortDescription: "Gangadhar Temple town" },
+  { name: "Baran", state: "Rajasthan", shortDescription: "Hadoti region town" },
+  { name: "Nagaur", state: "Rajasthan", shortDescription: "Fort and cattle fair town" },
+  { name: "Churu", state: "Rajasthan", shortDescription: "Desert town with havelis" },
+  { name: "Hanumangarh", state: "Rajasthan", shortDescription: "Archaeological site on Ghaggar" },
+  { name: "Sirohi", state: "Rajasthan", shortDescription: "Gateway to Mount Abu" },
+  { name: "Pratapgarh", state: "Rajasthan", shortDescription: "Tribal heritage town" },
+  { name: "Deogarh", state: "Rajasthan", shortDescription: "Heritage town with palace" },
+  { name: "Neemrana", state: "Rajasthan", shortDescription: "Fort palace heritage hotel" },
+  { name: "Sariska", state: "Rajasthan", shortDescription: "Tiger reserve near Delhi" },
+  { name: "Osian", state: "Rajasthan", shortDescription: "Khajuraho of Rajasthan temples" },
+  { name: "Khimsar", state: "Rajasthan", shortDescription: "Desert fort and dunes" },
+  { name: "Dausa", state: "Rajasthan", shortDescription: "Historic town with temples" },
   
   // SIKKIM
   { name: "Gangtok", state: "Sikkim", shortDescription: "Capital with monasteries and Kanchenjunga views" },
@@ -363,6 +636,13 @@ const destinationsData = [
   { name: "Namchi", state: "Sikkim", shortDescription: "Religious site with Char Dham" },
   { name: "Zuluk", state: "Sikkim", shortDescription: "Silk route with zigzag roads" },
   { name: "Gurudongmar Lake", state: "Sikkim", shortDescription: "Sacred high altitude lake" },
+  { name: "Yuksom", state: "Sikkim", shortDescription: "First capital and Goechala base" },
+  { name: "Rumtek", state: "Sikkim", shortDescription: "Famous Kagyu monastery" },
+  { name: "Pemayangtse", state: "Sikkim", shortDescription: "Ancient Nyingmapa monastery" },
+  { name: "Khecheopalri Lake", state: "Sikkim", shortDescription: "Wish-fulfilling sacred lake" },
+  { name: "Mangan", state: "Sikkim", shortDescription: "North Sikkim headquarters" },
+  { name: "Jorethang", state: "Sikkim", shortDescription: "South Sikkim trading town" },
+  { name: "Singtam", state: "Sikkim", shortDescription: "Commercial hub on Teesta" },
   
   // TAMIL NADU
   { name: "Chennai", state: "Tamil Nadu", shortDescription: "Cultural capital with Marina Beach" },
@@ -385,6 +665,23 @@ const destinationsData = [
   { name: "Chidambaram", state: "Tamil Nadu", shortDescription: "Nataraja Temple of cosmic dance" },
   { name: "Salem", state: "Tamil Nadu", shortDescription: "Steel city with Yercaud nearby" },
   { name: "Tirunelveli", state: "Tamil Nadu", shortDescription: "Ancient temple town" },
+  { name: "Vellore", state: "Tamil Nadu", shortDescription: "Fort city with Golden Temple" },
+  { name: "Erode", state: "Tamil Nadu", shortDescription: "Textile and turmeric hub" },
+  { name: "Thoothukudi", state: "Tamil Nadu", shortDescription: "Port city and pearl diving" },
+  { name: "Dindigul", state: "Tamil Nadu", shortDescription: "Lock making and biryani city" },
+  { name: "Tiruvannamalai", state: "Tamil Nadu", shortDescription: "Arunachaleswarar Temple pilgrimage" },
+  { name: "Nagapattinam", state: "Tamil Nadu", shortDescription: "Buddhist heritage port city" },
+  { name: "Karaikudi", state: "Tamil Nadu", shortDescription: "Chettinad mansion town" },
+  { name: "Kanchipuram", state: "Tamil Nadu", shortDescription: "Silk saree and temple city" },
+  { name: "Tirupur", state: "Tamil Nadu", shortDescription: "Knitwear capital of India" },
+  { name: "Hosur", state: "Tamil Nadu", shortDescription: "Industrial town near Bangalore" },
+  { name: "Pollachi", state: "Tamil Nadu", shortDescription: "Coconut hub near Anamalai" },
+  { name: "Courtallam", state: "Tamil Nadu", shortDescription: "Spa of South India waterfalls" },
+  { name: "Mudumalai", state: "Tamil Nadu", shortDescription: "Tiger reserve in Nilgiris" },
+  { name: "Hogenakkal", state: "Tamil Nadu", shortDescription: "Niagara of India falls" },
+  { name: "Kolli Hills", state: "Tamil Nadu", shortDescription: "70 hairpin bends hill station" },
+  { name: "Javadi Hills", state: "Tamil Nadu", shortDescription: "Tribal hill region" },
+  { name: "Vedanthangal", state: "Tamil Nadu", shortDescription: "Bird sanctuary near Chennai" },
   
   // TELANGANA
   { name: "Warangal", state: "Telangana", shortDescription: "Kakatiya kingdom heritage" },
@@ -393,6 +690,16 @@ const destinationsData = [
   { name: "Khammam", state: "Telangana", shortDescription: "Tribal culture and forests" },
   { name: "Nagarjunasagar", state: "Telangana", shortDescription: "Dam and Buddhist ruins" },
   { name: "Ramoji Film City", state: "Telangana", shortDescription: "World's largest film studio complex" },
+  { name: "Adilabad", state: "Telangana", shortDescription: "Tribal region with waterfalls" },
+  { name: "Mahbubnagar", state: "Telangana", shortDescription: "Historic town with pillarless mosque" },
+  { name: "Nalgonda", state: "Telangana", shortDescription: "Historic fort town" },
+  { name: "Medak", state: "Telangana", shortDescription: "Church and fort town" },
+  { name: "Siddipet", state: "Telangana", shortDescription: "Growing city with temples" },
+  { name: "Bhongir", state: "Telangana", shortDescription: "Egg-shaped fort hill" },
+  { name: "Pochampally", state: "Telangana", shortDescription: "Ikat weaving village" },
+  { name: "Yadagirigutta", state: "Telangana", shortDescription: "Lakshmi Narasimha Temple" },
+  { name: "Basara", state: "Telangana", shortDescription: "Saraswati Temple pilgrimage" },
+  { name: "Nagarjunakonda", state: "Telangana", shortDescription: "Buddhist island museum" },
   
   // TRIPURA
   { name: "Agartala", state: "Tripura", shortDescription: "Capital with Ujjayanta Palace" },
@@ -400,6 +707,11 @@ const destinationsData = [
   { name: "Neermahal", state: "Tripura", shortDescription: "Water palace in Rudrasagar Lake" },
   { name: "Unakoti", state: "Tripura", shortDescription: "Rock carvings pilgrimage site" },
   { name: "Jampui Hills", state: "Tripura", shortDescription: "Orange festival location" },
+  { name: "Sepahijala", state: "Tripura", shortDescription: "Wildlife sanctuary with primates" },
+  { name: "Amarpur", state: "Tripura", shortDescription: "Gateway to Dumbur Lake" },
+  { name: "Dharmanagar", state: "Tripura", shortDescription: "North Tripura headquarters" },
+  { name: "Kailashahar", state: "Tripura", shortDescription: "Historic temple town" },
+  { name: "Belonia", state: "Tripura", shortDescription: "Border town with Bangladesh" },
   
   // UTTAR PRADESH
   { name: "Varanasi", state: "Uttar Pradesh", shortDescription: "Spiritual capital on sacred Ganges" },
@@ -421,6 +733,26 @@ const destinationsData = [
   { name: "Meerut", state: "Uttar Pradesh", shortDescription: "Sports goods and 1857 mutiny" },
   { name: "Gorakhpur", state: "Uttar Pradesh", shortDescription: "Gateway to Nepal" },
   { name: "Kushinagar", state: "Uttar Pradesh", shortDescription: "Where Buddha attained Mahaparinirvana" },
+  { name: "Bareilly", state: "Uttar Pradesh", shortDescription: "Zari-zardozi craft center" },
+  { name: "Moradabad", state: "Uttar Pradesh", shortDescription: "Brass city of India" },
+  { name: "Saharanpur", state: "Uttar Pradesh", shortDescription: "Wood carving center" },
+  { name: "Firozabad", state: "Uttar Pradesh", shortDescription: "Glass bangle city" },
+  { name: "Mirzapur", state: "Uttar Pradesh", shortDescription: "Carpet weaving and Vindhyachal Temple" },
+  { name: "Sultanpur", state: "Uttar Pradesh", shortDescription: "Historic town on Gomti" },
+  { name: "Basti", state: "Uttar Pradesh", shortDescription: "Ancient town with temples" },
+  { name: "Azamgarh", state: "Uttar Pradesh", shortDescription: "Black pottery center" },
+  { name: "Unnao", state: "Uttar Pradesh", shortDescription: "Leather industry hub" },
+  { name: "Rae Bareli", state: "Uttar Pradesh", shortDescription: "Political significance town" },
+  { name: "Faizabad", state: "Uttar Pradesh", shortDescription: "Gateway to Ayodhya" },
+  { name: "Shravasti", state: "Uttar Pradesh", shortDescription: "Buddhist pilgrimage site" },
+  { name: "Etawah", state: "Uttar Pradesh", shortDescription: "Lion safari and chambal" },
+  { name: "Mainpuri", state: "Uttar Pradesh", shortDescription: "Historic town in Doab" },
+  { name: "Budaun", state: "Uttar Pradesh", shortDescription: "Jama Masjid and Iqbal Minar" },
+  { name: "Shahjahanpur", state: "Uttar Pradesh", shortDescription: "Freedom fighter Ram Prasad Bismil's town" },
+  { name: "Rampur", state: "Uttar Pradesh", shortDescription: "Raza Library heritage" },
+  { name: "Banda", state: "Uttar Pradesh", shortDescription: "Chitrakoot gateway" },
+  { name: "Bahraich", state: "Uttar Pradesh", shortDescription: "Ghaghra riverfront town" },
+  { name: "Vindhyachal", state: "Uttar Pradesh", shortDescription: "Vindhyavasini Devi Temple" },
   
   // UTTARAKHAND
   { name: "Rishikesh", state: "Uttarakhand", shortDescription: "Yoga capital and adventure hub" },
@@ -444,6 +776,26 @@ const destinationsData = [
   { name: "Mukteshwar", state: "Uttarakhand", shortDescription: "Cliff hanging temple with views" },
   { name: "Kausani", state: "Uttarakhand", shortDescription: "Tea gardens with Himalayan panorama" },
   { name: "Chakrata", state: "Uttarakhand", shortDescription: "Offbeat hill station with Tiger Falls" },
+  { name: "Pithoragarh", state: "Uttarakhand", shortDescription: "Little Kashmir of Uttarakhand" },
+  { name: "Munsiyari", state: "Uttarakhand", shortDescription: "Gateway to Milam Glacier" },
+  { name: "Chaukori", state: "Uttarakhand", shortDescription: "Tea gardens with Panchachuli views" },
+  { name: "Dhanaulti", state: "Uttarakhand", shortDescription: "Serene hill station near Mussoorie" },
+  { name: "Kanatal", state: "Uttarakhand", shortDescription: "Adventure activities and camping" },
+  { name: "Tehri", state: "Uttarakhand", shortDescription: "Dam and water sports" },
+  { name: "Devprayag", state: "Uttarakhand", shortDescription: "Confluence of Alaknanda and Bhagirathi" },
+  { name: "Rudraprayag", state: "Uttarakhand", shortDescription: "Confluence of Alaknanda and Mandakini" },
+  { name: "Chamoli", state: "Uttarakhand", shortDescription: "Gateway to Badrinath" },
+  { name: "Gopeshwar", state: "Uttarakhand", shortDescription: "Headquarters of Chamoli" },
+  { name: "Joshimath", state: "Uttarakhand", shortDescription: "Gateway to Badrinath and Auli" },
+  { name: "Uttarkashi", state: "Uttarakhand", shortDescription: "Gateway to Gangotri" },
+  { name: "Sattal", state: "Uttarakhand", shortDescription: "Seven interconnected lakes" },
+  { name: "Naukuchiatal", state: "Uttarakhand", shortDescription: "Nine-cornered lake" },
+  { name: "Khirsu", state: "Uttarakhand", shortDescription: "Oak and deodar forest retreat" },
+  { name: "Pauri", state: "Uttarakhand", shortDescription: "District headquarters with views" },
+  { name: "Haldwani", state: "Uttarakhand", shortDescription: "Gateway to Kumaon" },
+  { name: "Roorkee", state: "Uttarakhand", shortDescription: "IIT and Ganges Canal town" },
+  { name: "Kotdwar", state: "Uttarakhand", shortDescription: "Gateway to Lansdowne" },
+  { name: "Kashipur", state: "Uttarakhand", shortDescription: "Industrial town with temples" },
   
   // WEST BENGAL
   { name: "Kolkata", state: "West Bengal", shortDescription: "City of Joy with colonial heritage" },
@@ -461,6 +813,39 @@ const destinationsData = [
   { name: "Sandakphu", state: "West Bengal", shortDescription: "Highest peak with four 8000m peaks view" },
   { name: "Mandarmani", state: "West Bengal", shortDescription: "Beach with longest driveable stretch" },
   { name: "Bakkhali", state: "West Bengal", shortDescription: "Quiet beach destination" },
+  { name: "Durgapur", state: "West Bengal", shortDescription: "Steel city with industries" },
+  { name: "Asansol", state: "West Bengal", shortDescription: "Coal mining region" },
+  { name: "Howrah", state: "West Bengal", shortDescription: "Industrial suburb of Kolkata" },
+  { name: "Kharagpur", state: "West Bengal", shortDescription: "IIT and railway junction" },
+  { name: "Haldia", state: "West Bengal", shortDescription: "Port and petrochemical hub" },
+  { name: "Malda", state: "West Bengal", shortDescription: "Mango capital with Gaur ruins" },
+  { name: "Cooch Behar", state: "West Bengal", shortDescription: "Royal palace and heritage" },
+  { name: "Jalpaiguri", state: "West Bengal", shortDescription: "Gateway to Dooars" },
+  { name: "Alipurduar", state: "West Bengal", shortDescription: "Gateway to Buxa Tiger Reserve" },
+  { name: "Balurghat", state: "West Bengal", shortDescription: "Border town in South Dinajpur" },
+  { name: "Bolpur", state: "West Bengal", shortDescription: "Home of Shantiniketan" },
+  { name: "Tarapith", state: "West Bengal", shortDescription: "Tantric pilgrimage site" },
+  { name: "Mayapur", state: "West Bengal", shortDescription: "ISKCON headquarters" },
+  { name: "Navadwip", state: "West Bengal", shortDescription: "Birthplace of Chaitanya Mahaprabhu" },
+  { name: "Diamond Harbour", state: "West Bengal", shortDescription: "Picnic spot on Hooghly" },
+  { name: "Sagar Island", state: "West Bengal", shortDescription: "Gangasagar Mela pilgrimage" },
+  { name: "Purulia", state: "West Bengal", shortDescription: "Chhau dance and Ayodhya Hills" },
+  { name: "Bankura", state: "West Bengal", shortDescription: "Terracotta and Bishnupur" },
+  { name: "Hooghly", state: "West Bengal", shortDescription: "Colonial riverside towns" },
+  { name: "Chinsurah", state: "West Bengal", shortDescription: "Dutch and Danish heritage" },
+  { name: "Bandel", state: "West Bengal", shortDescription: "Portuguese church town" },
+  { name: "Burdwan", state: "West Bengal", shortDescription: "Historic town with university" },
+  { name: "Krishnanagar", state: "West Bengal", shortDescription: "Clay modeling center" },
+  { name: "Ghoom", state: "West Bengal", shortDescription: "Highest railway station on DHR" },
+  { name: "Jaldapara", state: "West Bengal", shortDescription: "One-horned rhino sanctuary" },
+  { name: "Gorumara", state: "West Bengal", shortDescription: "National park in Dooars" },
+  { name: "Buxa", state: "West Bengal", shortDescription: "Tiger reserve with fort" },
+  { name: "Samsing", state: "West Bengal", shortDescription: "Orange orchards in Dooars" },
+  { name: "Rishop", state: "West Bengal", shortDescription: "Kanchenjunga sunrise point" },
+  { name: "Lolegaon", state: "West Bengal", shortDescription: "Canopy walk and views" },
+  { name: "Phalut", state: "West Bengal", shortDescription: "Second highest peak in WB" },
+  { name: "Tonglu", state: "West Bengal", shortDescription: "Trek to Sandakphu" },
+  { name: "Tiger Hill", state: "West Bengal", shortDescription: "Sunrise over Kanchenjunga" },
   
   // UNION TERRITORIES
   { name: "Delhi", state: "Delhi", shortDescription: "Capital city with monuments and modernity" },
@@ -469,16 +854,31 @@ const destinationsData = [
   { name: "Connaught Place", state: "Delhi", shortDescription: "Central business district" },
   { name: "Hauz Khas", state: "Delhi", shortDescription: "Historic complex with urban village" },
   { name: "Mehrauli", state: "Delhi", shortDescription: "Qutub Minar and archaeological park" },
+  { name: "Chandni Chowk", state: "Delhi", shortDescription: "Historic market and food street" },
+  { name: "Lodhi Garden", state: "Delhi", shortDescription: "Historic tombs in green park" },
+  { name: "India Gate", state: "Delhi", shortDescription: "War memorial and promenade" },
+  { name: "Red Fort", state: "Delhi", shortDescription: "UNESCO Mughal fort" },
+  { name: "Humayun's Tomb", state: "Delhi", shortDescription: "UNESCO Mughal garden tomb" },
+  { name: "Akshardham", state: "Delhi", shortDescription: "Modern Hindu temple complex" },
+  { name: "Lotus Temple", state: "Delhi", shortDescription: "Bahai House of Worship" },
   
   { name: "Port Blair", state: "Andaman & Nicobar", shortDescription: "Capital with Cellular Jail" },
   { name: "Havelock Island", state: "Andaman & Nicobar", shortDescription: "Radhanagar Beach paradise" },
   { name: "Neil Island", state: "Andaman & Nicobar", shortDescription: "Natural bridge and beaches" },
   { name: "Ross Island", state: "Andaman & Nicobar", shortDescription: "British era ruins" },
   { name: "Baratang", state: "Andaman & Nicobar", shortDescription: "Limestone caves and mangroves" },
+  { name: "Diglipur", state: "Andaman & Nicobar", shortDescription: "Saddle Peak and turtle nesting" },
+  { name: "Long Island", state: "Andaman & Nicobar", shortDescription: "Pristine beaches and diving" },
+  { name: "Rangat", state: "Andaman & Nicobar", shortDescription: "Mangrove creeks and beaches" },
+  { name: "Little Andaman", state: "Andaman & Nicobar", shortDescription: "Surfing and elephants" },
   
   { name: "Puducherry", state: "Puducherry", shortDescription: "French colonial charm and beaches" },
   { name: "Auroville", state: "Puducherry", shortDescription: "Experimental universal township" },
   { name: "Paradise Beach", state: "Puducherry", shortDescription: "Secluded beach by boat" },
+  { name: "Serenity Beach", state: "Puducherry", shortDescription: "Surfing and rock beach" },
+  { name: "Karaikal", state: "Puducherry", shortDescription: "French enclave with temple" },
+  { name: "Mahe", state: "Puducherry", shortDescription: "French territory in Kerala" },
+  { name: "Yanam", state: "Puducherry", shortDescription: "French territory in AP" },
   
   { name: "Daman", state: "Dadra and Nagar Haveli and Daman and Diu", shortDescription: "Portuguese heritage and beaches" },
   { name: "Silvassa", state: "Dadra and Nagar Haveli and Daman and Diu", shortDescription: "Capital with tribal culture" },
@@ -487,6 +887,8 @@ const destinationsData = [
   { name: "Agatti", state: "Lakshadweep", shortDescription: "Airport island with coral reefs" },
   { name: "Bangaram", state: "Lakshadweep", shortDescription: "Uninhabited island resort" },
   { name: "Minicoy", state: "Lakshadweep", shortDescription: "Lighthouse and Maldivian culture" },
+  { name: "Kadmat", state: "Lakshadweep", shortDescription: "Water sports island" },
+  { name: "Kalpeni", state: "Lakshadweep", shortDescription: "Three islands with lagoon" },
   
   { name: "Srinagar", state: "Jammu & Kashmir", shortDescription: "Dal Lake houseboats and gardens" },
   { name: "Gulmarg", state: "Jammu & Kashmir", shortDescription: "Skiing and world's highest gondola" },
@@ -498,6 +900,16 @@ const destinationsData = [
   { name: "Doodhpathri", state: "Jammu & Kashmir", shortDescription: "Valley of Milk meadows" },
   { name: "Yusmarg", state: "Jammu & Kashmir", shortDescription: "Meadow of Jesus with pine forests" },
   { name: "Betaab Valley", state: "Jammu & Kashmir", shortDescription: "Bollywood film location valley" },
+  { name: "Aru Valley", state: "Jammu & Kashmir", shortDescription: "Meadows and trekking base" },
+  { name: "Aharbal", state: "Jammu & Kashmir", shortDescription: "Waterfall destination" },
+  { name: "Kokernag", state: "Jammu & Kashmir", shortDescription: "Freshwater springs and trout" },
+  { name: "Verinag", state: "Jammu & Kashmir", shortDescription: "Source of Jhelum River" },
+  { name: "Kupwara", state: "Jammu & Kashmir", shortDescription: "Apple orchards and meadows" },
+  { name: "Bhaderwah", state: "Jammu & Kashmir", shortDescription: "Mini Kashmir in Jammu" },
+  { name: "Kishtwar", state: "Jammu & Kashmir", shortDescription: "Sapphire mines and trekking" },
+  { name: "Sanasar", state: "Jammu & Kashmir", shortDescription: "Cup-shaped meadow" },
+  { name: "Sinthan Top", state: "Jammu & Kashmir", shortDescription: "Mountain pass with views" },
+  { name: "Daksum", state: "Jammu & Kashmir", shortDescription: "Pine forest retreat" },
 ];
 
 async function seedDestinations() {
@@ -511,7 +923,18 @@ async function seedDestinations() {
     }
 
     for (const destination of destinationsData) {
-      await storage.createDestination(destination);
+      const fullDestination = {
+        name: destination.name,
+        state: destination.state,
+        shortDescription: destination.shortDescription,
+        detailedInsight: destination.detailedInsight || generateDetailedInsight(destination.name, destination.state, destination.shortDescription),
+        highlights: destination.highlights || generateHighlights(destination.shortDescription),
+        imageUrl: destination.imageUrl || DEFAULT_IMAGE,
+        bestSeason: destination.bestSeason || "October to March",
+        isFeatured: destination.isFeatured || false,
+        featuredDate: destination.featuredDate,
+      };
+      await storage.createDestination(fullDestination);
     }
     
     console.log(`Successfully seeded ${destinationsData.length} destinations!`);
