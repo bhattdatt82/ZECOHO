@@ -19,17 +19,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { insertPropertySchema, type Amenity } from "@shared/schema";
+import { insertPropertySchema, type Amenity, type CategorizedPropertyImages } from "@shared/schema";
 import { z } from "zod";
-import { ObjectUploader } from "@/components/ObjectUploader";
 import { AddressInput, type AddressDetails } from "@/components/AddressInput";
-import { Upload, X, Play } from "lucide-react";
-import hotelImage from "@assets/generated_images/modern_hotel_room.png";
-import cabinImage from "@assets/generated_images/mountain_cabin_exterior.png";
-import resortImage from "@assets/generated_images/beachfront_resort_view.png";
+import { 
+  PropertyImageUploader, 
+  getImagesArrayFromCategorized,
+  defaultCategorizedImages 
+} from "@/components/PropertyImageUploader";
 
 const formSchema = insertPropertySchema.extend({
-  images: z.array(z.string()).min(1, "At least one image is required"),
+  images: z.array(z.string()).default([]),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -41,6 +41,7 @@ export default function AddProperty() {
   const totalSteps = 3;
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
+  const [categorizedImages, setCategorizedImages] = useState<CategorizedPropertyImages>(defaultCategorizedImages);
   const [propertyAddress, setPropertyAddress] = useState<AddressDetails>({
     fullAddress: "",
   });
@@ -66,40 +67,13 @@ export default function AddProperty() {
   });
 
   const propertyType = watch("propertyType");
-  const images = watch("images") || [];
 
   const { data: amenities = [] } = useQuery<Amenity[]>({
     queryKey: ["/api/amenities"],
   });
 
-  const handleGetUploadParameters = async () => {
-    const response = await apiRequest("POST", "/api/objects/upload", {});
-    return {
-      method: "PUT" as const,
-      url: response.uploadURL,
-    };
-  };
-
-  const handleImageUploadComplete = (result: any) => {
-    if (result.successful && result.successful.length > 0) {
-      const uploadedUrl = result.successful[0].uploadURL;
-      setValue("images", [...images, uploadedUrl]);
-      toast({
-        title: "Success",
-        description: "Image uploaded successfully",
-      });
-    }
-  };
-
-  const handleVideoUploadComplete = (result: any) => {
-    if (result.successful && result.successful.length > 0) {
-      const uploadedUrl = result.successful[0].uploadURL;
-      setVideos([...videos, uploadedUrl]);
-      toast({
-        title: "Success",
-        description: "Video uploaded successfully",
-      });
-    }
+  const getTotalImageCount = () => {
+    return Object.values(categorizedImages).reduce((sum, arr) => sum + (arr?.length || 0), 0);
   };
 
   const createPropertyMutation = useMutation({
@@ -138,20 +112,25 @@ export default function AddProperty() {
   });
 
   const onSubmit = (data: FormData) => {
+    const allImages = getImagesArrayFromCategorized(categorizedImages);
+    if (allImages.length === 0) {
+      toast({
+        title: "Images required",
+        description: "Please upload at least one property image",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createPropertyMutation.mutate({
       ...data,
+      images: allImages,
+      categorizedImages: categorizedImages,
       videos: videos.length > 0 ? videos : data.videos,
       address: propertyAddress.fullAddress || data.address,
       latitude: propertyAddress.latitude || data.latitude,
       longitude: propertyAddress.longitude || data.longitude,
     });
-  };
-
-  const sampleImages = [hotelImage, cabinImage, resortImage];
-
-  const addSampleImage = () => {
-    const randomImage = sampleImages[Math.floor(Math.random() * sampleImages.length)];
-    setValue("images", [...images, randomImage]);
   };
 
   return (
@@ -388,103 +367,12 @@ export default function AddProperty() {
 
           {step === 3 && (
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Photos & Videos</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <Label>Property images *</Label>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Add images to showcase your property
-                    </p>
-                    <div className="flex gap-2 mb-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addSampleImage}
-                        data-testid="button-add-image"
-                      >
-                        Add sample image
-                      </Button>
-                      <ObjectUploader
-                        maxNumberOfFiles={5}
-                        maxFileSize={5242880}
-                        onGetUploadParameters={handleGetUploadParameters}
-                        onComplete={handleImageUploadComplete}
-                        accept={{ 'image/*': ['.jpeg', '.jpg', '.png', '.webp'] }}
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload images
-                      </ObjectUploader>
-                    </div>
-                    
-                    {images.length > 0 && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {images.map((img, idx) => (
-                          <div key={idx} className="relative aspect-[4/3] rounded-lg overflow-hidden bg-muted">
-                            <img src={img} alt={`Property ${idx + 1}`} className="w-full h-full object-cover" />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => setValue("images", images.filter((_, i) => i !== idx))}
-                              data-testid={`button-remove-image-${idx}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {errors.images && (
-                      <p className="text-sm text-destructive mt-1">{errors.images.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Property videos (optional)</Label>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Upload videos to give guests a better view of your property
-                    </p>
-                    <ObjectUploader
-                      maxNumberOfFiles={3}
-                      maxFileSize={52428800}
-                      onGetUploadParameters={handleGetUploadParameters}
-                      onComplete={handleVideoUploadComplete}
-                      accept={{ 'video/*': ['.mp4', '.webm', '.mov'] }}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload videos
-                    </ObjectUploader>
-                    
-                    {videos.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        {videos.map((video, idx) => (
-                          <div key={idx} className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                            <video 
-                              src={video} 
-                              className="w-full h-full object-cover" 
-                              controls
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="absolute top-2 right-2"
-                              onClick={() => setVideos(videos.filter((_, i) => i !== idx))}
-                              data-testid={`button-remove-video-${idx}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <PropertyImageUploader
+                value={categorizedImages}
+                onChange={setCategorizedImages}
+                onVideosChange={setVideos}
+                videos={videos}
+              />
 
               <Card>
                 <CardHeader>
@@ -498,6 +386,9 @@ export default function AddProperty() {
                       You'll be notified when the review is complete.
                     </p>
                   </div>
+                  {getTotalImageCount() === 0 && (
+                    <p className="text-sm text-destructive">Please upload at least one property image</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -507,7 +398,7 @@ export default function AddProperty() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={createPropertyMutation.isPending}
+                  disabled={createPropertyMutation.isPending || getTotalImageCount() === 0}
                   data-testid="button-submit-property"
                 >
                   {createPropertyMutation.isPending ? "Submitting..." : "Submit for Review"}

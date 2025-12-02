@@ -11,9 +11,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, FileText, User, MapPin, Phone, Mail, Loader2 } from "lucide-react";
+import { Building2, FileText, User, MapPin, Phone, Mail, Loader2, Upload } from "lucide-react";
 import { useState } from "react";
 import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
+import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/components/KycDocumentUploader";
 
 const kycSchema = z.object({
   // Personal Information
@@ -38,6 +39,7 @@ export default function KYC() {
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isPincodeLookup, setIsPincodeLookup] = useState(false);
+  const [kycDocuments, setKycDocuments] = useState<KycDocuments>(defaultKycDocuments);
 
   const form = useForm<KYCFormData>({
     resolver: zodResolver(kycSchema),
@@ -98,7 +100,14 @@ export default function KYC() {
 
   const submitKYC = useMutation({
     mutationFn: async (data: KYCFormData) => {
-      const response = await apiRequest("POST", "/api/kyc/submit", data);
+      const response = await apiRequest("POST", "/api/kyc/submit", {
+        ...data,
+        propertyOwnershipDocs: kycDocuments.propertyOwnership,
+        identityProofDocs: kycDocuments.identityProof,
+        businessLicenseDocs: kycDocuments.businessLicense,
+        nocDocs: kycDocuments.noc,
+        safetyCertificateDocs: kycDocuments.safetyCertificates,
+      });
       return await response.json();
     },
     onSuccess: () => {
@@ -424,6 +433,18 @@ export default function KYC() {
                       )}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Upload className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Document Uploads</h3>
+                  </div>
+                  
+                  <KycDocumentUploader 
+                    value={kycDocuments}
+                    onChange={setKycDocuments}
+                  />
                 </div>
 
                 <div className="flex gap-4">

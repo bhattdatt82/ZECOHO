@@ -95,6 +95,7 @@ export const properties = pgTable("properties", {
   latitude: decimal("latitude", { precision: 10, scale: 7 }),
   longitude: decimal("longitude", { precision: 10, scale: 7 }),
   images: text("images").array().notNull().default(sql`ARRAY[]::text[]`),
+  categorizedImages: jsonb("categorized_images"),
   videos: text("videos").array().notNull().default(sql`ARRAY[]::text[]`),
   pricePerNight: decimal("price_per_night", { precision: 10, scale: 2 }).notNull(),
   maxGuests: integer("max_guests").notNull().default(2),
@@ -242,7 +243,7 @@ export const searchHistory = pgTable("search_history", {
   index("idx_user_created").on(table.userId, table.createdAt),
 ]);
 
-// KYC Applications table - stores OWNER IDENTITY VERIFICATION ONLY (not property details)
+// KYC Applications table - stores OWNER IDENTITY VERIFICATION with document uploads
 export const kycApplications = pgTable("kyc_applications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -257,6 +258,11 @@ export const kycApplications = pgTable("kyc_applications", {
   pincode: varchar("pincode", { length: 10 }).notNull(),
   gstNumber: varchar("gst_number", { length: 20 }),
   panNumber: varchar("pan_number", { length: 20 }).notNull(),
+  propertyOwnershipDocs: jsonb("property_ownership_docs"),
+  identityProofDocs: jsonb("identity_proof_docs"),
+  businessLicenseDocs: jsonb("business_license_docs"),
+  nocDocs: jsonb("noc_docs"),
+  safetyCertificateDocs: jsonb("safety_certificate_docs"),
   status: kycStatusEnum("status").notNull().default("pending"),
   reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
   reviewedAt: timestamp("reviewed_at"),
@@ -553,3 +559,55 @@ export const insertSearchHistorySchema = createInsertSchema(searchHistory).omit(
 
 export type InsertSearchHistory = z.infer<typeof insertSearchHistorySchema>;
 export type SearchHistory = typeof searchHistory.$inferSelect;
+
+// Property image categories with captions
+export type PropertyImageCategory = 
+  | "exterior"
+  | "reception"
+  | "room"
+  | "bathroom"
+  | "amenities"
+  | "food";
+
+export interface CategorizedImage {
+  url: string;
+  caption?: string;
+  category: PropertyImageCategory;
+}
+
+export interface CategorizedPropertyImages {
+  exterior: CategorizedImage[];
+  reception: CategorizedImage[];
+  room: CategorizedImage[];
+  bathroom: CategorizedImage[];
+  amenities: CategorizedImage[];
+  food: CategorizedImage[];
+}
+
+// KYC Document types
+export interface KycDocument {
+  url: string;
+  documentType: string;
+  fileName?: string;
+  uploadedAt?: string;
+}
+
+export interface PropertyOwnershipDoc extends KycDocument {
+  documentType: "property_registration" | "sale_deed" | "property_tax" | "lease_agreement";
+}
+
+export interface IdentityProofDoc extends KycDocument {
+  documentType: "passport" | "aadhaar" | "voter_id" | "driving_license";
+}
+
+export interface BusinessLicenseDoc extends KycDocument {
+  documentType: "trade_license" | "hotel_registration" | "gst_registration";
+}
+
+export interface NocDoc extends KycDocument {
+  documentType: "owner_noc" | "municipality_noc";
+}
+
+export interface SafetyCertificateDoc extends KycDocument {
+  documentType: "fire_safety" | "electrical_safety" | "lift_safety";
+}

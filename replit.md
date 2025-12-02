@@ -35,6 +35,8 @@ The application uses **PostgreSQL** via Neon's serverless driver. **Drizzle ORM*
 -   **Messaging System**: Real-time communication via WebSockets, conversation management, and unread message tracking.
 -   **Review System**: Allows guests to submit reviews for completed bookings, owners to respond, and users to mark reviews as helpful.
 -   **KYC & Property Listing Feature**: A multi-step wizard for property owners, including personal details, KYC verification (address, government ID), and property information submission, with role promotion and property approval workflows.
+-   **Categorized Property Images**: Properties support categorized image uploads with 6 categories (Exterior, Reception, Rooms, Bathrooms, Amenities, Food & Dining). Each category includes helpful photography tips and supports captions. Images are stored as JSONB in the `categorizedImages` column. The `PropertyImageUploader` component provides a tabbed interface for organized uploads.
+-   **KYC Document Uploads**: KYC applications support 5 document categories: Property Ownership Proof, Owner Identity Proof, Business License, NOC, and Safety Certificates with proper validation.
 -   **Destinations Feature**: Curated 65 Indian destinations across all states with autocomplete search, 56+ properties covering major cities, tourist spots, hill stations, heritage sites, and adventure destinations.
 
 ## External Dependencies
