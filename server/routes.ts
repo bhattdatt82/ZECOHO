@@ -987,6 +987,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Destinations routes
+  
+  // Lightweight search endpoint - returns only essential fields for autocomplete
+  app.get("/api/destinations/search", async (req, res) => {
+    try {
+      const { q } = req.query;
+      
+      if (!q || typeof q !== "string" || q.trim().length === 0) {
+        return res.json([]);
+      }
+      
+      const results = await storage.searchDestinations(q.trim(), 10);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching destinations:", error);
+      res.status(500).json({ message: "Failed to search destinations" });
+    }
+  });
+  
   app.get("/api/destinations", async (req, res) => {
     try {
       const { search } = req.query;

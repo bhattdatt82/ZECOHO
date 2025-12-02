@@ -118,7 +118,9 @@ export interface IStorage {
   createDestination(destination: InsertDestination): Promise<Destination>;
   updateDestination(id: string, destination: Partial<InsertDestination>): Promise<Destination | undefined>;
   deleteDestination(id: string): Promise<void>;
+  clearAllDestinations(): Promise<void>;
   setFeaturedDestination(id: string, isFeatured: boolean): Promise<Destination | undefined>;
+  searchDestinations(query: string, limit?: number): Promise<{ id: string; name: string; state: string }[]>;
 
   // Search history operations
   createSearchHistory(userId: string, search: InsertSearchHistory): Promise<SearchHistory>;
@@ -764,6 +766,29 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDestination(id: string): Promise<void> {
     await db.delete(destinations).where(eq(destinations.id, id));
+  }
+
+  async clearAllDestinations(): Promise<void> {
+    await db.delete(destinations);
+  }
+
+  async searchDestinations(query: string, limit: number = 10): Promise<{ id: string; name: string; state: string }[]> {
+    const searchLower = query.toLowerCase();
+    const results = await db
+      .select({
+        id: destinations.id,
+        name: destinations.name,
+        state: destinations.state,
+      })
+      .from(destinations)
+      .where(
+        or(
+          sql`LOWER(${destinations.name}) LIKE ${`%${searchLower}%`}`,
+          sql`LOWER(${destinations.state}) LIKE ${`%${searchLower}%`}`
+        )
+      )
+      .limit(limit);
+    return results;
   }
 
   async setFeaturedDestination(id: string, isFeatured: boolean): Promise<Destination | undefined> {

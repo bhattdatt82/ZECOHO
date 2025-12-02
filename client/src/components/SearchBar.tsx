@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Calendar, Users } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -21,6 +21,22 @@ interface SearchBarProps {
   initialGuests?: number;
 }
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export function SearchBar({ 
   onSearch, 
   compact = false,
@@ -38,8 +54,9 @@ export function SearchBar({
   const [guests, setGuests] = useState(initialGuests);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  
+  const debouncedDestination = useDebounce(destination.trim(), 300);
 
-  // Update state when initial props change (for navigation to search page with params)
   useEffect(() => {
     setDestination(initialDestination);
     setCheckIn(initialCheckIn);
@@ -47,7 +64,6 @@ export function SearchBar({
     setGuests(initialGuests);
   }, [initialDestination, initialCheckIn, initialCheckOut, initialGuests]);
 
-  // Mutation to save search history
   const saveSearchMutation = useMutation({
     mutationFn: async (searchData: any) => {
       const res = await fetch('/api/search-history', {
@@ -60,25 +76,19 @@ export function SearchBar({
     },
   });
 
-  // Fetch destinations with search - use backend filtering for better performance
-  const { data: filteredDestinations = [] } = useQuery({
-    queryKey: ['destination-search', destination],
+  const { data: filteredDestinations = [], isLoading } = useQuery({
+    queryKey: ['destination-search', debouncedDestination],
     queryFn: async () => {
-      const trimmed = destination.trim();
-      if (trimmed.length === 0) {
+      if (debouncedDestination.length === 0) {
         return [];
       }
-      console.log('[SearchBar] Fetching destinations with search:', trimmed);
-      const url = `/api/destinations?search=${encodeURIComponent(trimmed)}`;
-      console.log('[SearchBar] Request URL:', url);
+      const url = `/api/destinations/search?q=${encodeURIComponent(debouncedDestination)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch destinations');
-      const data = await res.json();
-      console.log('[SearchBar] Received destinations:', data.length);
-      return data;
+      return res.json();
     },
-    staleTime: 0, // Don't cache search results
-    enabled: destination.trim().length > 0, // Only run query when there's input
+    staleTime: 60000,
+    enabled: debouncedDestination.length > 0,
   });
 
   // Close suggestions when clicking outside

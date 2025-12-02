@@ -917,9 +917,16 @@ async function seedDestinations() {
   
   try {
     const existing = await storage.getAllDestinations();
-    if (existing.length > 0) {
-      console.log(`Found ${existing.length} existing destinations, skipping seed.`);
+    const EXPECTED_COUNT = destinationsData.length;
+    
+    if (existing.length >= EXPECTED_COUNT) {
+      console.log(`Found ${existing.length} existing destinations (expected ${EXPECTED_COUNT}), skipping seed.`);
       return;
+    }
+    
+    if (existing.length > 0 && existing.length < EXPECTED_COUNT) {
+      console.log(`Found ${existing.length} destinations but expected ${EXPECTED_COUNT}. Clearing and re-seeding...`);
+      await storage.clearAllDestinations();
     }
 
     for (const destination of destinationsData) {
