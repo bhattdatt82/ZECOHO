@@ -114,10 +114,17 @@ export default function AdminKYC() {
     }
   }, [isAuthenticated, authLoading, user, toast]);
 
-  const { data: applications = [], isLoading } = useQuery<KycApplication[]>({
+  const { data: applications = [], isLoading, refetch } = useQuery<KycApplication[]>({
     queryKey: ["/api/admin/kyc"],
-    enabled: isAuthenticated && user?.userRole === "admin",
+    enabled: !authLoading && isAuthenticated && user?.userRole === "admin",
   });
+
+  // Refetch when auth state changes
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user?.userRole === "admin") {
+      refetch();
+    }
+  }, [authLoading, isAuthenticated, user?.userRole, refetch]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "verified" | "rejected" }) => {
