@@ -115,7 +115,7 @@ export default function AdminKYC() {
   }, [isAuthenticated, authLoading, user, toast]);
 
   const { data: applications = [], isLoading } = useQuery<KycApplication[]>({
-    queryKey: ["/api/admin/kyc", statusFilter],
+    queryKey: ["/api/admin/kyc"],
     enabled: isAuthenticated && user?.userRole === "admin",
   });
 
