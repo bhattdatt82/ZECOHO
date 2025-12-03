@@ -21,12 +21,78 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Eye, FileText, Building } from "lucide-react";
+import { CheckCircle, XCircle, Eye, FileText, Building, Home, IdCard, Shield, Flame, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { KycApplication } from "@shared/schema";
+
+interface KycDocument {
+  url: string;
+  documentType: string;
+  fileName?: string;
+  uploadedAt?: string;
+}
+
+interface DocumentCategoryProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  docs: KycDocument[] | null | undefined;
+}
+
+function DocumentCategory({ icon: Icon, title, docs }: DocumentCategoryProps) {
+  const hasDocs = docs && Array.isArray(docs) && docs.length > 0;
+  
+  return (
+    <div className="border rounded-lg p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium text-sm">{title}</span>
+        {hasDocs ? (
+          <Badge variant="default" className="ml-auto">{docs.length} doc(s)</Badge>
+        ) : (
+          <Badge variant="secondary" className="ml-auto">Not provided</Badge>
+        )}
+      </div>
+      
+      {hasDocs && (
+        <div className="space-y-2 mt-3">
+          {docs.map((doc, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">
+                    {doc.fileName || `Document ${idx + 1}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Type: {doc.documentType?.replace(/_/g, ' ') || 'Unknown'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="ml-2 flex-shrink-0"
+                data-testid={`button-view-doc-${idx}`}
+              >
+                <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  View
+                </a>
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminKYC() {
   const { toast } = useToast();
@@ -174,7 +240,7 @@ export default function AdminKYC() {
                       </TableCell>
                       <TableCell>{getStatusBadge(app.status)}</TableCell>
                       <TableCell>
-                        {new Date(app.createdAt).toLocaleDateString()}
+                        {app.createdAt ? new Date(app.createdAt).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -265,6 +331,51 @@ export default function AdminKYC() {
                   <div>
                     <Label className="text-muted-foreground">GST Number</Label>
                     <p className="font-medium">{selectedApp.gstNumber || "Not provided"}</p>
+                  </div>
+                </div>
+
+                {/* KYC Documents Section */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Uploaded Documents
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Property Ownership Docs */}
+                    <DocumentCategory
+                      icon={Home}
+                      title="Property Ownership Proof"
+                      docs={selectedApp.propertyOwnershipDocs as any[]}
+                    />
+                    
+                    {/* Identity Proof Docs */}
+                    <DocumentCategory
+                      icon={IdCard}
+                      title="Owner Identity Proof"
+                      docs={selectedApp.identityProofDocs as any[]}
+                    />
+                    
+                    {/* Business License Docs */}
+                    <DocumentCategory
+                      icon={Building}
+                      title="Business/Hotel License"
+                      docs={selectedApp.businessLicenseDocs as any[]}
+                    />
+                    
+                    {/* NOC Docs */}
+                    <DocumentCategory
+                      icon={Shield}
+                      title="NOC (No Objection Certificate)"
+                      docs={selectedApp.nocDocs as any[]}
+                    />
+                    
+                    {/* Safety Certificate Docs */}
+                    <DocumentCategory
+                      icon={Flame}
+                      title="Safety & Compliance Certificates"
+                      docs={selectedApp.safetyCertificateDocs as any[]}
+                    />
                   </div>
                 </div>
 
