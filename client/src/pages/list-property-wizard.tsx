@@ -30,8 +30,20 @@ import {
   defaultCategorizedImages 
 } from "@/components/PropertyImageUploader";
 import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/components/KycDocumentUploader";
-import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle, IdCard, Shield, Flame } from "lucide-react";
 import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
+import type { KycSectionId, KycRejectionDetails } from "@shared/schema";
+import { useEffect, useMemo } from "react";
+
+const SECTION_LABELS: Record<KycSectionId, { label: string; icon: any }> = {
+  personal: { label: "Personal Information", icon: User },
+  business: { label: "Business Information", icon: MapPin },
+  propertyOwnership: { label: "Property Ownership Documents", icon: Home },
+  identityProof: { label: "Identity Proof Documents", icon: IdCard },
+  businessLicense: { label: "Business License Documents", icon: Building2 },
+  noc: { label: "NOC Documents", icon: Shield },
+  safetyCertificates: { label: "Safety Certificate Documents", icon: Flame },
+};
 
 const combinedSchema = z.object({
   // KYC Information
@@ -79,6 +91,31 @@ export default function ListPropertyWizard() {
     enabled: !!user,
     retry: false,
   });
+
+  // Determine if this is a KYC resubmission (rejected application)
+  const isKycResubmission = existingKycApplication?.status === "rejected";
+  
+  // Parse rejection details
+  const rejectionDetails = useMemo(() => {
+    if (existingKycApplication?.rejectionDetails) {
+      return existingKycApplication.rejectionDetails as KycRejectionDetails;
+    }
+    return null;
+  }, [existingKycApplication?.rejectionDetails]);
+
+  // Get flagged sections from rejection
+  const flaggedSections = useMemo(() => {
+    if (!rejectionDetails?.sections) return new Set<KycSectionId>();
+    return new Set(rejectionDetails.sections.map(s => s.sectionId));
+  }, [rejectionDetails]);
+
+  const hasTargetedRejection = flaggedSections.size > 0;
+
+  // Get flagged document categories for the uploader
+  const flaggedDocumentCategories = useMemo(() => {
+    const docSections: KycSectionId[] = ["propertyOwnership", "identityProof", "businessLicense", "noc", "safetyCertificates"];
+    return docSections.filter(s => flaggedSections.has(s));
+  }, [flaggedSections]);
   
   // KYC state
   const [isPincodeLookup, setIsPincodeLookup] = useState(false);
@@ -125,6 +162,48 @@ export default function ListPropertyWizard() {
   const { data: amenities = [] } = useQuery<Amenity[]>({
     queryKey: ["/api/amenities"],
   });
+
+  // Pre-fill form with existing KYC data for resubmission
+  useEffect(() => {
+    if (isKycResubmission && existingKycApplication) {
+      form.reset({
+        firstName: existingKycApplication.firstName || "",
+        lastName: existingKycApplication.lastName || "",
+        email: existingKycApplication.email || "",
+        phone: existingKycApplication.phone || "",
+        businessName: existingKycApplication.businessName || "",
+        businessAddress: existingKycApplication.businessAddress || "",
+        kycCity: existingKycApplication.city || "",
+        kycState: existingKycApplication.state || "",
+        kycPincode: existingKycApplication.pincode || "",
+        gstNumber: existingKycApplication.gstNumber || "",
+        panNumber: existingKycApplication.panNumber || "",
+        // Property fields keep defaults
+        propertyTitle: "",
+        propertyType: "hotel",
+        description: "",
+        destination: "",
+        propertyCity: "",
+        propertyState: "",
+        propertyPincode: "",
+        address: "",
+        pricePerNight: 1000,
+        maxGuests: 2,
+        bedrooms: 1,
+        beds: 1,
+        bathrooms: 1,
+        policies: "",
+      });
+      // Pre-fill documents
+      setKycDocuments({
+        propertyOwnership: (existingKycApplication.propertyOwnershipDocs as any[]) || [],
+        identityProof: (existingKycApplication.identityProofDocs as any[]) || [],
+        businessLicense: (existingKycApplication.businessLicenseDocs as any[]) || [],
+        noc: (existingKycApplication.nocDocs as any[]) || [],
+        safetyCertificates: (existingKycApplication.safetyCertificateDocs as any[]) || [],
+      });
+    }
+  }, [isKycResubmission, existingKycApplication, form]);
 
   // KYC PIN code lookup
   const handleKycPincodeChange = async (pincode: string) => {
