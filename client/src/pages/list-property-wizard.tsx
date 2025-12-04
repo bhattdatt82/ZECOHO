@@ -258,6 +258,76 @@ export default function ListPropertyWizard() {
     return Object.values(categorizedImages).reduce((sum, arr) => sum + (arr?.length || 0), 0);
   };
 
+  // KYC-only resubmission mutation for rejected applications
+  const kycResubmitMutation = useMutation({
+    mutationFn: async (data: CombinedFormData) => {
+      // For KYC resubmission, validate documents based on what was flagged
+      if (hasTargetedRejection) {
+        // Only validate flagged document sections
+        const missingDocs: string[] = [];
+        if (flaggedSections.has("propertyOwnership") && (!kycDocuments.propertyOwnership || kycDocuments.propertyOwnership.length === 0)) {
+          missingDocs.push("Property Ownership Proof");
+        }
+        if (flaggedSections.has("identityProof") && (!kycDocuments.identityProof || kycDocuments.identityProof.length === 0)) {
+          missingDocs.push("Owner Identity Proof");
+        }
+        if (missingDocs.length > 0) {
+          throw new Error(`Missing mandatory documents: ${missingDocs.join(", ")}`);
+        }
+      } else {
+        // No targeted rejection - validate all mandatory docs
+        const missingDocs: string[] = [];
+        if (!kycDocuments.propertyOwnership || kycDocuments.propertyOwnership.length === 0) {
+          missingDocs.push("Property Ownership Proof");
+        }
+        if (!kycDocuments.identityProof || kycDocuments.identityProof.length === 0) {
+          missingDocs.push("Owner Identity Proof");
+        }
+        if (missingDocs.length > 0) {
+          throw new Error(`Missing mandatory documents: ${missingDocs.join(", ")}`);
+        }
+      }
+
+      // Submit KYC only (uses the /api/kyc/submit endpoint which now handles resubmission)
+      const response = await apiRequest("POST", "/api/kyc/submit", {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        businessName: data.businessName,
+        businessAddress: data.businessAddress,
+        city: data.kycCity,
+        state: data.kycState,
+        pincode: data.kycPincode,
+        gstNumber: data.gstNumber,
+        panNumber: data.panNumber,
+        propertyOwnershipDocs: kycDocuments.propertyOwnership,
+        identityProofDocs: kycDocuments.identityProof,
+        businessLicenseDocs: kycDocuments.businessLicense,
+        nocDocs: kycDocuments.noc,
+        safetyCertificateDocs: kycDocuments.safetyCertificates,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "KYC Resubmission Successful!",
+        description: "Your updated KYC information has been submitted for review.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/kyc/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/");
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session Expired", description: "Please log in again.", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Resubmission Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const submitMutation = useMutation({
     mutationFn: async (data: CombinedFormData) => {
       // Validate mandatory KYC documents
@@ -411,6 +481,321 @@ export default function ListPropertyWizard() {
     { title: "Pricing & Amenities", icon: Building2 },
     { title: "Photos & Submit", icon: CheckCircle },
   ];
+
+  // Handle KYC Resubmission mode - dedicated simple UI for rejected applications
+  const handleKycResubmit = () => {
+    const data = form.getValues();
+    kycResubmitMutation.mutate(data);
+  };
+
+  // If user has rejected KYC with targeted sections, show resubmission-only view
+  if (isKycResubmission && hasTargetedRejection) {
+    return (
+      <div className="min-h-screen bg-muted/30 pb-16">
+        <div className="container px-4 md:px-6 py-8 max-w-3xl mx-auto">
+          {/* Header for Resubmission */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="h-6 w-6 text-orange-500" />
+              <h1 className="text-2xl font-semibold">Update Your KYC Application</h1>
+            </div>
+            <p className="text-muted-foreground">
+              Your previous application was returned for updates. Please review and update the sections highlighted below.
+            </p>
+          </div>
+
+          {/* Overall rejection reason if provided */}
+          {existingKycApplication?.rejectionReason && (
+            <Card className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                  <XCircle className="h-5 w-5" />
+                  Admin Feedback
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-orange-800 dark:text-orange-300">{existingKycApplication.rejectionReason}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Flagged Sections Summary */}
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Sections Requiring Updates</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {rejectionDetails?.sections.map((section) => {
+                  const sectionInfo = SECTION_LABELS[section.sectionId];
+                  const Icon = sectionInfo?.icon || AlertTriangle;
+                  return (
+                    <div key={section.sectionId} className="flex items-start gap-3 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-900">
+                      <Icon className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-sm">{sectionInfo?.label || section.sectionId}</p>
+                        {section.message && (
+                          <p className="text-sm text-muted-foreground mt-1">{section.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Form {...form}>
+            <form onSubmit={(e) => { e.preventDefault(); handleKycResubmit(); }}>
+              {/* Conditionally render only flagged sections */}
+              
+              {/* Personal Information Section */}
+              {flaggedSections.has("personal") && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Personal Information
+                      <span className="ml-auto text-xs font-normal px-2 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 rounded-full">
+                        Needs Update
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="John" {...field} data-testid="input-first-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Doe" {...field} data-testid="input-last-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address *</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="john@example.com" {...field} data-testid="input-email" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="+91 98765 43210" {...field} data-testid="input-phone" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Business Information Section */}
+              {flaggedSections.has("business") && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Business Information
+                      <span className="ml-auto text-xs font-normal px-2 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 rounded-full">
+                        Needs Update
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="businessName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Business Name *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your Hotel or Business Name" {...field} data-testid="input-business-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="businessAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Business Address *</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Complete business address..." rows={3} {...field} data-testid="textarea-business-address" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="kycPincode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>PIN Code *</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="6-digit PIN"
+                                {...field}
+                                onChange={(e) => handleKycPincodeChange(e.target.value)}
+                                data-testid="input-kyc-pincode"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="kycCity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="City" {...field} data-testid="input-kyc-city" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="kycState"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="State" {...field} data-testid="input-kyc-state" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="panNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>PAN Number *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="ABCDE1234F" {...field} data-testid="input-pan-number" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="gstNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>GST Number (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="22AAAAA0000A1Z5" {...field} data-testid="input-gst-number" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Document Sections - show only flagged document categories */}
+              {flaggedDocumentCategories.length > 0 && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      KYC Documents
+                      <span className="ml-auto text-xs font-normal px-2 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 rounded-full">
+                        Needs Update
+                      </span>
+                    </CardTitle>
+                    <CardDescription>
+                      Please upload the required documents for the flagged categories below.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <KycDocumentUploader
+                      value={kycDocuments}
+                      onChange={setKycDocuments}
+                      expandedCategories={flaggedDocumentCategories}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Submit Button */}
+              <div className="flex justify-between items-center mt-8">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLocation("/")}
+                  data-testid="button-cancel-resubmit"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={kycResubmitMutation.isPending}
+                  data-testid="button-submit-resubmit"
+                >
+                  {kycResubmitMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      Resubmit Application
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30 pb-16">
