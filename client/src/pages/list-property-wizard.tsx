@@ -54,7 +54,7 @@ const combinedSchema = z.object({
   destination: z.string().min(2, "Destination is required"),
   propertyCity: z.string().optional(),
   propertyState: z.string().optional(),
-  propertyPincode: z.string().optional(),
+  propertyPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
   address: z.string().optional(),
   pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
   maxGuests: z.coerce.number().min(1, "At least 1 guest required"),
@@ -266,7 +266,7 @@ export default function ListPropertyWizard() {
     } else if (step === 2) {
       fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
     } else if (step === 3) {
-      fieldsToValidate = ["propertyTitle", "propertyType", "description", "destination"];
+      fieldsToValidate = ["propertyTitle", "propertyType", "description", "propertyPincode"];
     } else if (step === 4) {
       fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
     }
@@ -278,6 +278,45 @@ export default function ListPropertyWizard() {
   };
 
   const prevStep = () => setStep(step - 1);
+
+  // Navigate directly to a step by clicking on header
+  const goToStep = async (targetStep: number) => {
+    if (targetStep === step) return; // Already on this step
+    
+    // Can always go back to previous completed steps
+    if (targetStep < step) {
+      setStep(targetStep);
+      return;
+    }
+    
+    // Going forward - validate ALL steps from 1 up to targetStep-1
+    for (let s = 1; s < targetStep; s++) {
+      let fieldsToValidate: (keyof CombinedFormData)[] = [];
+      
+      if (s === 1) {
+        fieldsToValidate = ["firstName", "lastName", "email", "phone"];
+      } else if (s === 2) {
+        fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
+      } else if (s === 3) {
+        fieldsToValidate = ["propertyTitle", "propertyType", "description", "propertyPincode"];
+      } else if (s === 4) {
+        fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
+      }
+      
+      const isValid = await form.trigger(fieldsToValidate);
+      if (!isValid) {
+        setStep(s); // Stop at the first invalid step
+        toast({
+          title: "Please complete this step",
+          description: "Fill in all required fields before proceeding",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
+    setStep(targetStep);
+  };
 
   const stepTitles = [
     { title: "Personal Information", icon: User },
@@ -298,35 +337,55 @@ export default function ListPropertyWizard() {
           </p>
         </div>
 
-        {/* Progress Steps */}
+        {/* Progress Steps - Clickable Headers */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             {stepTitles.map((s, i) => {
               const Icon = s.icon;
-              const isActive = i + 1 === step;
-              const isCompleted = i + 1 < step;
+              const stepNumber = i + 1;
+              const isActive = stepNumber === step;
+              const isCompleted = stepNumber < step;
               return (
-                <div key={i} className="flex flex-col items-center flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goToStep(stepNumber)}
+                  className="flex flex-col items-center flex-1 group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg p-1"
+                  data-testid={`step-nav-${stepNumber}`}
+                  aria-label={`Go to step ${stepNumber}: ${s.title}${isCompleted ? ' (completed)' : isActive ? ' (current)' : ''}`}
+                  aria-current={isActive ? 'step' : undefined}
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all ${
                     isCompleted ? "bg-primary text-primary-foreground" : 
                     isActive ? "bg-primary text-primary-foreground" : 
-                    "bg-muted text-muted-foreground"
+                    "bg-muted text-muted-foreground group-hover:bg-muted/80"
                   }`}>
                     {isCompleted ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                   </div>
-                  <span className={`text-xs text-center hidden md:block ${isActive ? "font-medium" : "text-muted-foreground"}`}>
+                  <span className={`text-xs text-center hidden md:block transition-colors ${
+                    isActive ? "font-medium text-foreground" : 
+                    isCompleted ? "text-primary group-hover:text-primary/80" : 
+                    "text-muted-foreground group-hover:text-foreground"
+                  }`}>
                     {s.title}
                   </span>
                   {i < stepTitles.length - 1 && (
                     <div className={`hidden md:block absolute h-0.5 w-full ${isCompleted ? "bg-primary" : "bg-muted"}`} />
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
-          <div className="mt-4 flex gap-1">
+          <div className="mt-4 flex gap-1" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={totalSteps}>
             {[...Array(totalSteps)].map((_, i) => (
-              <div key={i} className={`h-1.5 flex-1 rounded-full ${i < step ? "bg-primary" : "bg-muted"}`} />
+              <button
+                key={i}
+                type="button"
+                onClick={() => goToStep(i + 1)}
+                className={`h-1.5 flex-1 rounded-full cursor-pointer transition-all hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary ${i < step ? "bg-primary" : "bg-muted"}`}
+                data-testid={`progress-bar-${i + 1}`}
+                aria-label={`Go to step ${i + 1}: ${stepTitles[i].title}`}
+              />
             ))}
           </div>
         </div>
@@ -601,14 +660,14 @@ export default function ListPropertyWizard() {
 
                   <div>
                     <Label>Property Location *</Label>
-                    <p className="text-sm text-muted-foreground mb-2">Enter PIN code to auto-fill city and state</p>
+                    <p className="text-sm text-muted-foreground mb-2">Enter PIN code to auto-fill location details</p>
                     
                     <FormField
                       control={form.control}
                       name="propertyPincode"
                       render={({ field }) => (
                         <FormItem className="mb-4">
-                          <FormLabel>PIN Code</FormLabel>
+                          <FormLabel>PIN Code *</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Input
@@ -628,52 +687,75 @@ export default function ListPropertyWizard() {
                       )}
                     />
 
-                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    {/* Show auto-populated city/state from PIN code */}
+                    {(form.watch("propertyCity") || form.watch("propertyState")) && (
+                      <div className="bg-muted/50 rounded-lg p-3 mb-4">
+                        <div className="flex items-center gap-2 text-sm">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <span className="font-medium">
+                            {form.watch("propertyCity")}{form.watch("propertyCity") && form.watch("propertyState") ? ", " : ""}{form.watch("propertyState")}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manual destination fallback if PIN lookup didn't populate city */}
+                    {!form.watch("propertyCity") && form.watch("propertyPincode")?.length === 6 && (
                       <FormField
                         control={form.control}
-                        name="propertyCity"
+                        name="destination"
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City</FormLabel>
+                          <FormItem className="mb-4">
+                            <FormLabel>City/Destination *</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="City"
-                                list="property-cities"
+                                placeholder="Enter city name manually"
+                                list="manual-cities"
                                 {...field}
                                 onChange={(e) => {
                                   field.onChange(e);
-                                  form.setValue("destination", e.target.value);
+                                  form.setValue("propertyCity", e.target.value);
                                 }}
-                                data-testid="input-property-city"
+                                data-testid="input-destination-manual"
                               />
                             </FormControl>
-                            <datalist id="property-cities">
+                            <datalist id="manual-cities">
                               {INDIAN_CITIES.map((city) => <option key={city} value={city} />)}
                             </datalist>
+                            <p className="text-xs text-muted-foreground">PIN code lookup didn't find location - please enter manually</p>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      <FormField
-                        control={form.control}
-                        name="propertyState"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>State</FormLabel>
-                            <FormControl>
-                              <Input placeholder="State" list="property-states" {...field} data-testid="input-property-state" />
-                            </FormControl>
-                            <datalist id="property-states">
-                              {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
-                            </datalist>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                    )}
+
+                    {/* Hidden fields for city/state values */}
+                    <FormField
+                      control={form.control}
+                      name="propertyCity"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="propertyState"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
 
                     <div className="mb-4">
                       <Label>Full Address (Optional)</Label>
+                      <p className="text-xs text-muted-foreground mb-2">Add detailed address for better guest experience</p>
                       <AddressInput
                         value={propertyAddress}
                         onChange={(address) => {
