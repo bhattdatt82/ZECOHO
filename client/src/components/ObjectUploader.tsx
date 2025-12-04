@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
@@ -12,6 +13,7 @@ interface ObjectUploaderProps {
     method: "PUT";
     url: string;
     accessPath: string;
+    aclToken: string;
   }>;
   onComplete?: (result: { successful: Array<{ uploadURL: string; accessPath: string; name?: string }> }) => void;
   buttonClassName?: string;
@@ -59,7 +61,7 @@ export function ObjectUploader({
       setProgress(0);
 
       try {
-        const { url, accessPath } = await onGetUploadParameters();
+        const { url, accessPath, aclToken } = await onGetUploadParameters();
         
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener("progress", (e) => {
@@ -81,6 +83,9 @@ export function ObjectUploader({
           xhr.open("PUT", url);
           xhr.send(file);
         });
+
+        // Set ACL policy so the owner can access the file later
+        await apiRequest("POST", "/api/objects/set-acl", { accessPath, aclToken });
 
         onComplete?.({
           successful: [{ uploadURL: url, accessPath, name: file.name }],

@@ -154,6 +154,7 @@ export function PropertyImageUploader({
       method: "PUT" as const,
       url: data.uploadURL,
       accessPath: data.accessPath,
+      aclToken: data.aclToken,
     };
   };
 

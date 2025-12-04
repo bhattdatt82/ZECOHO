@@ -45,9 +45,10 @@ export default function KYC() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isPincodeLookup, setIsPincodeLookup] = useState(false);
   const [kycDocuments, setKycDocuments] = useState<KycDocuments>(defaultKycDocuments);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Fetch existing KYC application status
-  const { data: kycApplication, refetch: refetchKyc } = useQuery<KycApplication>({
+  const { data: kycApplication, refetch: refetchKyc, isLoading: isLoadingKyc } = useQuery<KycApplication>({
     queryKey: ["/api/kyc/status"],
     enabled: !!user,
   });
@@ -79,6 +80,33 @@ export default function KYC() {
       panNumber: "",
     },
   });
+
+  // Pre-fill form when editing a rejected application
+  useEffect(() => {
+    if (kycApplication && isEditing) {
+      form.reset({
+        firstName: kycApplication.firstName || "",
+        lastName: kycApplication.lastName || "",
+        email: kycApplication.email || "",
+        phone: kycApplication.phone || "",
+        businessName: kycApplication.businessName || "",
+        businessAddress: kycApplication.businessAddress || "",
+        city: kycApplication.city || "",
+        state: kycApplication.state || "",
+        pincode: kycApplication.pincode || "",
+        gstNumber: kycApplication.gstNumber || "",
+        panNumber: kycApplication.panNumber || "",
+      });
+      // Pre-fill documents
+      setKycDocuments({
+        propertyOwnership: (kycApplication.propertyOwnershipDocs as any[]) || [],
+        identityProof: (kycApplication.identityProofDocs as any[]) || [],
+        businessLicense: (kycApplication.businessLicenseDocs as any[]) || [],
+        noc: (kycApplication.nocDocs as any[]) || [],
+        safetyCertificates: (kycApplication.safetyCertificateDocs as any[]) || [],
+      });
+    }
+  }, [kycApplication, isEditing, form]);
 
   // PIN code lookup function
   const handlePincodeChange = async (pincode: string) => {
@@ -148,6 +176,36 @@ export default function KYC() {
     },
   });
 
+  // Update rejected KYC application
+  const updateKYC = useMutation({
+    mutationFn: async (data: KYCFormData) => {
+      const response = await apiRequest("PATCH", `/api/kyc/${kycApplication?.id}`, {
+        ...data,
+        propertyOwnershipDocs: kycDocuments.propertyOwnership,
+        identityProofDocs: kycDocuments.identityProof,
+        businessLicenseDocs: kycDocuments.businessLicense,
+        nocDocs: kycDocuments.noc,
+        safetyCertificateDocs: kycDocuments.safetyCertificates,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/kyc/status"] });
+      toast({
+        title: "Application Updated!",
+        description: "Your updated application has been resubmitted for review.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: KYCFormData) => {
     // Validate mandatory documents before submission
     const missingDocs: string[] = [];
@@ -169,8 +227,166 @@ export default function KYC() {
       return;
     }
     
-    submitKYC.mutate(data);
+    // If editing a rejected application, update it
+    if (isEditing && kycApplication?.id) {
+      updateKYC.mutate(data);
+    } else {
+      submitKYC.mutate(data);
+    }
   };
+
+  // Loading state
+  if (isLoadingKyc) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading your application status...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Pending application status
+  if (kycApplication?.status === "pending" && !isEditing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+              <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <CardTitle className="text-2xl" data-testid="text-pending-title">Application Under Review</CardTitle>
+            <CardDescription>
+              Your KYC application is being reviewed by our team
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center text-muted-foreground">
+              <p className="mb-4">
+                We're reviewing your application. You'll be notified once the review is complete.
+              </p>
+              <p className="mb-4">
+                Expected review time: <strong>2-3 business days</strong>
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                className="flex-1"
+                onClick={handleRefreshStatus}
+                data-testid="button-refresh-status"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Check Status
+              </Button>
+              <Button 
+                className="flex-1" 
+                asChild
+                data-testid="button-back-home"
+              >
+                <a href="/">Back to Home</a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Rejected application status
+  if (kycApplication?.status === "rejected" && !isEditing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
+        <Card className="max-w-lg w-full">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
+              <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+            </div>
+            <CardTitle className="text-2xl" data-testid="text-rejected-title">Application Rejected</CardTitle>
+            <CardDescription>
+              Your KYC application requires some changes before it can be approved
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {kycApplication.reviewNotes && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p className="font-semibold text-red-800 dark:text-red-200 mb-2">Reason for Rejection:</p>
+                <p className="text-red-700 dark:text-red-300" data-testid="text-rejection-reason">
+                  {kycApplication.reviewNotes}
+                </p>
+              </div>
+            )}
+            <div className="text-center text-muted-foreground">
+              <p>
+                Please review the feedback above and update your application with the required changes.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                className="flex-1"
+                onClick={() => setIsEditing(true)}
+                data-testid="button-edit-application"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Edit & Resubmit
+              </Button>
+              <Button 
+                variant="outline"
+                className="flex-1" 
+                asChild
+                data-testid="button-back-home"
+              >
+                <a href="/">Back to Home</a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Verified status - redirect to home or show success
+  if (kycApplication?.status === "verified" && !isEditing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <CardTitle className="text-2xl" data-testid="text-verified-title">Already Verified!</CardTitle>
+            <CardDescription>
+              Your KYC has been approved. You can now list properties.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button 
+                className="flex-1"
+                asChild
+                data-testid="button-list-property"
+              >
+                <a href="/list-property">List a Property</a>
+              </Button>
+              <Button 
+                variant="outline"
+                className="flex-1" 
+                asChild
+                data-testid="button-back-home"
+              >
+                <a href="/">Back to Home</a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isSubmitted) {
     return (
@@ -220,20 +436,42 @@ export default function KYC() {
     <div className="min-h-screen bg-muted/50 py-12 px-4">
       <div className="container max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2">Become a Property Owner</h1>
+          <h1 className="text-4xl font-bold mb-2">
+            {isEditing ? "Update Your Application" : "Become a Property Owner"}
+          </h1>
           <p className="text-xl text-muted-foreground">
-            Get verified and start listing your properties at ZERO commission
+            {isEditing 
+              ? "Make the required changes and resubmit for review"
+              : "Get verified and start listing your properties at ZERO commission"
+            }
           </p>
         </div>
+
+        {isEditing && kycApplication?.reviewNotes && (
+          <Card className="mb-6 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <XCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-800 dark:text-amber-200 mb-1">Previous Rejection Reason:</p>
+                  <p className="text-amber-700 dark:text-amber-300 text-sm">{kycApplication.reviewNotes}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Owner Identity Verification (KYC)
+              {isEditing ? "Edit Your Application" : "Owner Identity Verification (KYC)"}
             </CardTitle>
             <CardDescription>
-              Complete your identity verification to become a verified property owner. After approval, you can list unlimited properties.
+              {isEditing 
+                ? "Review and update your information, then resubmit for approval."
+                : "Complete your identity verification to become a verified property owner. After approval, you can list unlimited properties."
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -493,19 +731,35 @@ export default function KYC() {
                   <Button 
                     type="submit" 
                     className="flex-1"
-                    disabled={submitKYC.isPending}
+                    disabled={submitKYC.isPending || updateKYC.isPending}
                     data-testid="button-submit-kyc"
                   >
-                    {submitKYC.isPending ? "Submitting..." : "Submit KYC Application"}
+                    {(submitKYC.isPending || updateKYC.isPending) 
+                      ? "Submitting..." 
+                      : isEditing 
+                        ? "Resubmit Application" 
+                        : "Submit KYC Application"
+                    }
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    asChild
-                    data-testid="button-cancel"
-                  >
-                    <a href="/">Cancel</a>
-                  </Button>
+                  {isEditing ? (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => setIsEditing(false)}
+                      data-testid="button-cancel-edit"
+                    >
+                      Cancel
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      asChild
+                      data-testid="button-cancel"
+                    >
+                      <a href="/">Cancel</a>
+                    </Button>
+                  )}
                 </div>
               </form>
             </Form>

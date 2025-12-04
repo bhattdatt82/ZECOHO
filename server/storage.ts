@@ -132,7 +132,9 @@ export interface IStorage {
   getAllKycApplications(): Promise<KycApplication[]>;
   getKycApplicationsByStatus(status: "pending" | "verified" | "rejected"): Promise<KycApplication[]>;
   getUserKycApplication(userId: string): Promise<KycApplication | undefined>;
+  getKycApplication(id: string): Promise<KycApplication | undefined>;
   updateKycApplicationStatus(id: string, status: "verified" | "rejected", reviewNotes?: string): Promise<KycApplication | undefined>;
+  updateKycApplication(id: string, updates: Partial<InsertKycApplication>): Promise<KycApplication | undefined>;
   deleteKycApplication(id: string): Promise<void>;
 }
 
@@ -859,6 +861,15 @@ export class DatabaseStorage implements IStorage {
     return application;
   }
 
+  async getKycApplication(id: string): Promise<KycApplication | undefined> {
+    const [application] = await db
+      .select()
+      .from(kycApplications)
+      .where(eq(kycApplications.id, id))
+      .limit(1);
+    return application;
+  }
+
   async getAllKycApplications(): Promise<KycApplication[]> {
     const applications = await db
       .select()
@@ -878,6 +889,22 @@ export class DatabaseStorage implements IStorage {
         status,
         reviewedAt: new Date(),
         reviewNotes,
+        updatedAt: new Date(),
+      })
+      .where(eq(kycApplications.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateKycApplication(id: string, updates: Partial<InsertKycApplication>): Promise<KycApplication | undefined> {
+    const [updated] = await db
+      .update(kycApplications)
+      .set({
+        ...updates,
+        status: "pending",
+        reviewNotes: null,
+        reviewedBy: null,
+        reviewedAt: null,
         updatedAt: new Date(),
       })
       .where(eq(kycApplications.id, id))

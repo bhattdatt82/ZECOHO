@@ -124,6 +124,7 @@ export function KycDocumentUploader({ value, onChange }: KycDocumentUploaderProp
       method: "PUT" as const,
       url: data.uploadURL,
       accessPath: data.accessPath,
+      aclToken: data.aclToken,
     };
   };
 

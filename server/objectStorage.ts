@@ -1,6 +1,6 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Response } from "express";
-import { randomUUID } from "crypto";
+import { randomUUID, createHmac } from "crypto";
 import {
   ObjectAclPolicy,
   ObjectPermission,
@@ -8,6 +8,65 @@ import {
   getObjectAclPolicy,
   setObjectAclPolicy,
 } from "./objectAcl";
+
+// Secret key for signing upload tokens
+// Use environment variable for persistence across restarts
+const UPLOAD_TOKEN_SECRET = process.env.UPLOAD_TOKEN_SECRET;
+if (!UPLOAD_TOKEN_SECRET) {
+  console.warn(
+    "UPLOAD_TOKEN_SECRET not set. Upload tokens may be invalidated on server restart. " +
+    "Set UPLOAD_TOKEN_SECRET environment variable for persistence."
+  );
+}
+// Fallback to a generated secret if env var is not set (development mode)
+const EFFECTIVE_TOKEN_SECRET = UPLOAD_TOKEN_SECRET || randomUUID();
+
+// Token expiration time: 1 hour (in seconds)
+const TOKEN_EXPIRY_SECONDS = 3600;
+
+// Generate a signed token for a specific user and access path with expiration
+export function generateUploadToken(userId: string, accessPath: string): string {
+  const expiresAt = Math.floor(Date.now() / 1000) + TOKEN_EXPIRY_SECONDS;
+  const payload = `${userId}:${accessPath}:${expiresAt}`;
+  const signature = createHmac("sha256", EFFECTIVE_TOKEN_SECRET)
+    .update(payload)
+    .digest("hex");
+  return `${Buffer.from(payload).toString("base64")}.${signature}`;
+}
+
+// Verify a signed upload token and return the userId and accessPath if valid and not expired
+export function verifyUploadToken(token: string): { userId: string; accessPath: string } | null {
+  try {
+    const [payloadBase64, signature] = token.split(".");
+    if (!payloadBase64 || !signature) return null;
+    
+    const payload = Buffer.from(payloadBase64, "base64").toString();
+    const expectedSignature = createHmac("sha256", EFFECTIVE_TOKEN_SECRET)
+      .update(payload)
+      .digest("hex");
+    
+    if (signature !== expectedSignature) return null;
+    
+    const parts = payload.split(":");
+    if (parts.length < 3) return null;
+    
+    const userId = parts[0];
+    const accessPath = parts[1];
+    const expiresAt = parseInt(parts[2], 10);
+    
+    if (!userId || !accessPath || isNaN(expiresAt)) return null;
+    
+    // Check if token has expired
+    const now = Math.floor(Date.now() / 1000);
+    if (now > expiresAt) {
+      return null;
+    }
+    
+    return { userId, accessPath };
+  } catch {
+    return null;
+  }
+}
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 

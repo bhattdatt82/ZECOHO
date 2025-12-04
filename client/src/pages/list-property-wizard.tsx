@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { type Amenity, type CategorizedPropertyImages } from "@shared/schema";
+import { type Amenity, type CategorizedPropertyImages, type KycApplication } from "@shared/schema";
 import { AddressInput, type AddressDetails } from "@/components/AddressInput";
 import { 
   PropertyImageUploader, 
@@ -30,7 +30,7 @@ import {
   defaultCategorizedImages 
 } from "@/components/PropertyImageUploader";
 import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/components/KycDocumentUploader";
-import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
 
 const combinedSchema = z.object({
@@ -72,6 +72,13 @@ export default function ListPropertyWizard() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const totalSteps = 5;
+  
+  // Check for existing KYC application
+  const { data: existingKycApplication, isLoading: isLoadingKyc } = useQuery<KycApplication>({
+    queryKey: ["/api/kyc/status"],
+    enabled: !!user,
+    retry: false,
+  });
   
   // KYC state
   const [isPincodeLookup, setIsPincodeLookup] = useState(false);

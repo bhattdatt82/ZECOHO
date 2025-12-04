@@ -6,8 +6,8 @@ import { db } from "./db";
 import { users } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { ObjectPermission } from "./objectAcl";
+import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
+import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -308,6 +308,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching KYC status:", error);
       res.status(500).json({ message: "Failed to fetch KYC status" });
+    }
+  });
+
+  // Update rejected KYC application (resubmit)
+  app.patch('/api/kyc/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const applicationId = req.params.id;
+      
+      // Get the existing application
+      const existingApplication = await storage.getKycApplication(applicationId);
+      
+      if (!existingApplication) {
+        return res.status(404).json({ message: "KYC application not found" });
+      }
+      
+      // Verify ownership
+      if (existingApplication.userId !== userId) {
+        return res.status(403).json({ message: "You can only update your own applications" });
+      }
+      
+      // Only allow updating rejected applications
+      if (existingApplication.status !== "rejected") {
+        return res.status(400).json({ message: "Only rejected applications can be updated" });
+      }
+      
+      // Validate the update data
+      const validatedData = insertKycApplicationSchema.parse(req.body);
+      
+      // Update the application (resets status to pending)
+      const updatedApplication = await storage.updateKycApplication(applicationId, validatedData);
+      
+      res.json(updatedApplication);
+    } catch (error) {
+      console.error("Error updating KYC application:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid application data", error: error.message });
+      }
+      res.status(500).json({ message: "Failed to update KYC application" });
     }
   });
 
@@ -1479,12 +1518,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Object Storage routes for file uploads
   app.post("/api/objects/upload", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
       const objectStorageService = new ObjectStorageService();
       const { uploadURL, accessPath } = await objectStorageService.getObjectEntityUploadURLWithAccessPath();
-      res.json({ uploadURL, accessPath });
+      
+      // Generate a signed token that ties this upload to the current user
+      const aclToken = generateUploadToken(userId, accessPath);
+      
+      res.json({ uploadURL, accessPath, aclToken });
     } catch (error) {
       console.error("Error getting upload URL:", error);
       res.status(500).json({ message: "Failed to get upload URL" });
+    }
+  });
+
+  // Set ACL policy on uploaded object (called after upload is complete)
+  // Requires a valid aclToken from the upload endpoint to prevent unauthorized ownership claims
+  app.post("/api/objects/set-acl", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const { accessPath, aclToken } = req.body;
+      
+      if (!accessPath || !accessPath.startsWith("/objects/")) {
+        return res.status(400).json({ message: "Invalid access path" });
+      }
+      
+      if (!aclToken) {
+        return res.status(400).json({ message: "Missing ACL token" });
+      }
+      
+      // Verify the token matches the current user and access path
+      const tokenData = verifyUploadToken(aclToken);
+      if (!tokenData) {
+        return res.status(403).json({ message: "Invalid ACL token" });
+      }
+      
+      if (tokenData.userId !== userId || tokenData.accessPath !== accessPath) {
+        return res.status(403).json({ message: "Token does not match user or path" });
+      }
+      
+      const objectStorageService = new ObjectStorageService();
+      const objectFile = await objectStorageService.getObjectEntityFile(accessPath);
+      
+      await setObjectAclPolicy(objectFile, {
+        owner: userId,
+        visibility: "private",
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error setting ACL policy:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.status(404).json({ message: "Object not found" });
+      }
+      res.status(500).json({ message: "Failed to set ACL policy" });
     }
   });
 
@@ -1493,14 +1588,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      const canAccess = await objectStorageService.canAccessObjectEntity({
-        objectFile,
-        userId: userId,
-        requestedPermission: ObjectPermission.READ,
-      });
-      if (!canAccess) {
-        return res.sendStatus(401);
+      
+      // Check if user is admin - admins can access all documents for KYC verification
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.userRole === "admin";
+      
+      if (!isAdmin) {
+        const canAccess = await objectStorageService.canAccessObjectEntity({
+          objectFile,
+          userId: userId,
+          requestedPermission: ObjectPermission.READ,
+        });
+        if (!canAccess) {
+          return res.sendStatus(401);
+        }
       }
+      
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error checking object access:", error);
