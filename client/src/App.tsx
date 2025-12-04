@@ -24,6 +24,7 @@ import AdminProperties from "@/pages/admin-properties";
 import AdminKYC from "@/pages/admin-kyc";
 import AdminAccess from "@/pages/admin-access";
 import KYC from "@/pages/kyc";
+import ListPropertyWizard from "@/pages/list-property-wizard";
 import DevAdminLogin from "@/pages/dev-admin-login";
 import NotFound from "@/pages/not-found";
 
@@ -38,9 +39,7 @@ function Router() {
       {isAuthenticated && !isLoading && (
         <>
           <Route path="/" component={Home} />
-          <Route path="/list-property">
-            <Redirect to="/kyc" />
-          </Route>
+          <Route path="/list-property" component={ListPropertyWizard} />
           <Route path="/wishlist" component={Wishlist} />
           <Route path="/search-history" component={SearchHistoryPage} />
           <Route path="/messages" component={Messages} />

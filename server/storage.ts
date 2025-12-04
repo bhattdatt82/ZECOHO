@@ -133,6 +133,7 @@ export interface IStorage {
   getKycApplicationsByStatus(status: "pending" | "verified" | "rejected"): Promise<KycApplication[]>;
   getUserKycApplication(userId: string): Promise<KycApplication | undefined>;
   updateKycApplicationStatus(id: string, status: "verified" | "rejected", reviewNotes?: string): Promise<KycApplication | undefined>;
+  deleteKycApplication(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -882,6 +883,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(kycApplications.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteKycApplication(id: string): Promise<void> {
+    await db.delete(kycApplications).where(eq(kycApplications.id, id));
   }
 }
 

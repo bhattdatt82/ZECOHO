@@ -1,0 +1,929 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { type Amenity, type CategorizedPropertyImages } from "@shared/schema";
+import { AddressInput, type AddressDetails } from "@/components/AddressInput";
+import { 
+  PropertyImageUploader, 
+  getImagesArrayFromCategorized,
+  defaultCategorizedImages 
+} from "@/components/PropertyImageUploader";
+import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/components/KycDocumentUploader";
+import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
+
+const combinedSchema = z.object({
+  // KYC Information
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  businessName: z.string().min(3, "Business name is required"),
+  businessAddress: z.string().min(10, "Please provide complete business address"),
+  kycCity: z.string().min(2, "City is required"),
+  kycState: z.string().min(2, "State is required"),
+  kycPincode: z.string().min(6, "Valid pincode is required"),
+  gstNumber: z.string().optional(),
+  panNumber: z.string().min(10, "Valid PAN number is required"),
+  
+  // Property Information
+  propertyTitle: z.string().min(5, "Property title must be at least 5 characters"),
+  propertyType: z.enum(["hotel", "villa", "apartment", "cabin", "resort", "hostel", "lodge", "cottage"]),
+  description: z.string().min(20, "Description must be at least 20 characters"),
+  destination: z.string().min(2, "Destination is required"),
+  propertyCity: z.string().optional(),
+  propertyState: z.string().optional(),
+  propertyPincode: z.string().optional(),
+  address: z.string().optional(),
+  pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
+  maxGuests: z.coerce.number().min(1, "At least 1 guest required"),
+  bedrooms: z.coerce.number().min(1, "At least 1 bedroom required"),
+  beds: z.coerce.number().min(1, "At least 1 bed required"),
+  bathrooms: z.coerce.number().min(1, "At least 1 bathroom required"),
+  policies: z.string().optional(),
+});
+
+type CombinedFormData = z.infer<typeof combinedSchema>;
+
+export default function ListPropertyWizard() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [step, setStep] = useState(1);
+  const totalSteps = 5;
+  
+  // KYC state
+  const [isPincodeLookup, setIsPincodeLookup] = useState(false);
+  const [kycDocuments, setKycDocuments] = useState<KycDocuments>(defaultKycDocuments);
+  
+  // Property state
+  const [isPropertyPincodeLookup, setIsPropertyPincodeLookup] = useState(false);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
+  const [categorizedImages, setCategorizedImages] = useState<CategorizedPropertyImages>(defaultCategorizedImages);
+  const [propertyAddress, setPropertyAddress] = useState<AddressDetails>({ fullAddress: "" });
+
+  const form = useForm<CombinedFormData>({
+    resolver: zodResolver(combinedSchema),
+    defaultValues: {
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
+      phone: "",
+      businessName: "",
+      businessAddress: "",
+      kycCity: "",
+      kycState: "",
+      kycPincode: "",
+      gstNumber: "",
+      panNumber: "",
+      propertyTitle: "",
+      propertyType: "hotel",
+      description: "",
+      destination: "",
+      propertyCity: "",
+      propertyState: "",
+      propertyPincode: "",
+      address: "",
+      pricePerNight: 1000,
+      maxGuests: 2,
+      bedrooms: 1,
+      beds: 1,
+      bathrooms: 1,
+      policies: "",
+    },
+  });
+
+  const { data: amenities = [] } = useQuery<Amenity[]>({
+    queryKey: ["/api/amenities"],
+  });
+
+  // KYC PIN code lookup
+  const handleKycPincodeChange = async (pincode: string) => {
+    form.setValue("kycPincode", pincode);
+    if (pincode.length === 6 && /^\d{6}$/.test(pincode)) {
+      setIsPincodeLookup(true);
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+        const data = await response.json();
+        if (data && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+          const postOffice = data[0].PostOffice[0];
+          form.setValue("kycCity", postOffice.District || "");
+          form.setValue("kycState", postOffice.State || "");
+          toast({ title: "PIN Code Found!", description: `${postOffice.District}, ${postOffice.State}` });
+        } else {
+          toast({ title: "Invalid PIN Code", description: "Please enter a valid Indian PIN code.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Lookup Failed", description: "Please enter city and state manually.", variant: "destructive" });
+      } finally {
+        setIsPincodeLookup(false);
+      }
+    }
+  };
+
+  // Property PIN code lookup
+  const handlePropertyPincodeChange = async (pincode: string) => {
+    form.setValue("propertyPincode", pincode);
+    if (pincode.length === 6 && /^\d{6}$/.test(pincode)) {
+      setIsPropertyPincodeLookup(true);
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+        const data = await response.json();
+        if (data && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+          const postOffice = data[0].PostOffice[0];
+          form.setValue("propertyCity", postOffice.District || "");
+          form.setValue("propertyState", postOffice.State || "");
+          form.setValue("destination", postOffice.District || "");
+          toast({ title: "PIN Code Found!", description: `${postOffice.District}, ${postOffice.State}` });
+        } else {
+          toast({ title: "Invalid PIN Code", description: "Please enter a valid Indian PIN code.", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Lookup Failed", description: "Please enter city and state manually.", variant: "destructive" });
+      } finally {
+        setIsPropertyPincodeLookup(false);
+      }
+    }
+  };
+
+  const getTotalImageCount = () => {
+    return Object.values(categorizedImages).reduce((sum, arr) => sum + (arr?.length || 0), 0);
+  };
+
+  const submitMutation = useMutation({
+    mutationFn: async (data: CombinedFormData) => {
+      // Validate mandatory KYC documents
+      const missingDocs: string[] = [];
+      if (!kycDocuments.propertyOwnership || kycDocuments.propertyOwnership.length === 0) {
+        missingDocs.push("Property Ownership Proof");
+      }
+      if (!kycDocuments.identityProof || kycDocuments.identityProof.length === 0) {
+        missingDocs.push("Owner Identity Proof");
+      }
+      if (missingDocs.length > 0) {
+        throw new Error(`Missing mandatory documents: ${missingDocs.join(", ")}`);
+      }
+
+      // Validate property images
+      const allImages = getImagesArrayFromCategorized(categorizedImages);
+      if (allImages.length === 0) {
+        throw new Error("Please upload at least one property image");
+      }
+
+      // Submit combined KYC + Property
+      const response = await apiRequest("POST", "/api/kyc/submit-with-property", {
+        // KYC data
+        kyc: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          businessName: data.businessName,
+          businessAddress: data.businessAddress,
+          city: data.kycCity,
+          state: data.kycState,
+          pincode: data.kycPincode,
+          gstNumber: data.gstNumber,
+          panNumber: data.panNumber,
+          propertyOwnershipDocs: kycDocuments.propertyOwnership,
+          identityProofDocs: kycDocuments.identityProof,
+          businessLicenseDocs: kycDocuments.businessLicense,
+          nocDocs: kycDocuments.noc,
+          safetyCertificateDocs: kycDocuments.safetyCertificates,
+        },
+        // Property data
+        property: {
+          title: data.propertyTitle,
+          propertyType: data.propertyType,
+          description: data.description,
+          destination: data.destination || data.propertyCity,
+          address: propertyAddress.fullAddress || data.address,
+          latitude: propertyAddress.latitude,
+          longitude: propertyAddress.longitude,
+          pricePerNight: data.pricePerNight,
+          maxGuests: data.maxGuests,
+          bedrooms: data.bedrooms,
+          beds: data.beds,
+          bathrooms: data.bathrooms,
+          policies: data.policies,
+          images: allImages,
+          categorizedImages: categorizedImages,
+          videos: videos,
+          amenityIds: selectedAmenities,
+        },
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Application Submitted Successfully!",
+        description: "Your KYC and property listing have been submitted for review. You'll be notified once approved.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/");
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session Expired", description: "Please log in again.", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const onSubmit = (data: CombinedFormData) => {
+    submitMutation.mutate(data);
+  };
+
+  const nextStep = async () => {
+    let fieldsToValidate: (keyof CombinedFormData)[] = [];
+    
+    if (step === 1) {
+      fieldsToValidate = ["firstName", "lastName", "email", "phone"];
+    } else if (step === 2) {
+      fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
+    } else if (step === 3) {
+      fieldsToValidate = ["propertyTitle", "propertyType", "description", "destination"];
+    } else if (step === 4) {
+      fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
+    }
+    
+    const isValid = await form.trigger(fieldsToValidate);
+    if (isValid) {
+      setStep(step + 1);
+    }
+  };
+
+  const prevStep = () => setStep(step - 1);
+
+  const stepTitles = [
+    { title: "Personal Information", icon: User },
+    { title: "Business & KYC Documents", icon: FileText },
+    { title: "Property Details", icon: Home },
+    { title: "Pricing & Amenities", icon: Building2 },
+    { title: "Photos & Submit", icon: CheckCircle },
+  ];
+
+  return (
+    <div className="min-h-screen bg-muted/30 pb-16">
+      <div className="container px-4 md:px-6 py-8 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold mb-2">List Your Property</h1>
+          <p className="text-muted-foreground">
+            Complete your verification and add your first property in one go
+          </p>
+        </div>
+
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            {stepTitles.map((s, i) => {
+              const Icon = s.icon;
+              const isActive = i + 1 === step;
+              const isCompleted = i + 1 < step;
+              return (
+                <div key={i} className="flex flex-col items-center flex-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
+                    isCompleted ? "bg-primary text-primary-foreground" : 
+                    isActive ? "bg-primary text-primary-foreground" : 
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    {isCompleted ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                  </div>
+                  <span className={`text-xs text-center hidden md:block ${isActive ? "font-medium" : "text-muted-foreground"}`}>
+                    {s.title}
+                  </span>
+                  {i < stepTitles.length - 1 && (
+                    <div className={`hidden md:block absolute h-0.5 w-full ${isCompleted ? "bg-primary" : "bg-muted"}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex gap-1">
+            {[...Array(totalSteps)].map((_, i) => (
+              <div key={i} className={`h-1.5 flex-1 rounded-full ${i < step ? "bg-primary" : "bg-muted"}`} />
+            ))}
+          </div>
+        </div>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            {/* Step 1: Personal Information */}
+            {step === 1 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Personal Information
+                  </CardTitle>
+                  <CardDescription>
+                    Tell us about yourself as the property owner
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>First Name *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="John" {...field} data-testid="input-first-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Last Name *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Doe" {...field} data-testid="input-last-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Address *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="john@example.com" {...field} data-testid="input-email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+91 98765 43210" {...field} data-testid="input-phone" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 2: Business & KYC Documents */}
+            {step === 2 && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Business Information
+                    </CardTitle>
+                    <CardDescription>
+                      Your business details for verification
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="businessName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Business Name *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your Hotel or Business Name" {...field} data-testid="input-business-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="businessAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Business Address *</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Complete business address..." rows={3} {...field} data-testid="textarea-business-address" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="kycPincode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>PIN Code *</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                placeholder="Enter 6-digit PIN code"
+                                {...field}
+                                onChange={(e) => handleKycPincodeChange(e.target.value)}
+                                maxLength={6}
+                                data-testid="input-kyc-pincode"
+                              />
+                              {isPincodeLookup && (
+                                <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                              )}
+                            </div>
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">Enter PIN code to auto-fill city and state</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="kycCity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="City" list="kyc-cities" {...field} data-testid="input-kyc-city" />
+                            </FormControl>
+                            <datalist id="kyc-cities">
+                              {INDIAN_CITIES.map((city) => <option key={city} value={city} />)}
+                            </datalist>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="kycState"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="State" list="kyc-states" {...field} data-testid="input-kyc-state" />
+                            </FormControl>
+                            <datalist id="kyc-states">
+                              {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
+                            </datalist>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="panNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>PAN Number *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="ABCDE1234F" {...field} data-testid="input-pan" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="gstNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>GST Number (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="22AAAAA0000A1Z5" {...field} data-testid="input-gst" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <KycDocumentUploader
+                  value={kycDocuments}
+                  onChange={setKycDocuments}
+                />
+              </div>
+            )}
+
+            {/* Step 3: Property Details */}
+            {step === 3 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Home className="h-5 w-5" />
+                    Property Details
+                  </CardTitle>
+                  <CardDescription>
+                    Tell us about the property you want to list
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="propertyTitle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Property Title *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Beautiful Villa with Ocean View" {...field} data-testid="input-property-title" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="propertyType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Property Type *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-property-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="hotel">Hotel</SelectItem>
+                            <SelectItem value="villa">Villa</SelectItem>
+                            <SelectItem value="apartment">Apartment</SelectItem>
+                            <SelectItem value="cabin">Cabin</SelectItem>
+                            <SelectItem value="resort">Resort</SelectItem>
+                            <SelectItem value="hostel">Hostel</SelectItem>
+                            <SelectItem value="lodge">Lodge</SelectItem>
+                            <SelectItem value="cottage">Cottage</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div>
+                    <Label>Property Location *</Label>
+                    <p className="text-sm text-muted-foreground mb-2">Enter PIN code to auto-fill city and state</p>
+                    
+                    <FormField
+                      control={form.control}
+                      name="propertyPincode"
+                      render={({ field }) => (
+                        <FormItem className="mb-4">
+                          <FormLabel>PIN Code</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                placeholder="Enter 6-digit PIN code"
+                                {...field}
+                                onChange={(e) => handlePropertyPincodeChange(e.target.value)}
+                                maxLength={6}
+                                data-testid="input-property-pincode"
+                              />
+                              {isPropertyPincodeLookup && (
+                                <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <FormField
+                        control={form.control}
+                        name="propertyCity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="City"
+                                list="property-cities"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  form.setValue("destination", e.target.value);
+                                }}
+                                data-testid="input-property-city"
+                              />
+                            </FormControl>
+                            <datalist id="property-cities">
+                              {INDIAN_CITIES.map((city) => <option key={city} value={city} />)}
+                            </datalist>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="propertyState"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State</FormLabel>
+                            <FormControl>
+                              <Input placeholder="State" list="property-states" {...field} data-testid="input-property-state" />
+                            </FormControl>
+                            <datalist id="property-states">
+                              {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
+                            </datalist>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <Label>Full Address (Optional)</Label>
+                      <AddressInput
+                        value={propertyAddress}
+                        onChange={(address) => {
+                          setPropertyAddress(address);
+                          if (address.city) form.setValue("propertyCity", address.city);
+                          if (address.state) form.setValue("propertyState", address.state);
+                          form.setValue("destination", address.city || address.locality || form.getValues("propertyCity") || "");
+                          form.setValue("address", address.fullAddress);
+                        }}
+                        placeholder="Search for property address..."
+                        testIdPrefix="property-address"
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="destination"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description *</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Describe your property..." rows={5} {...field} data-testid="textarea-description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 4: Pricing & Amenities */}
+            {step === 4 && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Property Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="maxGuests"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Max Guests *</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-max-guests" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bedrooms"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Bedrooms *</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-bedrooms" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="beds"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Beds *</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-beds" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bathrooms"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Bathrooms *</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-bathrooms" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="pricePerNight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price per Night (₹) *</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="100" step="100" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} data-testid="input-price" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="policies"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>House Rules (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Check-in after 3pm, No smoking, etc." rows={3} {...field} data-testid="textarea-policies" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Amenities</CardTitle>
+                    <CardDescription>Select all amenities your property offers</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {amenities.map((amenity) => (
+                        <div key={amenity.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={amenity.id}
+                            checked={selectedAmenities.includes(amenity.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedAmenities(
+                                checked
+                                  ? [...selectedAmenities, amenity.id]
+                                  : selectedAmenities.filter((id) => id !== amenity.id)
+                              );
+                            }}
+                            data-testid={`checkbox-amenity-${amenity.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          />
+                          <label htmlFor={amenity.id} className="text-sm font-medium cursor-pointer">
+                            {amenity.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Step 5: Photos & Submit */}
+            {step === 5 && (
+              <div className="space-y-6">
+                <PropertyImageUploader
+                  value={categorizedImages}
+                  onChange={setCategorizedImages}
+                  onVideosChange={setVideos}
+                  videos={videos}
+                />
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                      Review & Submit
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">What happens next?</h4>
+                      <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                        <li>• Your KYC and property listing will be reviewed together</li>
+                        <li>• Admin will approve or reject within 2-3 business days</li>
+                        <li>• Once approved, your property will be live on ZECOHO</li>
+                        <li>• You'll be notified via email when approved</li>
+                      </ul>
+                    </div>
+
+                    {getTotalImageCount() === 0 && (
+                      <p className="text-sm text-destructive">Please upload at least one property image</p>
+                    )}
+
+                    {(!kycDocuments.propertyOwnership?.length || !kycDocuments.identityProof?.length) && (
+                      <p className="text-sm text-destructive">
+                        Please upload mandatory KYC documents (Property Ownership Proof and Identity Proof) in Step 2
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-8">
+              {step > 1 ? (
+                <Button type="button" variant="outline" onClick={prevStep} data-testid="button-prev-step">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+              ) : (
+                <div />
+              )}
+
+              {step < totalSteps ? (
+                <Button type="button" onClick={nextStep} data-testid="button-next-step">
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={submitMutation.isPending || getTotalImageCount() === 0}
+                  data-testid="button-submit-application"
+                >
+                  {submitMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Submit Application
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </form>
+        </Form>
+      </div>
+    </div>
+  );
+}

@@ -170,6 +170,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Combined KYC and Property submission - for new owners listing their first property
+  app.post('/api/kyc/submit-with-property', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { kyc, property } = req.body;
+      
+      if (!kyc || !property) {
+        return res.status(400).json({ message: "Both KYC and property data are required" });
+      }
+      
+      // Check if user already has a KYC application
+      const existingKyc = await storage.getUserKycApplication(userId);
+      if (existingKyc) {
+        return res.status(400).json({ 
+          message: "You have already submitted a KYC application",
+          status: existingKyc.status 
+        });
+      }
+      
+      // Validate mandatory KYC documents
+      const { propertyOwnershipDocs, identityProofDocs } = kyc;
+      const missingDocs: string[] = [];
+      
+      if (!propertyOwnershipDocs || !Array.isArray(propertyOwnershipDocs) || propertyOwnershipDocs.length === 0) {
+        missingDocs.push("Property Ownership Proof");
+      }
+      
+      if (!identityProofDocs || !Array.isArray(identityProofDocs) || identityProofDocs.length === 0) {
+        missingDocs.push("Owner Identity Proof");
+      }
+      
+      if (missingDocs.length > 0) {
+        return res.status(400).json({
+          message: `Missing required documents: ${missingDocs.join(", ")}`
+        });
+      }
+      
+      // Validate property images
+      if (!property.images || !Array.isArray(property.images) || property.images.length === 0) {
+        return res.status(400).json({ message: "At least one property image is required" });
+      }
+      
+      // Create KYC application - parse without userId as it's added by storage function
+      const kycData = insertKycApplicationSchema.parse(kyc);
+      let kycApplication;
+      let createdProperty;
+      
+      try {
+        // Step 1: Create KYC application
+        kycApplication = await storage.createKycApplication(userId, kycData);
+        
+        // Step 2: Update user's KYC status to pending
+        const currentUser = await storage.getUser(userId);
+        if (currentUser) {
+          await storage.upsertUser({
+            ...currentUser,
+            kycStatus: "pending",
+          });
+        }
+        
+        // Step 3: Create property with pending status
+        const { amenityIds, ...propertyData } = property;
+        
+        // Prepare property data for database - convert number to string for decimal fields
+        createdProperty = await storage.createProperty({
+          title: propertyData.title,
+          description: propertyData.description,
+          propertyType: propertyData.propertyType,
+          destination: propertyData.destination,
+          address: propertyData.address || null,
+          latitude: propertyData.latitude ? String(propertyData.latitude) : null,
+          longitude: propertyData.longitude ? String(propertyData.longitude) : null,
+          images: propertyData.images || [],
+          categorizedImages: propertyData.categorizedImages || null,
+          videos: propertyData.videos || [],
+          pricePerNight: String(propertyData.pricePerNight),
+          maxGuests: propertyData.maxGuests || 2,
+          bedrooms: propertyData.bedrooms || 1,
+          beds: propertyData.beds || 1,
+          bathrooms: propertyData.bathrooms || 1,
+          policies: propertyData.policies || null,
+          ownerId: userId,
+          status: "pending",
+        });
+        
+        // Step 4: Set amenities if provided
+        if (amenityIds && amenityIds.length > 0) {
+          await storage.setPropertyAmenities(createdProperty.id, amenityIds);
+        }
+      } catch (innerError) {
+        // Rollback: If property creation fails after KYC was created, delete the KYC application
+        if (kycApplication && !createdProperty) {
+          try {
+            await storage.deleteKycApplication(kycApplication.id);
+            // Also revert user's KYC status
+            const currentUser = await storage.getUser(userId);
+            if (currentUser) {
+              await storage.upsertUser({
+                ...currentUser,
+                kycStatus: "not_started",
+              });
+            }
+          } catch (rollbackError) {
+            console.error("Rollback failed:", rollbackError);
+          }
+        }
+        throw innerError;
+      }
+      
+      res.json({ 
+        message: "Application submitted successfully! Both KYC and property are pending admin review.", 
+        kycApplicationId: kycApplication.id,
+        propertyId: createdProperty.id,
+        status: "pending"
+      });
+    } catch (error) {
+      console.error("Error submitting combined application:", error);
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid application data", error: error.message });
+      }
+      res.status(500).json({ message: "Failed to submit application" });
+    }
+  });
+
   // Get user's KYC application status
   app.get('/api/kyc/status', isAuthenticated, async (req: any, res) => {
     try {

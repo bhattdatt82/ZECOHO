@@ -38,7 +38,8 @@ export function Header() {
     if (user?.userRole === "owner") {
       return "/owner/properties/new";
     }
-    return "/kyc";
+    // For guests, route to combined wizard (KYC + Property in one go)
+    return "/list-property";
   };
 
   const getKycStatusBadge = () => {
