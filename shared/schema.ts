@@ -267,6 +267,7 @@ export const kycApplications = pgTable("kyc_applications", {
   reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
   reviewedAt: timestamp("reviewed_at"),
   reviewNotes: text("review_notes"),
+  rejectionDetails: jsonb("rejection_details"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -610,4 +611,25 @@ export interface NocDoc extends KycDocument {
 
 export interface SafetyCertificateDoc extends KycDocument {
   documentType: "fire_safety" | "electrical_safety" | "lift_safety";
+}
+
+// KYC Section identifiers for targeted rejection feedback
+export type KycSectionId = 
+  | "personal"       // Personal Information (name, email, phone)
+  | "business"       // Business Info (business name, address, city, state, pincode, PAN, GST)
+  | "propertyOwnership" // Property Ownership Documents
+  | "identityProof"     // Identity Proof Documents
+  | "businessLicense"   // Business License Documents
+  | "noc"               // NOC Documents
+  | "safetyCertificates"; // Safety Certificate Documents
+
+// Individual rejection item for a specific section
+export interface KycRejectionItem {
+  sectionId: KycSectionId;
+  message: string;       // Specific feedback for this section
+}
+
+// Complete rejection details structure stored in the database
+export interface KycRejectionDetails {
+  sections: KycRejectionItem[];  // List of sections that need attention
 }
