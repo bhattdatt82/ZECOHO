@@ -515,6 +515,7 @@ export const insertKycApplicationSchema = createInsertSchema(kycApplications).om
   reviewedBy: true,
   reviewedAt: true,
   reviewNotes: true,
+  rejectionDetails: true,
   createdAt: true,
   updatedAt: true,
 });
