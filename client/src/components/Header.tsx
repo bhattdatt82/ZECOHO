@@ -79,30 +79,21 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/">
-          <div className="flex items-center gap-2 cursor-pointer" data-testid="link-home">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-white font-bold text-lg">Z</span>
+          <div className="flex items-center gap-3 cursor-pointer" data-testid="link-home">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-primary to-rose-500 flex items-center justify-center shadow-md">
+              <span className="text-white font-bold text-lg tracking-tight">Z</span>
             </div>
-            <span className="font-bold text-xl">ZECOHO</span>
+            <span className="font-semibold text-xl tracking-tight">
+              <span className="text-primary">Ze</span>
+              <span className="text-foreground">Co</span>
+              <span className="text-rose-500">Ho</span>
+            </span>
           </div>
         </Link>
 
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-1 md:gap-2">
           {isAuthenticated ? (
             <>
-              {isOwner && (
-                <Badge variant="secondary" className="hidden md:flex">
-                  Owner Dashboard
-                </Badge>
-              )}
-              
-              {isAdmin && (
-                <Badge variant="default" className="hidden md:flex">
-                  <Shield className="h-3 w-3 mr-1" />
-                  Admin Panel
-                </Badge>
-              )}
-              
               <Link href="/">
                 <Button 
                   variant={location === "/" ? "secondary" : "ghost"}
