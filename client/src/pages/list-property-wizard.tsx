@@ -67,7 +67,7 @@ const combinedSchema = z.object({
   propertyCity: z.string().optional(),
   propertyState: z.string().optional(),
   propertyPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
-  address: z.string().optional(),
+  address: z.string().min(10, "Please provide complete property address"),
   pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
   maxGuests: z.coerce.number().min(1, "At least 1 guest required"),
   bedrooms: z.coerce.number().min(1, "At least 1 bedroom required"),
@@ -474,7 +474,7 @@ export default function ListPropertyWizard() {
     } else if (step === 2) {
       fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
     } else if (step === 3) {
-      fieldsToValidate = ["propertyTitle", "propertyType", "description", "propertyPincode"];
+      fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode"];
     } else if (step === 4) {
       fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
     }
@@ -514,7 +514,7 @@ export default function ListPropertyWizard() {
       } else if (s === 2) {
         fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
       } else if (s === 3) {
-        fieldsToValidate = ["propertyTitle", "propertyType", "description", "propertyPincode"];
+        fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode"];
       } else if (s === 4) {
         fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
       }
@@ -1192,10 +1192,10 @@ export default function ListPropertyWizard() {
                   />
 
                   <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-3">
                       <div>
-                        <Label>Property Location *</Label>
-                        <p className="text-sm text-muted-foreground">Enter PIN code to auto-fill city and state</p>
+                        <Label className="text-base font-medium">Property Location *</Label>
+                        <p className="text-sm text-muted-foreground">Complete address details for the property</p>
                       </div>
                       {form.watch("kycPincode") && (
                         <Button
@@ -1204,16 +1204,18 @@ export default function ListPropertyWizard() {
                           size="sm"
                           className="text-xs"
                           onClick={() => {
+                            const businessAddress = form.getValues("businessAddress");
                             const kycPincode = form.getValues("kycPincode");
                             const kycCity = form.getValues("kycCity");
                             const kycState = form.getValues("kycState");
+                            form.setValue("address", businessAddress);
                             form.setValue("propertyPincode", kycPincode);
                             form.setValue("propertyCity", kycCity);
                             form.setValue("propertyState", kycState);
                             form.setValue("destination", kycCity);
                             toast({
                               title: "Address copied",
-                              description: "Business address details applied to property location",
+                              description: "All business address details applied to property location",
                             });
                           }}
                           data-testid="button-same-as-business"
@@ -1223,6 +1225,26 @@ export default function ListPropertyWizard() {
                         </Button>
                       )}
                     </div>
+
+                    {/* Full Property Address */}
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem className="mb-4">
+                          <FormLabel>Property Address *</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Complete property address including building name, street, landmark..." 
+                              rows={3} 
+                              {...field} 
+                              data-testid="textarea-property-address" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <FormField
                       control={form.control}
