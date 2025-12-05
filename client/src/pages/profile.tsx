@@ -221,17 +221,22 @@ export default function Profile() {
                   </p>
                 </div>
 
-                {/* Multi-role enable button for platform admin */}
+                {/* Multi-role section for platform admin */}
                 {user?.email?.toLowerCase() === 'pushkardatt@gmail.com' && (
                   <div className="pt-4 border-t">
-                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                      <h4 className="font-medium text-amber-800 dark:text-amber-200 mb-2">Platform Administrator</h4>
-                      <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
-                        {isAdmin && isOwner 
-                          ? "You already have both Admin and Owner access!" 
-                          : `Enable multi-role access to get both Admin and Property Owner capabilities. (Current: isAdmin=${isAdmin}, isOwner=${isOwner})`}
-                      </p>
-                      {!(isAdmin && isOwner) && (
+                    {isAdmin && isOwner ? (
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                        <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">Multi-Role Active</h4>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          You have both Admin and Property Owner access. You can manage KYC applications, platform settings, and your own properties.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                        <h4 className="font-medium text-amber-800 dark:text-amber-200 mb-2">Platform Administrator</h4>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                          Enable multi-role access to get both Admin and Property Owner capabilities.
+                        </p>
                         <Button 
                           onClick={enableMultiRole}
                           disabled={isEnablingMultiRole}
@@ -239,20 +244,8 @@ export default function Profile() {
                         >
                           {isEnablingMultiRole ? "Enabling..." : "Enable Admin + Owner Access"}
                         </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Show confirmation if already has multi-role */}
-                {user?.email?.toLowerCase() === 'pushkardatt@gmail.com' && isAdmin && isOwner && (
-                  <div className="pt-4 border-t">
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                      <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">Multi-Role Active</h4>
-                      <p className="text-sm text-green-700 dark:text-green-300">
-                        You have both Admin and Property Owner access. You can manage KYC applications, platform settings, and your own properties.
-                      </p>
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
