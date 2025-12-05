@@ -14,7 +14,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Edit, Eye, MapPin, Trash2 } from "lucide-react";
+import { Edit, Eye, MapPin, Trash2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "wouter";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -141,10 +142,23 @@ export default function OwnerProperties() {
                     <h3 className="font-semibold text-lg mb-2 line-clamp-1" data-testid={`text-owner-title-${property.id}`}>
                       {property.title}
                     </h3>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
                       <MapPin className="h-4 w-4" />
                       <span className="line-clamp-1">{property.destination}</span>
                     </div>
+                    
+                    {property.status === "draft" && property.verificationNotes && (
+                      <Alert variant="destructive" className="mb-3" data-testid={`alert-rejection-${property.id}`}>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle className="text-sm font-medium">
+                          {property.verifiedAt ? "Verification Revoked" : "Rejection Reason"}
+                        </AlertTitle>
+                        <AlertDescription className="text-xs mt-1">
+                          {property.verificationNotes}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     <div className="flex items-baseline gap-1 mb-4">
                       <span className="text-xl font-semibold">
                         ₹{Number(property.pricePerNight).toLocaleString('en-IN')}

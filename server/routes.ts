@@ -1507,7 +1507,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Property not found" });
       }
 
-      const updated = await storage.updateProperty(req.params.id, { status: "published" });
+      const { notes } = req.body;
+      const updated = await storage.updateProperty(req.params.id, { 
+        status: "published",
+        verificationNotes: notes || null,
+        verifiedAt: new Date(),
+        verifiedBy: userId
+      });
       res.json(updated);
     } catch (error) {
       console.error("Error approving property:", error);
@@ -1530,7 +1536,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Property not found" });
       }
 
-      const updated = await storage.updateProperty(req.params.id, { status: "draft" });
+      const { notes } = req.body;
+      if (!notes || notes.trim() === "") {
+        return res.status(400).json({ message: "Rejection/revocation reason is required" });
+      }
+
+      const updated = await storage.updateProperty(req.params.id, { 
+        status: "draft",
+        verificationNotes: notes,
+        verifiedAt: new Date(),
+        verifiedBy: userId
+      });
       res.json(updated);
     } catch (error) {
       console.error("Error rejecting property:", error);

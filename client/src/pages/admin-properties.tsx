@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-import { CheckCircle, XCircle, Trash2, Eye, MapPin } from "lucide-react";
+import { CheckCircle, XCircle, Trash2, Eye, MapPin, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +29,15 @@ export default function AdminProperties() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
+  
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [propertyToApprove, setPropertyToApprove] = useState<Property | null>(null);
+  const [approveNotes, setApproveNotes] = useState("");
+  
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [propertyToReject, setPropertyToReject] = useState<Property | null>(null);
+  const [rejectNotes, setRejectNotes] = useState("");
+  const [isRevocation, setIsRevocation] = useState(false);
 
   // Check if user is admin
   if (user?.userRole !== "admin") {
@@ -50,12 +61,15 @@ export default function AdminProperties() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (propertyId: string) => {
-      return apiRequest("PATCH", `/api/admin/properties/${propertyId}/approve`, {});
+    mutationFn: async ({ propertyId, notes }: { propertyId: string; notes: string }) => {
+      return apiRequest("PATCH", `/api/admin/properties/${propertyId}/approve`, { notes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/properties"] });
       toast({ title: "Success", description: "Property approved successfully" });
+      setApproveDialogOpen(false);
+      setPropertyToApprove(null);
+      setApproveNotes("");
     },
     onError: (error: Error) => {
       toast({
@@ -67,12 +81,19 @@ export default function AdminProperties() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async (propertyId: string) => {
-      return apiRequest("PATCH", `/api/admin/properties/${propertyId}/reject`, {});
+    mutationFn: async ({ propertyId, notes }: { propertyId: string; notes: string }) => {
+      return apiRequest("PATCH", `/api/admin/properties/${propertyId}/reject`, { notes });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/properties"] });
-      toast({ title: "Success", description: "Property rejected successfully" });
+      toast({ 
+        title: "Success", 
+        description: isRevocation ? "Property verification revoked" : "Property rejected successfully" 
+      });
+      setRejectDialogOpen(false);
+      setPropertyToReject(null);
+      setRejectNotes("");
+      setIsRevocation(false);
     },
     onError: (error: Error) => {
       toast({
@@ -166,7 +187,11 @@ export default function AdminProperties() {
                       size="sm"
                       variant="default"
                       className="flex-1"
-                      onClick={() => approveMutation.mutate(property.id)}
+                      onClick={() => {
+                        setPropertyToApprove(property);
+                        setApproveNotes("");
+                        setApproveDialogOpen(true);
+                      }}
                       disabled={approveMutation.isPending}
                       data-testid={`button-approve-${property.id}`}
                     >
@@ -177,7 +202,12 @@ export default function AdminProperties() {
                       size="sm"
                       variant="outline"
                       className="flex-1"
-                      onClick={() => rejectMutation.mutate(property.id)}
+                      onClick={() => {
+                        setPropertyToReject(property);
+                        setRejectNotes("");
+                        setIsRevocation(false);
+                        setRejectDialogOpen(true);
+                      }}
                       disabled={rejectMutation.isPending}
                       data-testid={`button-reject-${property.id}`}
                     >
@@ -193,12 +223,17 @@ export default function AdminProperties() {
                       size="sm"
                       variant="outline"
                       className="flex-1 text-destructive hover:text-destructive"
-                      onClick={() => rejectMutation.mutate(property.id)}
+                      onClick={() => {
+                        setPropertyToReject(property);
+                        setRejectNotes("");
+                        setIsRevocation(true);
+                        setRejectDialogOpen(true);
+                      }}
                       disabled={rejectMutation.isPending}
                       data-testid={`button-disapprove-${property.id}`}
                     >
                       <XCircle className="h-4 w-4 mr-1" />
-                      Disapprove
+                      Revoke Verification
                     </Button>
                   </div>
                 )}
@@ -209,7 +244,11 @@ export default function AdminProperties() {
                       size="sm"
                       variant="default"
                       className="flex-1"
-                      onClick={() => approveMutation.mutate(property.id)}
+                      onClick={() => {
+                        setPropertyToApprove(property);
+                        setApproveNotes("");
+                        setApproveDialogOpen(true);
+                      }}
                       disabled={approveMutation.isPending}
                       data-testid={`button-reapprove-${property.id}`}
                     >
@@ -349,6 +388,117 @@ export default function AdminProperties() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent data-testid="dialog-approve-property">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Approve Property
+            </DialogTitle>
+            <DialogDescription>
+              You are about to verify and publish "{propertyToApprove?.title}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="approve-notes">Verification Notes (Optional)</Label>
+              <Textarea
+                id="approve-notes"
+                placeholder="Add any notes about this approval (e.g., verification details, comments)..."
+                value={approveNotes}
+                onChange={(e) => setApproveNotes(e.target.value)}
+                className="min-h-[100px]"
+                data-testid="textarea-approve-notes"
+              />
+              <p className="text-xs text-muted-foreground">
+                These notes will be visible to the property owner.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setApproveDialogOpen(false)} 
+              data-testid="button-cancel-approve"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => propertyToApprove && approveMutation.mutate({ 
+                propertyId: propertyToApprove.id, 
+                notes: approveNotes 
+              })}
+              disabled={approveMutation.isPending}
+              data-testid="button-confirm-approve"
+            >
+              {approveMutation.isPending ? "Approving..." : "Approve Property"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent data-testid="dialog-reject-property">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {isRevocation ? "Revoke Property Verification" : "Reject Property"}
+            </DialogTitle>
+            <DialogDescription>
+              {isRevocation 
+                ? `You are about to revoke verification for "${propertyToReject?.title}". This will unpublish the property.`
+                : `You are about to reject "${propertyToReject?.title}". Please provide a reason.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reject-notes" className="flex items-center gap-1">
+                {isRevocation ? "Revocation Reason" : "Rejection Reason"}
+                <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="reject-notes"
+                placeholder={isRevocation 
+                  ? "Explain why the verification is being revoked (e.g., policy violation, inaccurate information)..."
+                  : "Explain why the property is being rejected (e.g., incomplete information, policy violation)..."
+                }
+                value={rejectNotes}
+                onChange={(e) => setRejectNotes(e.target.value)}
+                className="min-h-[120px]"
+                data-testid="textarea-reject-notes"
+              />
+              <p className="text-xs text-muted-foreground">
+                This reason will be visible to the property owner so they can address the issues.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setRejectDialogOpen(false)} 
+              data-testid="button-cancel-reject"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => propertyToReject && rejectMutation.mutate({ 
+                propertyId: propertyToReject.id, 
+                notes: rejectNotes 
+              })}
+              disabled={rejectMutation.isPending || !rejectNotes.trim()}
+              data-testid="button-confirm-reject"
+            >
+              {rejectMutation.isPending 
+                ? (isRevocation ? "Revoking..." : "Rejecting...") 
+                : (isRevocation ? "Revoke Verification" : "Reject Property")
+              }
             </Button>
           </DialogFooter>
         </DialogContent>
