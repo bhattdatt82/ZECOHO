@@ -221,13 +221,13 @@ export default function Profile() {
                   </p>
                 </div>
 
-                {/* Multi-role enable button for platform admin */}
-                {user?.email === 'pushkardatt@gmail.com' && isAdmin && !isOwner && (
+                {/* Multi-role enable button for platform admin - shows if they don't have BOTH roles */}
+                {user?.email === 'pushkardatt@gmail.com' && !(isAdmin && isOwner) && (
                   <div className="pt-4 border-t">
                     <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                       <h4 className="font-medium text-amber-800 dark:text-amber-200 mb-2">Platform Administrator</h4>
                       <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
-                        Enable multi-role access to manage your own properties while keeping admin access.
+                        Enable multi-role access to get both Admin and Property Owner capabilities.
                       </p>
                       <Button 
                         onClick={enableMultiRole}
