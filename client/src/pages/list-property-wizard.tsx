@@ -33,7 +33,7 @@ import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/c
 import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle, IdCard, Shield, Flame, Camera } from "lucide-react";
 import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
 import type { KycSectionId, KycRejectionDetails } from "@shared/schema";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useCallback } from "react";
 
 const SECTION_LABELS: Record<KycSectionId, { label: string; icon: any }> = {
   personal: { label: "Personal Information", icon: User },
@@ -162,6 +162,31 @@ export default function ListPropertyWizard() {
   const { data: amenities = [] } = useQuery<Amenity[]>({
     queryKey: ["/api/amenities"],
   });
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
+
+  // Helper to scroll to first error field when validation fails
+  const scrollToFirstError = useCallback((fieldsToValidate: (keyof CombinedFormData)[]) => {
+    const errors = form.formState.errors;
+    for (const field of fieldsToValidate) {
+      if (errors[field]) {
+        // Try to find and focus the element
+        const element = document.querySelector(`[name="${field}"]`) || 
+                        document.querySelector(`#${field}`) ||
+                        document.querySelector(`[data-field="${field}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (element instanceof HTMLElement && typeof element.focus === 'function') {
+            setTimeout(() => element.focus(), 300);
+          }
+        }
+        break; // Only scroll to first error
+      }
+    }
+  }, [form.formState.errors]);
 
   // Pre-fill form with existing KYC data for resubmission
   useEffect(() => {
@@ -457,6 +482,14 @@ export default function ListPropertyWizard() {
     const isValid = await form.trigger(fieldsToValidate);
     if (isValid) {
       setStep(step + 1);
+    } else {
+      // Scroll to first error field and show toast
+      setTimeout(() => scrollToFirstError(fieldsToValidate), 100);
+      toast({
+        title: "Please fill required fields",
+        description: "Some fields need your attention before proceeding",
+        variant: "destructive"
+      });
     }
   };
 
@@ -489,6 +522,8 @@ export default function ListPropertyWizard() {
       const isValid = await form.trigger(fieldsToValidate);
       if (!isValid) {
         setStep(s); // Stop at the first invalid step
+        // Scroll to first error after step change
+        setTimeout(() => scrollToFirstError(fieldsToValidate), 100);
         toast({
           title: "Please complete this step",
           description: "Fill in all required fields before proceeding",
@@ -1157,8 +1192,37 @@ export default function ListPropertyWizard() {
                   />
 
                   <div>
-                    <Label>Property Location *</Label>
-                    <p className="text-sm text-muted-foreground mb-2">Enter PIN code to auto-fill city and state</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <Label>Property Location *</Label>
+                        <p className="text-sm text-muted-foreground">Enter PIN code to auto-fill city and state</p>
+                      </div>
+                      {form.watch("kycPincode") && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            const kycPincode = form.getValues("kycPincode");
+                            const kycCity = form.getValues("kycCity");
+                            const kycState = form.getValues("kycState");
+                            form.setValue("propertyPincode", kycPincode);
+                            form.setValue("propertyCity", kycCity);
+                            form.setValue("propertyState", kycState);
+                            form.setValue("destination", kycCity);
+                            toast({
+                              title: "Address copied",
+                              description: "Business address details applied to property location",
+                            });
+                          }}
+                          data-testid="button-same-as-business"
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Same as business address
+                        </Button>
+                      )}
+                    </div>
                     
                     <FormField
                       control={form.control}
