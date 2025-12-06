@@ -132,7 +132,7 @@ export default function Home() {
             data-testid="button-list-property-cta-top"
             className="whitespace-nowrap"
           >
-            List Your Property
+            List Your Property FREE
           </Button>
         </div>
       </div>
@@ -257,7 +257,7 @@ export default function Home() {
             data-testid="button-list-property-cta"
             className="whitespace-nowrap"
           >
-            List Your Property
+            List Your Property FREE
           </Button>
         </div>
       </div>

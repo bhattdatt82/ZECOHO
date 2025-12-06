@@ -237,8 +237,8 @@ export function Header() {
                   data-testid="button-list-property"
                 >
                   <PlusCircle className="h-4 w-4 md:mr-2" />
-                  <span className="hidden md:inline">List Your Property</span>
-                  <span className="md:hidden">List Property</span>
+                  <span className="hidden md:inline">List Your Property FREE</span>
+                  <span className="md:hidden">List FREE</span>
                 </Button>
               </Link>
 
