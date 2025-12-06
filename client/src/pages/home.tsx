@@ -76,24 +76,24 @@ export default function Home() {
         
         <div className="relative z-10 container px-4 md:px-6 text-center">
           {/* Search Bar - Top Priority */}
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center mb-4">
             <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
           </div>
 
           {/* ZERO Commission Badge */}
-          <div className="mb-6 flex justify-center">
+          <div className="mb-3 flex justify-center">
             <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 text-sm font-bold border-2 border-white/20">
               ZERO COMMISSION PLATFORM
             </Badge>
           </div>
 
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 leading-tight">
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-2 leading-tight">
             Connect Directly with Hoteliers
           </h1>
-          <p className="text-xl md:text-2xl text-white/95 mb-3 font-semibold">
+          <p className="text-xl md:text-2xl text-white/95 mb-2 font-semibold">
             Book at True Prices • No Middleman • No Commission
           </p>
-          <p className="text-base md:text-lg text-white/80 mb-8 max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-white/80 mb-5 max-w-2xl mx-auto">
             Deal directly with property owners and save up to 20%. At ZECOHO, you pay exactly what the hotelier charges — nothing more!
           </p>
 
