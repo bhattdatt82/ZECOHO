@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,26 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Property } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const REJECTION_REASONS = [
+  { id: "incomplete_info", label: "Incomplete property information", description: "Missing essential details like description, amenities, or pricing" },
+  { id: "poor_images", label: "Poor quality or insufficient images", description: "Images are blurry, low resolution, or don't adequately showcase the property" },
+  { id: "inaccurate_info", label: "Inaccurate or misleading information", description: "Property details don't match actual conditions or are exaggerated" },
+  { id: "policy_violation", label: "Policy violation", description: "Listing violates platform terms of service or community guidelines" },
+  { id: "duplicate_listing", label: "Duplicate listing", description: "This property already exists as another listing on the platform" },
+  { id: "unverified_ownership", label: "Ownership not verified", description: "Unable to confirm property ownership or authorization to list" },
+  { id: "custom", label: "Other reason", description: "Specify a custom reason for rejection" },
+];
+
+const REVOCATION_REASONS = [
+  { id: "guest_complaints", label: "Multiple guest complaints", description: "Received verified complaints from multiple guests" },
+  { id: "safety_concerns", label: "Safety concerns", description: "Property has safety issues that need to be addressed" },
+  { id: "policy_violation", label: "Policy violation", description: "Owner or property violated platform terms of service" },
+  { id: "fraudulent_activity", label: "Fraudulent activity", description: "Evidence of fraudulent behavior or misrepresentation" },
+  { id: "inaccurate_listing", label: "Inaccurate listing information", description: "Property doesn't match the listing description" },
+  { id: "non_responsive", label: "Non-responsive owner", description: "Owner is not responding to guest inquiries or complaints" },
+  { id: "custom", label: "Other reason", description: "Specify a custom reason for revocation" },
+];
 
 export default function AdminProperties() {
   const { user } = useAuth();
@@ -36,8 +57,28 @@ export default function AdminProperties() {
   
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [propertyToReject, setPropertyToReject] = useState<Property | null>(null);
-  const [rejectNotes, setRejectNotes] = useState("");
+  const [selectedReasonId, setSelectedReasonId] = useState("");
+  const [customReason, setCustomReason] = useState("");
   const [isRevocation, setIsRevocation] = useState(false);
+
+  const resetRejectForm = () => {
+    setSelectedReasonId("");
+    setCustomReason("");
+    setPropertyToReject(null);
+    setIsRevocation(false);
+    setRejectDialogOpen(false);
+  };
+
+  const getRejectNotes = () => {
+    const reasons = isRevocation ? REVOCATION_REASONS : REJECTION_REASONS;
+    const selectedReason = reasons.find(r => r.id === selectedReasonId);
+    if (!selectedReason) return "";
+    
+    if (selectedReasonId === "custom") {
+      return customReason.trim();
+    }
+    return `${selectedReason.label}: ${selectedReason.description}`;
+  };
 
   // Check if user is admin
   if (user?.userRole !== "admin") {
@@ -90,10 +131,7 @@ export default function AdminProperties() {
         title: "Success", 
         description: isRevocation ? "Property verification revoked" : "Property rejected successfully" 
       });
-      setRejectDialogOpen(false);
-      setPropertyToReject(null);
-      setRejectNotes("");
-      setIsRevocation(false);
+      resetRejectForm();
     },
     onError: (error: Error) => {
       toast({
@@ -204,7 +242,8 @@ export default function AdminProperties() {
                       className="flex-1"
                       onClick={() => {
                         setPropertyToReject(property);
-                        setRejectNotes("");
+                        setSelectedReasonId("");
+                        setCustomReason("");
                         setIsRevocation(false);
                         setRejectDialogOpen(true);
                       }}
@@ -225,7 +264,8 @@ export default function AdminProperties() {
                       className="flex-1 text-destructive hover:text-destructive"
                       onClick={() => {
                         setPropertyToReject(property);
-                        setRejectNotes("");
+                        setSelectedReasonId("");
+                        setCustomReason("");
                         setIsRevocation(true);
                         setRejectDialogOpen(true);
                       }}
@@ -442,8 +482,8 @@ export default function AdminProperties() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent data-testid="dialog-reject-property">
+      <Dialog open={rejectDialogOpen} onOpenChange={(open) => !open && resetRejectForm()}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" data-testid="dialog-reject-property">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
@@ -452,36 +492,80 @@ export default function AdminProperties() {
             <DialogDescription>
               {isRevocation 
                 ? `You are about to revoke verification for "${propertyToReject?.title}". This will unpublish the property.`
-                : `You are about to reject "${propertyToReject?.title}". Please provide a reason.`
+                : `You are about to reject "${propertyToReject?.title}". Please select a reason.`
               }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="reject-notes" className="flex items-center gap-1">
+            <div className="space-y-3">
+              <Label className="flex items-center gap-1">
                 {isRevocation ? "Revocation Reason" : "Rejection Reason"}
                 <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="reject-notes"
-                placeholder={isRevocation 
-                  ? "Explain why the verification is being revoked (e.g., policy violation, inaccurate information)..."
-                  : "Explain why the property is being rejected (e.g., incomplete information, policy violation)..."
-                }
-                value={rejectNotes}
-                onChange={(e) => setRejectNotes(e.target.value)}
-                className="min-h-[120px]"
-                data-testid="textarea-reject-notes"
-              />
+              <RadioGroup
+                value={selectedReasonId}
+                onValueChange={setSelectedReasonId}
+                className="space-y-2"
+                data-testid="radiogroup-reasons"
+              >
+                {(isRevocation ? REVOCATION_REASONS : REJECTION_REASONS).map((reason) => (
+                  <div
+                    key={reason.id}
+                    className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${
+                      selectedReasonId === reason.id 
+                        ? "border-primary bg-primary/5" 
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <RadioGroupItem 
+                      value={reason.id} 
+                      id={`reason-${reason.id}`}
+                      className="mt-0.5"
+                      data-testid={`radio-reason-${reason.id}`}
+                    />
+                    <div className="flex-1">
+                      <Label 
+                        htmlFor={`reason-${reason.id}`} 
+                        className="font-medium cursor-pointer"
+                      >
+                        {reason.label}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {reason.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </RadioGroup>
+              
+              {selectedReasonId === "custom" && (
+                <div className="mt-3 space-y-2">
+                  <Label htmlFor="custom-reason">
+                    Custom Reason <span className="text-destructive">*</span>
+                  </Label>
+                  <Textarea
+                    id="custom-reason"
+                    placeholder={isRevocation 
+                      ? "Explain why the verification is being revoked..."
+                      : "Explain why the property is being rejected..."
+                    }
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    className="min-h-[100px]"
+                    data-testid="textarea-custom-reason"
+                  />
+                </div>
+              )}
+              
               <p className="text-xs text-muted-foreground">
                 This reason will be visible to the property owner so they can address the issues.
               </p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
-              onClick={() => setRejectDialogOpen(false)} 
+              onClick={resetRejectForm}
               data-testid="button-cancel-reject"
             >
               Cancel
@@ -490,9 +574,13 @@ export default function AdminProperties() {
               variant="destructive"
               onClick={() => propertyToReject && rejectMutation.mutate({ 
                 propertyId: propertyToReject.id, 
-                notes: rejectNotes 
+                notes: getRejectNotes()
               })}
-              disabled={rejectMutation.isPending || !rejectNotes.trim()}
+              disabled={
+                rejectMutation.isPending || 
+                !selectedReasonId || 
+                (selectedReasonId === "custom" && !customReason.trim())
+              }
               data-testid="button-confirm-reject"
             >
               {rejectMutation.isPending 
