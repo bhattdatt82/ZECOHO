@@ -753,11 +753,56 @@ export default function PropertyDetails() {
               </div>
             )}
 
-            {/* Policies */}
-            {property.policies && (
+            {/* Things to Know */}
+            {(property.policies || property.checkInTime || property.checkOutTime || 
+              (property.safetyFeatures && property.safetyFeatures.length > 0) || 
+              property.cancellationPolicy || property.maxGuests) && (
               <div>
-                <h2 className="text-xl font-semibold mb-4">House rules</h2>
-                <p className="text-muted-foreground">{property.policies}</p>
+                <h2 className="text-xl font-semibold mb-6">Things to know</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {/* House Rules */}
+                  <div>
+                    <h3 className="font-semibold mb-3">House rules</h3>
+                    <div className="space-y-2 text-muted-foreground">
+                      {property.checkInTime && (
+                        <p>Check-in after {property.checkInTime}</p>
+                      )}
+                      {property.checkOutTime && (
+                        <p>Checkout before {property.checkOutTime}</p>
+                      )}
+                      <p>{property.maxGuests} guests maximum</p>
+                      {property.policies && (
+                        <p className="text-sm mt-2">{property.policies.length > 100 ? property.policies.substring(0, 100) + "..." : property.policies}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Safety & Property */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Safety & property</h3>
+                    <div className="space-y-2 text-muted-foreground">
+                      {property.safetyFeatures && property.safetyFeatures.length > 0 ? (
+                        property.safetyFeatures.slice(0, 4).map((feature, idx) => (
+                          <p key={idx}>{feature}</p>
+                        ))
+                      ) : (
+                        <p className="text-sm">Contact host for safety information</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Cancellation Policy */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Cancellation policy</h3>
+                    <div className="space-y-2 text-muted-foreground">
+                      {property.cancellationPolicy ? (
+                        <p>{property.cancellationPolicy.length > 150 ? property.cancellationPolicy.substring(0, 150) + "..." : property.cancellationPolicy}</p>
+                      ) : (
+                        <p className="text-sm">Contact host for cancellation details</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
