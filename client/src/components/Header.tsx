@@ -80,14 +80,14 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/">
           <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" data-testid="link-home">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-md">
               <span className="text-white font-bold text-lg">Z</span>
             </div>
             <div className="flex items-baseline">
-              <span className="font-bold text-xl text-foreground">
+              <span className="font-bold text-xl text-foreground tracking-tight">
                 ZECOHO
               </span>
-              <span className="font-semibold text-base text-primary">.com</span>
+              <span className="font-bold text-base bg-gradient-to-r from-rose-500 to-amber-500 bg-clip-text text-transparent">.com</span>
             </div>
           </div>
         </Link>

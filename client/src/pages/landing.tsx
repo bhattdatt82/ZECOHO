@@ -35,14 +35,14 @@ export default function Landing() {
         <div className="container mx-auto flex items-center justify-between">
           <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" data-testid="link-home-logo">
-              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">Z</span>
               </div>
               <div className="flex items-baseline">
-                <span className="font-bold text-2xl text-white drop-shadow-md">
+                <span className="font-bold text-2xl text-white drop-shadow-md tracking-tight">
                   ZECOHO
                 </span>
-                <span className="font-semibold text-lg text-primary drop-shadow-md">.com</span>
+                <span className="font-bold text-lg bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent drop-shadow-md">.com</span>
               </div>
             </div>
           </Link>
