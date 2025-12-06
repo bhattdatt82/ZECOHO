@@ -262,9 +262,6 @@ export function SearchBar({
                     {dest.state}{dest.isGoogle ? '' : `, ${dest.country || 'India'}`}
                   </span>
                 )}
-                {dest.isGoogle && (
-                  <span className="text-xs text-primary ml-2">(via Google)</span>
-                )}
               </button>
             ))}
           </div>
@@ -377,9 +374,6 @@ export function SearchBar({
                 <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
                   {dest.state}{dest.isGoogle ? '' : `, ${dest.country || 'India'}`}
                 </span>
-              )}
-              {dest.isGoogle && (
-                <span className="text-xs text-primary ml-2">(via Google)</span>
               )}
             </button>
           ))}
