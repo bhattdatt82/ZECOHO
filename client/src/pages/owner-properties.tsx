@@ -215,23 +215,25 @@ export default function OwnerProperties() {
                       </Alert>
                     )}
 
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-semibold">
-                          ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
-                        </span>
-                        <span className="text-sm text-muted-foreground">/ night</span>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7"
-                        onClick={() => openPriceDialog(property)}
-                        data-testid={`button-edit-price-${property.id}`}
-                      >
-                        <IndianRupee className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-baseline gap-1 mb-3">
+                      <span className="text-xl font-semibold">
+                        ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-sm text-muted-foreground">/ night</span>
                     </div>
+                    
+                    {/* Change Price Button - Prominent */}
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      className="w-full mb-3 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                      onClick={() => openPriceDialog(property)}
+                      data-testid={`button-edit-price-${property.id}`}
+                    >
+                      <IndianRupee className="h-4 w-4 mr-2" />
+                      Change Price
+                    </Button>
+                    
                     <div className="flex gap-2">
                       <Button asChild variant="outline" size="icon" data-testid={`button-view-${property.id}`}>
                         <Link href={`/properties/${property.id}`}>
