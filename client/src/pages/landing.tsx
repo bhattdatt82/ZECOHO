@@ -40,7 +40,7 @@ export default function Landing() {
         </div>
         
         <div className="relative z-10 container px-4 md:px-6 text-center">
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center mb-4">
             <Button 
               size="sm"
               variant="outline" 
@@ -53,8 +53,8 @@ export default function Landing() {
             </Button>
           </div>
           
-          <div className="mb-6" data-testid="brand-logo">
-            <h1 className="text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-2">
+          <div className="mb-3" data-testid="brand-logo">
+            <h1 className="text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-1">
               ZECOHO
             </h1>
             <p className="text-lg md:text-xl text-white/80 font-light tracking-wide">
@@ -62,14 +62,14 @@ export default function Landing() {
             </p>
           </div>
           
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" data-testid="text-hero-title">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-2" data-testid="text-hero-title">
             Book Direct. Pay Less. ZERO Commission.
           </h2>
-          <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-white/90 mb-5 max-w-2xl mx-auto">
             Connect directly with hoteliers — No middleman, no markup, no hidden fees.
           </p>
           
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center mb-5">
             <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
           </div>
           
