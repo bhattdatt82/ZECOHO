@@ -39,6 +39,8 @@ export const propertyTypeEnum = pgEnum("property_type", [
   "resort",
   "apartment",
   "cottage",
+  "farmhouse",
+  "homestay",
 ]);
 
 // Property status enum

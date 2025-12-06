@@ -69,7 +69,7 @@ const combinedSchema = z.object({
   
   // Property Information
   propertyTitle: z.string().min(5, "Property title must be at least 5 characters"),
-  propertyType: z.enum(["hotel", "villa", "apartment", "resort", "hostel", "lodge", "cottage"]),
+  propertyType: z.enum(["hotel", "villa", "apartment", "resort", "hostel", "lodge", "cottage", "farmhouse", "homestay"]),
   description: z.string().min(20, "Description must be at least 20 characters"),
   destination: z.string().min(2, "Destination is required"),
   
@@ -1385,6 +1385,8 @@ export default function ListPropertyWizard() {
                             <SelectItem value="hostel">Hostel</SelectItem>
                             <SelectItem value="lodge">Lodge</SelectItem>
                             <SelectItem value="cottage">Cottage</SelectItem>
+                            <SelectItem value="farmhouse">Farmhouse</SelectItem>
+                            <SelectItem value="homestay">Homestay</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

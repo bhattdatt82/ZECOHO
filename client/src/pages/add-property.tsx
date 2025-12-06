@@ -243,6 +243,8 @@ export default function AddProperty() {
                         <SelectItem value="hostel">Hostel</SelectItem>
                         <SelectItem value="lodge">Lodge</SelectItem>
                         <SelectItem value="cottage">Cottage</SelectItem>
+                        <SelectItem value="farmhouse">Farmhouse</SelectItem>
+                        <SelectItem value="homestay">Homestay</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

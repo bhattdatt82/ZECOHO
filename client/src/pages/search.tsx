@@ -64,6 +64,8 @@ export default function Search() {
     { value: "resort", label: "Resorts" },
     { value: "hostel", label: "Hostels" },
     { value: "lodge", label: "Lodges" },
+    { value: "farmhouse", label: "Farmhouses" },
+    { value: "homestay", label: "Homestays" },
   ];
 
   const handleSearch = ({ destination }: { destination?: string; checkIn?: string; checkOut?: string; guests?: number }) => {

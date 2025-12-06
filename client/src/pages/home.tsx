@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { Home as HomeIcon, MapPin, Calendar, Check, Shield, TrendingDown, Sparkles, Award, Handshake, Users, Hotel, Building, Waves, Mountain, TreePine } from "lucide-react";
+import { Home as HomeIcon, MapPin, Calendar, Check, Shield, TrendingDown, Sparkles, Award, Handshake, Users, Hotel, Building, Waves, Mountain, TreePine, Wheat, Heart } from "lucide-react";
 import type { Property, Destination } from "@shared/schema";
 import heroImage from "@assets/generated_images/luxury_villa_hero_image.png";
 
@@ -46,6 +46,8 @@ export default function Home() {
     { icon: Waves, label: "Resorts", type: "resort" },
     { icon: Mountain, label: "Hostels", type: "hostel" },
     { icon: TreePine, label: "Lodges", type: "lodge" },
+    { icon: Wheat, label: "Farmhouses", type: "farmhouse" },
+    { icon: Heart, label: "Homestays", type: "homestay" },
   ];
 
   const featuredProperties = properties.filter(p => p.status === "published").slice(0, 8);

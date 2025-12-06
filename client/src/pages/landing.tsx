@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/SearchBar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Building, Home as HomeIcon, Hotel, Mountain, Waves, TreePine } from "lucide-react";
+import { Building, Home as HomeIcon, Hotel, Mountain, Waves, TreePine, Wheat, Heart } from "lucide-react";
 import { useLocation } from "wouter";
 import heroImage from "@assets/generated_images/luxury_villa_hero_image.png";
 
@@ -24,6 +24,8 @@ export default function Landing() {
     { icon: Waves, label: "Resorts", type: "resort" },
     { icon: Mountain, label: "Hostels", type: "hostel" },
     { icon: TreePine, label: "Lodges", type: "lodge" },
+    { icon: Wheat, label: "Farmhouses", type: "farmhouse" },
+    { icon: Heart, label: "Homestays", type: "homestay" },
   ];
 
   return (
