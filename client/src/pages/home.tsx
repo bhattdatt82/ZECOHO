@@ -80,13 +80,6 @@ export default function Home() {
             <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
           </div>
 
-          {/* ZERO Commission Badge */}
-          <div className="mb-2 flex justify-center">
-            <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-1.5 text-sm font-bold border-2 border-white/20">
-              ZERO COMMISSION PLATFORM
-            </Badge>
-          </div>
-
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-1 leading-tight">
             Connect Directly with Hoteliers
           </h1>
