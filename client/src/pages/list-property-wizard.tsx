@@ -818,7 +818,7 @@ export default function ListPropertyWizard() {
                     <KycDocumentUploader
                       value={kycDocuments}
                       onChange={setKycDocuments}
-                      expandedCategories={flaggedDocumentCategories}
+                      flaggedCategories={flaggedDocumentCategories}
                     />
                   </CardContent>
                 </Card>
@@ -1204,15 +1204,25 @@ export default function ListPropertyWizard() {
                           size="sm"
                           className="text-xs"
                           onClick={() => {
-                            const businessAddress = form.getValues("businessAddress");
+                            const businessAddr = form.getValues("businessAddress");
                             const kycPincode = form.getValues("kycPincode");
                             const kycCity = form.getValues("kycCity");
                             const kycState = form.getValues("kycState");
-                            form.setValue("address", businessAddress);
+                            form.setValue("address", businessAddr);
                             form.setValue("propertyPincode", kycPincode);
                             form.setValue("propertyCity", kycCity);
                             form.setValue("propertyState", kycState);
                             form.setValue("destination", kycCity);
+                            
+                            // Also update the propertyAddress state for the AddressInput component
+                            const updatedPropertyAddress: AddressDetails = {
+                              fullAddress: businessAddr,
+                              city: kycCity,
+                              state: kycState,
+                              pincode: kycPincode,
+                            };
+                            setPropertyAddress(updatedPropertyAddress);
+                            
                             toast({
                               title: "Address copied",
                               description: "All business address details applied to property location",
