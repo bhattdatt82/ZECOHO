@@ -24,6 +24,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { type Amenity, type CategorizedPropertyImages, type KycApplication } from "@shared/schema";
 import { AddressInput, type AddressDetails } from "@/components/AddressInput";
+import { CitySearchInput } from "@/components/CitySearchInput";
 import { 
   PropertyImageUploader, 
   getImagesArrayFromCategorized,
@@ -1537,20 +1538,23 @@ export default function ListPropertyWizard() {
                           <FormItem>
                             <FormLabel>City *</FormLabel>
                             <FormControl>
-                              <Input 
-                                placeholder="City" 
-                                list="property-cities" 
-                                {...field} 
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  form.setValue("destination", e.target.value);
+                              <CitySearchInput
+                                value={field.value}
+                                onChange={(city, state, district) => {
+                                  field.onChange(city);
+                                  form.setValue("destination", city);
+                                  if (state && !form.getValues("propState")) {
+                                    form.setValue("propState", state);
+                                  }
+                                  if (district && !form.getValues("propDistrict")) {
+                                    form.setValue("propDistrict", district);
+                                  }
                                 }}
-                                data-testid="input-property-city" 
+                                placeholder="Search any Indian city..."
+                                testId="input-property-city"
                               />
                             </FormControl>
-                            <datalist id="property-cities">
-                              {INDIAN_CITIES.map((city) => <option key={city} value={city} />)}
-                            </datalist>
+                            <p className="text-xs text-muted-foreground">Search for any city in India including small towns</p>
                             <FormMessage />
                           </FormItem>
                         )}

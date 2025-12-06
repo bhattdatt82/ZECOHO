@@ -1,9 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, Calendar, Users } from "lucide-react";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { Search, MapPin, Calendar, Users, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+
+interface GooglePlacePrediction {
+  place_id: string;
+  description: string;
+  structured_formatting?: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
 
 interface SearchBarProps {
   onSearch?: (params: {
@@ -53,7 +62,11 @@ export function SearchBar({
   const [checkOut, setCheckOut] = useState(initialCheckOut);
   const [guests, setGuests] = useState(initialGuests);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [googlePredictions, setGooglePredictions] = useState<GooglePlacePrediction[]>([]);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const autocompleteServiceRef = useRef<any>(null);
   
   const debouncedDestination = useDebounce(destination.trim(), 300);
 
@@ -63,6 +76,73 @@ export function SearchBar({
     setCheckOut(initialCheckOut);
     setGuests(initialGuests);
   }, [initialDestination, initialCheckIn, initialCheckOut, initialGuests]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !(window as any).google) {
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!apiKey) return;
+
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (existingScript) {
+        const checkGoogle = () => {
+          if ((window as any).google?.maps?.places) {
+            autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+            setGoogleMapsLoaded(true);
+          } else {
+            setTimeout(checkGoogle, 100);
+          }
+        };
+        checkGoogle();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        if ((window as any).google) {
+          autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+          setGoogleMapsLoaded(true);
+        }
+      };
+      document.head.appendChild(script);
+    } else if ((window as any).google?.maps?.places) {
+      autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+      setGoogleMapsLoaded(true);
+    }
+  }, []);
+
+  const fetchGooglePredictions = useCallback(async (query: string) => {
+    if (!query || query.length < 2 || !autocompleteServiceRef.current) {
+      setGooglePredictions([]);
+      setIsGoogleLoading(false);
+      return;
+    }
+
+    setIsGoogleLoading(true);
+    try {
+      const results = await autocompleteServiceRef.current.getPlacePredictions({
+        input: query,
+        componentRestrictions: { country: "in" },
+        types: ["(cities)"],
+      });
+      setGooglePredictions(results.predictions || []);
+    } catch (error) {
+      console.error("Error fetching Google predictions:", error);
+      setGooglePredictions([]);
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debouncedDestination.length >= 2 && googleMapsLoaded) {
+      fetchGooglePredictions(debouncedDestination);
+    } else {
+      setGooglePredictions([]);
+    }
+  }, [debouncedDestination, googleMapsLoaded, fetchGooglePredictions]);
 
   const saveSearchMutation = useMutation({
     mutationFn: async (searchData: any) => {
@@ -90,6 +170,21 @@ export function SearchBar({
     staleTime: 60000,
     enabled: debouncedDestination.length > 0,
   });
+
+  const combinedDestinations = useMemo(() => {
+    const dbNames = new Set(filteredDestinations.map((d: any) => d.name.toLowerCase()));
+    
+    const googleCities = googlePredictions
+      .filter(p => !dbNames.has(p.structured_formatting?.main_text?.toLowerCase() || p.description.split(",")[0].toLowerCase()))
+      .map(p => ({
+        id: `google-${p.place_id}`,
+        name: p.structured_formatting?.main_text || p.description.split(",")[0],
+        state: p.structured_formatting?.secondary_text?.split(",")[0] || "",
+        isGoogle: true,
+      }));
+
+    return [...filteredDestinations, ...googleCities];
+  }, [filteredDestinations, googlePredictions]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -145,9 +240,15 @@ export function SearchBar({
         </Button>
         
         {/* Suggestions dropdown - positioned absolutely relative to outer container */}
-        {showSuggestions && filteredDestinations.length > 0 && (
+        {showSuggestions && combinedDestinations.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-2xl max-h-60 overflow-y-auto" style={{ zIndex: 9999 }}>
-            {filteredDestinations.map((dest: any) => (
+            {(isLoading || isGoogleLoading) && (
+              <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Searching cities...
+              </div>
+            )}
+            {combinedDestinations.map((dest: any) => (
               <button
                 key={dest.id}
                 onClick={() => handleSelectDestination(dest.name)}
@@ -158,8 +259,11 @@ export function SearchBar({
                 <span className="font-medium">{dest.name}</span>
                 {dest.state && (
                   <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                    {dest.state}, {dest.country || 'India'}
+                    {dest.state}{dest.isGoogle ? '' : `, ${dest.country || 'India'}`}
                   </span>
+                )}
+                {dest.isGoogle && (
+                  <span className="text-xs text-primary ml-2">(via Google)</span>
                 )}
               </button>
             ))}
@@ -252,9 +356,15 @@ export function SearchBar({
       </div>
       
       {/* Suggestions dropdown - positioned absolutely relative to outer container */}
-      {showSuggestions && filteredDestinations.length > 0 && (
+      {showSuggestions && combinedDestinations.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-2xl max-h-60 overflow-y-auto" style={{ zIndex: 9999 }}>
-          {filteredDestinations.map((dest: any) => (
+          {(isLoading || isGoogleLoading) && (
+            <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Searching cities...
+            </div>
+          )}
+          {combinedDestinations.map((dest: any) => (
             <button
               key={dest.id}
               onClick={() => handleSelectDestination(dest.name)}
@@ -265,8 +375,11 @@ export function SearchBar({
               <span className="font-medium">{dest.name}</span>
               {dest.state && (
                 <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                  {dest.state}, {dest.country || 'India'}
+                  {dest.state}{dest.isGoogle ? '' : `, ${dest.country || 'India'}`}
                 </span>
+              )}
+              {dest.isGoogle && (
+                <span className="text-xs text-primary ml-2">(via Google)</span>
               )}
             </button>
           ))}
