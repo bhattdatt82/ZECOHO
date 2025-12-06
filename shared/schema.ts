@@ -109,6 +109,7 @@ export const properties = pgTable("properties", {
   categorizedImages: jsonb("categorized_images"),
   videos: text("videos").array().notNull().default(sql`ARRAY[]::text[]`),
   pricePerNight: decimal("price_per_night", { precision: 10, scale: 2 }).notNull(),
+  originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   maxGuests: integer("max_guests").notNull().default(2),
   bedrooms: integer("bedrooms").notNull().default(1),
   beds: integer("beds").notNull().default(1),
