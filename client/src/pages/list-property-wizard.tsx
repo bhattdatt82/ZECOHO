@@ -863,9 +863,9 @@ export default function ListPropertyWizard() {
     <div className="min-h-screen bg-muted/30 pb-16">
       <div className="container px-4 md:px-6 py-8 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold mb-2">List Your Property</h1>
-          <p className="text-muted-foreground">
+        <div className="mb-4">
+          <h1 className="text-xl font-semibold mb-1">List Your Property</h1>
+          <p className="text-sm text-muted-foreground">
             Complete your verification and add your first property in one go
           </p>
         </div>
