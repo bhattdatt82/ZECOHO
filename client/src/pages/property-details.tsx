@@ -66,6 +66,7 @@ import {
   Refrigerator,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { PropertyMap } from "@/components/PropertyMap";
 import type { Property, Amenity } from "@shared/schema";
 import { insertReviewSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -736,6 +737,21 @@ export default function PropertyDetails() {
                 </div>
               )}
             </div>
+
+            {/* Location Map */}
+            {property.latitude && property.longitude && (
+              <div>
+                <h2 className="text-xl font-semibold mb-2">Where you'll be</h2>
+                <p className="text-muted-foreground mb-4">{property.destination}</p>
+                <div className="rounded-xl overflow-hidden border" data-testid="property-map-container">
+                  <PropertyMap 
+                    latitude={Number(property.latitude)} 
+                    longitude={Number(property.longitude)}
+                    title={property.title}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Policies */}
             {property.policies && (
