@@ -64,6 +64,11 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 container px-4 md:px-6 text-center">
+          {/* Search Bar - Top Priority */}
+          <div className="flex justify-center mb-6">
+            <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
+          </div>
+
           {/* ZERO Commission Badge */}
           <div className="mb-6 flex justify-center">
             <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 text-sm font-bold border-2 border-white/20">
@@ -80,10 +85,6 @@ export default function Home() {
           <p className="text-base md:text-lg text-white/80 mb-8 max-w-2xl mx-auto">
             Deal directly with property owners and save up to 20%. At ZECOHO, you pay exactly what the hotelier charges — nothing more!
           </p>
-          
-          <div className="flex justify-center mb-6">
-            <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
-          </div>
 
           {/* Trust Indicators */}
           <div className="flex flex-wrap items-center justify-center gap-6 text-white/90 text-sm">
