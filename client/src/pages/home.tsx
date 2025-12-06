@@ -172,7 +172,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold mb-3">Direct Connection to Property Owners</h3>
               <p className="text-muted-foreground">
-                No middleman, no markup. Connect directly with property owners and build genuine relationships. Book at the source!
+                No middleman. Connect directly with property owners and build genuine relationships. Book at the source!
               </p>
             </Card>
 
