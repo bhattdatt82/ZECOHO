@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -8,17 +9,42 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Globe, Check } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import type { Conversation, KycApplication } from "@shared/schema";
+
+const languages = [
+  { code: "en", name: "English", nativeName: "English" },
+  { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
+  { code: "bn", name: "Bengali", nativeName: "বাংলা" },
+  { code: "te", name: "Telugu", nativeName: "తెలుగు" },
+  { code: "mr", name: "Marathi", nativeName: "मराठी" },
+  { code: "ta", name: "Tamil", nativeName: "தமிழ்" },
+  { code: "gu", name: "Gujarati", nativeName: "ગુજરાતી" },
+  { code: "kn", name: "Kannada", nativeName: "ಕನ್ನಡ" },
+  { code: "ml", name: "Malayalam", nativeName: "മലയാളം" },
+  { code: "pa", name: "Punjabi", nativeName: "ਪੰਜਾਬੀ" },
+];
 
 type ConversationWithUnread = Conversation & { unreadCount: number };
 
 export function Header() {
   const { user, isAuthenticated, isAdmin, isOwner } = useAuth();
   const [location] = useLocation();
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("preferredLanguage") || "en";
+    }
+    return "en";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("preferredLanguage", selectedLanguage);
+  }, [selectedLanguage]);
+
+  const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
 
   const { data: conversations = [] } = useQuery<ConversationWithUnread[]>({
     queryKey: ["/api/conversations"],
@@ -278,6 +304,34 @@ export function Header() {
               <a href="/api/login">Log in / Sign up</a>
             </Button>
           )}
+
+          {/* Language Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5" data-testid="button-language-selector">
+                <Globe className="h-4 w-4" />
+                <span className="hidden md:inline text-sm">{currentLanguage.nativeName}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {languages.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.code}
+                  onClick={() => setSelectedLanguage(lang.code)}
+                  className="flex items-center justify-between cursor-pointer"
+                  data-testid={`language-option-${lang.code}`}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{lang.nativeName}</span>
+                    <span className="text-xs text-muted-foreground">{lang.name}</span>
+                  </div>
+                  {selectedLanguage === lang.code && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
       </div>
     </header>
