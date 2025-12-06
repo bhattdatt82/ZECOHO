@@ -74,26 +74,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
         </div>
         
-        {/* Logo Header over Hero */}
-        <div className="absolute top-0 left-0 right-0 z-20 px-4 md:px-6 py-4">
-          <div className="container mx-auto">
-            <Link href="/">
-              <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity w-fit" data-testid="link-home-logo">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-xl">Z</span>
-                </div>
-                <div className="flex items-baseline">
-                  <span className="font-bold text-2xl text-white drop-shadow-md tracking-tight">
-                    ZECOHO
-                  </span>
-                  <span className="font-bold text-lg bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent drop-shadow-md">.com</span>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </div>
-        
-        <div className="relative z-10 container px-4 md:px-6 text-center pt-8">
+        <div className="relative z-10 container px-4 md:px-6 text-center pt-4">
           {/* Search Bar - Top Priority */}
           <div className="flex justify-center mb-3">
             <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
