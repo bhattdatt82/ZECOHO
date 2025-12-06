@@ -46,16 +46,23 @@ const SECTION_LABELS: Record<KycSectionId, { label: string; icon: any }> = {
 };
 
 const combinedSchema = z.object({
-  // KYC Information
+  // KYC Personal Information
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  
+  // KYC Business Information - Detailed Address
   businessName: z.string().min(3, "Business name is required"),
-  businessAddress: z.string().min(10, "Please provide complete business address"),
+  kycFlatNo: z.string().optional(),
+  kycHouseNo: z.string().optional(),
+  kycStreetAddress: z.string().min(5, "Street address is required"),
+  kycLandmark: z.string().optional(),
+  kycLocality: z.string().min(2, "Locality/Area is required"),
   kycCity: z.string().min(2, "City is required"),
+  kycDistrict: z.string().min(2, "District is required"),
   kycState: z.string().min(2, "State is required"),
-  kycPincode: z.string().min(6, "Valid pincode is required"),
+  kycPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
   gstNumber: z.string().optional(),
   panNumber: z.string().min(10, "Valid PAN number is required"),
   
@@ -64,10 +71,18 @@ const combinedSchema = z.object({
   propertyType: z.enum(["hotel", "villa", "apartment", "cabin", "resort", "hostel", "lodge", "cottage"]),
   description: z.string().min(20, "Description must be at least 20 characters"),
   destination: z.string().min(2, "Destination is required"),
-  propertyCity: z.string().min(2, "City is required"),
-  propertyState: z.string().min(2, "State is required"),
-  propertyPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
-  address: z.string().min(10, "Please provide complete property address"),
+  
+  // Property - Detailed Address (same structure as KYC)
+  propFlatNo: z.string().optional(),
+  propHouseNo: z.string().optional(),
+  propStreetAddress: z.string().min(5, "Street address is required"),
+  propLandmark: z.string().optional(),
+  propLocality: z.string().min(2, "Locality/Area is required"),
+  propCity: z.string().min(2, "City is required"),
+  propDistrict: z.string().min(2, "District is required"),
+  propState: z.string().min(2, "State is required"),
+  propPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
+  
   pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
   maxGuests: z.coerce.number().min(1, "At least 1 guest required"),
   bedrooms: z.coerce.number().min(1, "At least 1 bedroom required"),
@@ -136,8 +151,13 @@ export default function ListPropertyWizard() {
       email: user?.email || "",
       phone: "",
       businessName: "",
-      businessAddress: "",
+      kycFlatNo: "",
+      kycHouseNo: "",
+      kycStreetAddress: "",
+      kycLandmark: "",
+      kycLocality: "",
       kycCity: "",
+      kycDistrict: "",
       kycState: "",
       kycPincode: "",
       gstNumber: "",
@@ -146,10 +166,15 @@ export default function ListPropertyWizard() {
       propertyType: "hotel",
       description: "",
       destination: "",
-      propertyCity: "",
-      propertyState: "",
-      propertyPincode: "",
-      address: "",
+      propFlatNo: "",
+      propHouseNo: "",
+      propStreetAddress: "",
+      propLandmark: "",
+      propLocality: "",
+      propCity: "",
+      propDistrict: "",
+      propState: "",
+      propPincode: "",
       pricePerNight: 1000,
       maxGuests: 2,
       bedrooms: 1,
@@ -197,8 +222,13 @@ export default function ListPropertyWizard() {
         email: existingKycApplication.email || "",
         phone: existingKycApplication.phone || "",
         businessName: existingKycApplication.businessName || "",
-        businessAddress: existingKycApplication.businessAddress || "",
+        kycFlatNo: existingKycApplication.flatNo || "",
+        kycHouseNo: existingKycApplication.houseNo || "",
+        kycStreetAddress: existingKycApplication.streetAddress || "",
+        kycLandmark: existingKycApplication.landmark || "",
+        kycLocality: existingKycApplication.locality || "",
         kycCity: existingKycApplication.city || "",
+        kycDistrict: existingKycApplication.district || "",
         kycState: existingKycApplication.state || "",
         kycPincode: existingKycApplication.pincode || "",
         gstNumber: existingKycApplication.gstNumber || "",
@@ -208,10 +238,15 @@ export default function ListPropertyWizard() {
         propertyType: "hotel",
         description: "",
         destination: "",
-        propertyCity: "",
-        propertyState: "",
-        propertyPincode: "",
-        address: "",
+        propFlatNo: "",
+        propHouseNo: "",
+        propStreetAddress: "",
+        propLandmark: "",
+        propLocality: "",
+        propCity: "",
+        propDistrict: "",
+        propState: "",
+        propPincode: "",
         pricePerNight: 1000,
         maxGuests: 2,
         bedrooms: 1,
@@ -241,8 +276,10 @@ export default function ListPropertyWizard() {
         if (data && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
           const postOffice = data[0].PostOffice[0];
           form.setValue("kycCity", postOffice.District || "");
+          form.setValue("kycDistrict", postOffice.District || "");
           form.setValue("kycState", postOffice.State || "");
-          toast({ title: "PIN Code Found!", description: `${postOffice.District}, ${postOffice.State}` });
+          form.setValue("kycLocality", postOffice.Name || "");
+          toast({ title: "PIN Code Found!", description: `${postOffice.Name}, ${postOffice.District}, ${postOffice.State}` });
         } else {
           toast({ title: "Invalid PIN Code", description: "Please enter a valid Indian PIN code.", variant: "destructive" });
         }
@@ -256,7 +293,7 @@ export default function ListPropertyWizard() {
 
   // Property PIN code lookup
   const handlePropertyPincodeChange = async (pincode: string) => {
-    form.setValue("propertyPincode", pincode);
+    form.setValue("propPincode", pincode);
     if (pincode.length === 6 && /^\d{6}$/.test(pincode)) {
       setIsPropertyPincodeLookup(true);
       try {
@@ -264,10 +301,12 @@ export default function ListPropertyWizard() {
         const data = await response.json();
         if (data && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
           const postOffice = data[0].PostOffice[0];
-          form.setValue("propertyCity", postOffice.District || "");
-          form.setValue("propertyState", postOffice.State || "");
+          form.setValue("propCity", postOffice.District || "");
+          form.setValue("propDistrict", postOffice.District || "");
+          form.setValue("propState", postOffice.State || "");
+          form.setValue("propLocality", postOffice.Name || "");
           form.setValue("destination", postOffice.District || "");
-          toast({ title: "PIN Code Found!", description: `${postOffice.District}, ${postOffice.State}` });
+          toast({ title: "PIN Code Found!", description: `${postOffice.Name}, ${postOffice.District}, ${postOffice.State}` });
         } else {
           toast({ title: "Invalid PIN Code", description: "Please enter a valid Indian PIN code.", variant: "destructive" });
         }
@@ -347,8 +386,13 @@ export default function ListPropertyWizard() {
         email: data.email,
         phone: data.phone,
         businessName: data.businessName,
-        businessAddress: data.businessAddress,
+        flatNo: data.kycFlatNo,
+        houseNo: data.kycHouseNo,
+        streetAddress: data.kycStreetAddress,
+        landmark: data.kycLandmark,
+        locality: data.kycLocality,
         city: data.kycCity,
+        district: data.kycDistrict,
         state: data.kycState,
         pincode: data.kycPincode,
         gstNumber: data.gstNumber,
@@ -409,8 +453,13 @@ export default function ListPropertyWizard() {
           email: data.email,
           phone: data.phone,
           businessName: data.businessName,
-          businessAddress: data.businessAddress,
+          flatNo: data.kycFlatNo,
+          houseNo: data.kycHouseNo,
+          streetAddress: data.kycStreetAddress,
+          landmark: data.kycLandmark,
+          locality: data.kycLocality,
           city: data.kycCity,
+          district: data.kycDistrict,
           state: data.kycState,
           pincode: data.kycPincode,
           gstNumber: data.gstNumber,
@@ -426,8 +475,16 @@ export default function ListPropertyWizard() {
           title: data.propertyTitle,
           propertyType: data.propertyType,
           description: data.description,
-          destination: data.destination || data.propertyCity,
-          address: propertyAddress.fullAddress || data.address,
+          destination: data.destination || data.propCity,
+          propFlatNo: data.propFlatNo,
+          propHouseNo: data.propHouseNo,
+          propStreetAddress: data.propStreetAddress,
+          propLandmark: data.propLandmark,
+          propLocality: data.propLocality,
+          propCity: data.propCity,
+          propDistrict: data.propDistrict,
+          propState: data.propState,
+          propPincode: data.propPincode,
           latitude: propertyAddress.latitude,
           longitude: propertyAddress.longitude,
           pricePerNight: data.pricePerNight,
@@ -472,9 +529,9 @@ export default function ListPropertyWizard() {
     if (step === 1) {
       fieldsToValidate = ["firstName", "lastName", "email", "phone"];
     } else if (step === 2) {
-      fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
+      fieldsToValidate = ["businessName", "kycStreetAddress", "kycLocality", "kycCity", "kycDistrict", "kycState", "kycPincode", "panNumber"];
     } else if (step === 3) {
-      fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode", "propertyCity", "propertyState"];
+      fieldsToValidate = ["propertyTitle", "propertyType", "description", "propStreetAddress", "propLocality", "propCity", "propDistrict", "propState", "propPincode"];
     } else if (step === 4) {
       fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
     }
@@ -512,9 +569,9 @@ export default function ListPropertyWizard() {
       if (s === 1) {
         fieldsToValidate = ["firstName", "lastName", "email", "phone"];
       } else if (s === 2) {
-        fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
+        fieldsToValidate = ["businessName", "kycStreetAddress", "kycLocality", "kycCity", "kycDistrict", "kycState", "kycPincode", "panNumber"];
       } else if (s === 3) {
-        fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode", "propertyCity", "propertyState"];
+        fieldsToValidate = ["propertyTitle", "propertyType", "description", "propStreetAddress", "propLocality", "propCity", "propDistrict", "propState", "propPincode"];
       } else if (s === 4) {
         fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
       }
@@ -708,38 +765,100 @@ export default function ListPropertyWizard() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="businessAddress"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Address *</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Complete business address..." rows={3} {...field} data-testid="textarea-business-address" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid md:grid-cols-3 gap-4">
+                    
+                    {/* Detailed Address Fields */}
+                    <div className="grid md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="kycPincode"
+                        name="kycFlatNo"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>PIN Code *</FormLabel>
+                            <FormLabel>Flat / Apartment No.</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="6-digit PIN"
-                                {...field}
-                                onChange={(e) => handleKycPincodeChange(e.target.value)}
-                                data-testid="input-kyc-pincode"
-                              />
+                              <Input placeholder="e.g., A-101" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name="kycHouseNo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>House / Building No.</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., 123" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="kycStreetAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Street Address *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Street name / Road name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="kycLandmark"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Landmark (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Near Metro Station" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="kycLocality"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Locality / Area *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Connaught Place" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="kycPincode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>PIN Code *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="6-digit PIN"
+                              {...field}
+                              onChange={(e) => handleKycPincodeChange(e.target.value)}
+                              data-testid="input-kyc-pincode"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="kycCity"
@@ -755,18 +874,33 @@ export default function ListPropertyWizard() {
                       />
                       <FormField
                         control={form.control}
-                        name="kycState"
+                        name="kycDistrict"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>State *</FormLabel>
+                            <FormLabel>District *</FormLabel>
                             <FormControl>
-                              <Input placeholder="State" {...field} data-testid="input-kyc-state" />
+                              <Input placeholder="District" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="kycState"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>State *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="State" {...field} data-testid="input-kyc-state" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
                     <div className="grid md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -1017,20 +1151,79 @@ export default function ListPropertyWizard() {
                         </FormItem>
                       )}
                     />
+                    {/* Detailed Address Fields */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="kycFlatNo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Flat / Apartment No.</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., A-101" {...field} data-testid="input-kyc-flat" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="kycHouseNo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>House / Building No.</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., 123" {...field} data-testid="input-kyc-house" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     <FormField
                       control={form.control}
-                      name="businessAddress"
+                      name="kycStreetAddress"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Business Address *</FormLabel>
+                          <FormLabel>Street Address *</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Complete business address..." rows={3} {...field} data-testid="textarea-business-address" />
+                            <Input placeholder="Street name / Road name" {...field} data-testid="input-kyc-street" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="kycLandmark"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Landmark (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Near Metro Station" {...field} data-testid="input-kyc-landmark" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="kycLocality"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Locality / Area *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Connaught Place" {...field} data-testid="input-kyc-locality" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     <FormField
                       control={form.control}
                       name="kycPincode"
@@ -1051,7 +1244,7 @@ export default function ListPropertyWizard() {
                               )}
                             </div>
                           </FormControl>
-                          <p className="text-xs text-muted-foreground">Enter PIN code to auto-fill city and state</p>
+                          <p className="text-xs text-muted-foreground">Enter PIN code to auto-fill location details</p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1076,21 +1269,35 @@ export default function ListPropertyWizard() {
                       />
                       <FormField
                         control={form.control}
-                        name="kycState"
+                        name="kycDistrict"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>State *</FormLabel>
+                            <FormLabel>District *</FormLabel>
                             <FormControl>
-                              <Input placeholder="State" list="kyc-states" {...field} data-testid="input-kyc-state" />
+                              <Input placeholder="District" {...field} data-testid="input-kyc-district" />
                             </FormControl>
-                            <datalist id="kyc-states">
-                              {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
-                            </datalist>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="kycState"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>State *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="State" list="kyc-states" {...field} data-testid="input-kyc-state" />
+                          </FormControl>
+                          <datalist id="kyc-states">
+                            {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
+                          </datalist>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <div className="grid md:grid-cols-2 gap-4">
                       <FormField
@@ -1198,24 +1405,17 @@ export default function ListPropertyWizard() {
                           size="sm"
                           className="text-xs"
                           onClick={() => {
-                            const businessAddr = form.getValues("businessAddress");
-                            const kycPincode = form.getValues("kycPincode");
-                            const kycCity = form.getValues("kycCity");
-                            const kycState = form.getValues("kycState");
-                            form.setValue("address", businessAddr);
-                            form.setValue("propertyPincode", kycPincode);
-                            form.setValue("propertyCity", kycCity);
-                            form.setValue("propertyState", kycState);
-                            form.setValue("destination", kycCity);
-                            
-                            // Also update the propertyAddress state for the AddressInput component
-                            const updatedPropertyAddress: AddressDetails = {
-                              fullAddress: businessAddr,
-                              city: kycCity,
-                              state: kycState,
-                              pincode: kycPincode,
-                            };
-                            setPropertyAddress(updatedPropertyAddress);
+                            // Copy all KYC address fields to property fields
+                            form.setValue("propFlatNo", form.getValues("kycFlatNo"));
+                            form.setValue("propHouseNo", form.getValues("kycHouseNo"));
+                            form.setValue("propStreetAddress", form.getValues("kycStreetAddress"));
+                            form.setValue("propLandmark", form.getValues("kycLandmark"));
+                            form.setValue("propLocality", form.getValues("kycLocality"));
+                            form.setValue("propCity", form.getValues("kycCity"));
+                            form.setValue("propDistrict", form.getValues("kycDistrict"));
+                            form.setValue("propState", form.getValues("kycState"));
+                            form.setValue("propPincode", form.getValues("kycPincode"));
+                            form.setValue("destination", form.getValues("kycCity"));
                             
                             toast({
                               title: "Address copied",
@@ -1230,29 +1430,82 @@ export default function ListPropertyWizard() {
                       )}
                     </div>
 
-                    {/* Full Property Address */}
+                    {/* Detailed Property Address Fields - same as Business section */}
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <FormField
+                        control={form.control}
+                        name="propFlatNo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Flat / Apartment No.</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., A-101" {...field} data-testid="input-prop-flat" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="propHouseNo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>House / Building No.</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., 123" {...field} data-testid="input-prop-house" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     <FormField
                       control={form.control}
-                      name="address"
+                      name="propStreetAddress"
                       render={({ field }) => (
                         <FormItem className="mb-4">
-                          <FormLabel>Property Address *</FormLabel>
+                          <FormLabel>Street Address *</FormLabel>
                           <FormControl>
-                            <Textarea 
-                              placeholder="Complete property address including building name, street, landmark..." 
-                              rows={3} 
-                              {...field} 
-                              data-testid="textarea-property-address" 
-                            />
+                            <Input placeholder="Street name / Road name" {...field} data-testid="input-prop-street" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <FormField
+                        control={form.control}
+                        name="propLandmark"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Landmark (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Near Metro Station" {...field} data-testid="input-prop-landmark" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="propLocality"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Locality / Area *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Connaught Place" {...field} data-testid="input-prop-locality" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     
                     <FormField
                       control={form.control}
-                      name="propertyPincode"
+                      name="propPincode"
                       render={({ field }) => (
                         <FormItem className="mb-4">
                           <FormLabel>PIN Code *</FormLabel>
@@ -1270,7 +1523,7 @@ export default function ListPropertyWizard() {
                               )}
                             </div>
                           </FormControl>
-                          <p className="text-xs text-muted-foreground">Enter PIN code to auto-fill city and state</p>
+                          <p className="text-xs text-muted-foreground">Enter PIN code to auto-fill location details</p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1279,7 +1532,7 @@ export default function ListPropertyWizard() {
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <FormField
                         control={form.control}
-                        name="propertyCity"
+                        name="propCity"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>City *</FormLabel>
@@ -1304,21 +1557,35 @@ export default function ListPropertyWizard() {
                       />
                       <FormField
                         control={form.control}
-                        name="propertyState"
+                        name="propDistrict"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>State *</FormLabel>
+                            <FormLabel>District *</FormLabel>
                             <FormControl>
-                              <Input placeholder="State" list="property-states" {...field} data-testid="input-property-state" />
+                              <Input placeholder="District" {...field} data-testid="input-prop-district" />
                             </FormControl>
-                            <datalist id="property-states">
-                              {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
-                            </datalist>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="propState"
+                      render={({ field }) => (
+                        <FormItem className="mb-4">
+                          <FormLabel>State *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="State" list="property-states" {...field} data-testid="input-property-state" />
+                          </FormControl>
+                          <datalist id="property-states">
+                            {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
+                          </datalist>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     {/* Hidden field for destination */}
                     <FormField
@@ -1332,30 +1599,6 @@ export default function ListPropertyWizard() {
                         </FormItem>
                       )}
                     />
-
-                    <div className="mb-4">
-                      <Label>Landmark / Street Address (Optional)</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Add landmark or street details for guests to find your property easily</p>
-                      <AddressInput
-                        value={propertyAddress}
-                        onChange={(address) => {
-                          setPropertyAddress(address);
-                          form.setValue("address", address.fullAddress);
-                          // Only update city/state if not already set from PIN code
-                          if (!form.getValues("propertyCity") && address.city) {
-                            form.setValue("propertyCity", address.city);
-                          }
-                          if (!form.getValues("propertyState") && address.state) {
-                            form.setValue("propertyState", address.state);
-                          }
-                          if (!form.getValues("destination")) {
-                            form.setValue("destination", address.city || address.locality || form.getValues("propertyCity") || "");
-                          }
-                        }}
-                        placeholder="e.g., Near Main Market, MG Road..."
-                        testIdPrefix="property-address"
-                      />
-                    </div>
                   </div>
 
                   <FormField
