@@ -81,20 +81,9 @@ export default function Landing() {
             </Button>
           </div>
           
-          <div className="flex justify-center mb-5">
+          <div className="flex justify-center">
             <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
           </div>
-          
-          <Button 
-            size="lg" 
-            variant="outline" 
-            className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20"
-            asChild
-          >
-            <a href="/api/login" data-testid="button-get-started">
-              Get Started
-            </a>
-          </Button>
         </div>
       </div>
 
