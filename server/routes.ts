@@ -773,15 +773,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized to update this property" });
       }
 
-      const { pricePerNight } = req.body;
+      const { pricePerNight, originalPrice } = req.body;
       
       if (!pricePerNight || isNaN(Number(pricePerNight)) || Number(pricePerNight) <= 0) {
         return res.status(400).json({ message: "Valid price is required" });
       }
 
-      const updatedProperty = await storage.updateProperty(req.params.id, {
+      const updateData: Partial<InsertProperty> = {
         pricePerNight: String(pricePerNight),
-      });
+      };
+
+      if (originalPrice !== undefined) {
+        if (originalPrice === null || originalPrice === '' || originalPrice === 0) {
+          (updateData as any).originalPrice = null;
+        } else if (!isNaN(Number(originalPrice)) && Number(originalPrice) > 0) {
+          (updateData as any).originalPrice = String(originalPrice);
+        } else {
+          (updateData as any).originalPrice = null;
+        }
+      }
+
+      const updatedProperty = await storage.updateProperty(req.params.id, updateData);
       
       res.json(updatedProperty);
     } catch (error) {

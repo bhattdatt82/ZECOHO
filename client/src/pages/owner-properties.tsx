@@ -39,6 +39,7 @@ export default function OwnerProperties() {
   const [priceDialogOpen, setPriceDialogOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [newPrice, setNewPrice] = useState("");
+  const [originalPrice, setOriginalPrice] = useState("");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -79,8 +80,11 @@ export default function OwnerProperties() {
   });
 
   const updatePriceMutation = useMutation({
-    mutationFn: async ({ propertyId, price }: { propertyId: string; price: number }) => {
-      await apiRequest("PATCH", `/api/properties/${propertyId}/price`, { pricePerNight: price });
+    mutationFn: async ({ propertyId, price, originalPrice }: { propertyId: string; price: number; originalPrice: number | null }) => {
+      await apiRequest("PATCH", `/api/properties/${propertyId}/price`, { 
+        pricePerNight: price,
+        originalPrice: originalPrice 
+      });
     },
     onSuccess: () => {
       toast({
@@ -91,6 +95,7 @@ export default function OwnerProperties() {
       setPriceDialogOpen(false);
       setEditingProperty(null);
       setNewPrice("");
+      setOriginalPrice("");
     },
     onError: (error: Error) => {
       toast({
@@ -104,6 +109,7 @@ export default function OwnerProperties() {
   const openPriceDialog = (property: Property) => {
     setEditingProperty(property);
     setNewPrice(String(property.pricePerNight));
+    setOriginalPrice(property.originalPrice ? String(property.originalPrice) : "");
     setPriceDialogOpen(true);
   };
 
@@ -118,7 +124,29 @@ export default function OwnerProperties() {
       });
       return;
     }
-    updatePriceMutation.mutate({ propertyId: editingProperty.id, price });
+    
+    let origPrice: number | null = null;
+    if (originalPrice && originalPrice.trim() !== "") {
+      origPrice = Number(originalPrice);
+      if (isNaN(origPrice) || origPrice <= 0) {
+        toast({
+          title: "Invalid Original Price",
+          description: "Original price must be a valid positive number",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (origPrice <= price) {
+        toast({
+          title: "Invalid Original Price",
+          description: "Original price must be higher than the current price for strike-off to show",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    updatePriceMutation.mutate({ propertyId: editingProperty.id, price, originalPrice: origPrice });
   };
 
   // Show loading state while auth is being verified
@@ -215,7 +243,12 @@ export default function OwnerProperties() {
                       </Alert>
                     )}
 
-                    <div className="flex items-baseline gap-1 mb-3">
+                    <div className="flex items-baseline gap-2 mb-3 flex-wrap">
+                      {property.originalPrice && Number(property.originalPrice) > Number(property.pricePerNight) && (
+                        <span className="text-base text-muted-foreground line-through">
+                          ₹{Number(property.originalPrice).toLocaleString('en-IN')}
+                        </span>
+                      )}
                       <span className="text-xl font-semibold">
                         ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
                       </span>
@@ -301,24 +334,67 @@ export default function OwnerProperties() {
           <DialogHeader>
             <DialogTitle>Update Price</DialogTitle>
             <DialogDescription>
-              Change the price per night for "{editingProperty?.title}"
+              Set current and original price for "{editingProperty?.title}"
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="price">Price per night (₹)</Label>
-            <div className="relative mt-2">
-              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="price"
-                type="number"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                className="pl-10"
-                placeholder="Enter new price"
-                min="1"
-                data-testid="input-new-price"
-              />
+          <div className="space-y-4 py-4">
+            {/* Original Price (Strike-off) */}
+            <div>
+              <Label htmlFor="originalPrice">Original Price (₹) - Optional</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Set a higher original price to show as struck-off (e.g., <span className="line-through">₹4,364</span> ₹3,900)
+              </p>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="originalPrice"
+                  type="number"
+                  value={originalPrice}
+                  onChange={(e) => setOriginalPrice(e.target.value)}
+                  className="pl-10"
+                  placeholder="Higher price to strike-off (optional)"
+                  min="1"
+                  data-testid="input-original-price"
+                />
+              </div>
             </div>
+            
+            {/* Current Price */}
+            <div>
+              <Label htmlFor="price">Current Price (₹) - Required</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                This is the actual price guests will pay per night
+              </p>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="price"
+                  type="number"
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(e.target.value)}
+                  className="pl-10"
+                  placeholder="Enter current price"
+                  min="1"
+                  data-testid="input-new-price"
+                />
+              </div>
+            </div>
+            
+            {/* Preview */}
+            {originalPrice && Number(originalPrice) > Number(newPrice) && Number(newPrice) > 0 && (
+              <div className="bg-muted p-3 rounded-md">
+                <p className="text-xs text-muted-foreground mb-1">Preview:</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-muted-foreground line-through">
+                    ₹{Number(originalPrice).toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-lg font-semibold">
+                    ₹{Number(newPrice).toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-sm text-muted-foreground">/ night</span>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button 

@@ -1,9 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, MapPin, Star, Users } from "lucide-react";
+import { Heart, MapPin, Star, Users, Share2 } from "lucide-react";
 import type { Property } from "@shared/schema";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface PropertyCardProps {
   property: Property & {
@@ -14,7 +15,46 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, onWishlistToggle }: PropertyCardProps) {
+  const { toast } = useToast();
   const mainImage = property.images?.[0] || "/placeholder-property.jpg";
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (typeof window === 'undefined') return;
+    
+    const shareUrl = `${window.location.origin}/properties/${property.id}`;
+    
+    const copyToClipboard = async () => {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast({ title: "Link copied!", description: "Property link copied to clipboard" });
+        } catch {
+          toast({ title: "Share", description: shareUrl });
+        }
+      } else {
+        toast({ title: "Share link", description: shareUrl });
+      }
+    };
+    
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: property.title,
+          text: `Check out ${property.title} on ZECOHO - Zero Commission Hotel Booking`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          await copyToClipboard();
+        }
+      }
+    } else {
+      await copyToClipboard();
+    }
+  };
 
   return (
     <Link href={`/properties/${property.id}`}>
@@ -80,12 +120,47 @@ export function PropertyCard({ property, onWishlistToggle }: PropertyCardProps) 
           </div>
           
           <div className="pt-2 border-t">
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              {property.originalPrice && Number(property.originalPrice) > Number(property.pricePerNight) && (
+                <span className="text-base text-muted-foreground line-through">
+                  ₹{Number(property.originalPrice).toLocaleString('en-IN')}
+                </span>
+              )}
               <span className="text-xl font-semibold" data-testid={`text-price-${property.id}`}>
                 ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
               </span>
               <span className="text-sm text-muted-foreground">/ night</span>
             </div>
+          </div>
+          
+          {/* Share and Save buttons */}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShare}
+              className="text-muted-foreground"
+              data-testid={`button-share-${property.id}`}
+            >
+              <Share2 className="h-4 w-4 mr-1.5" />
+              Share
+            </Button>
+            {onWishlistToggle && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onWishlistToggle(property.id);
+                }}
+                className={property.isWishlisted ? "text-primary" : "text-muted-foreground"}
+                data-testid={`button-save-${property.id}`}
+              >
+                <Heart className={`h-4 w-4 mr-1.5 ${property.isWishlisted ? "fill-current" : ""}`} />
+                Save
+              </Button>
+            )}
           </div>
         </div>
       </Card>
