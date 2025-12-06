@@ -64,8 +64,8 @@ const combinedSchema = z.object({
   propertyType: z.enum(["hotel", "villa", "apartment", "cabin", "resort", "hostel", "lodge", "cottage"]),
   description: z.string().min(20, "Description must be at least 20 characters"),
   destination: z.string().min(2, "Destination is required"),
-  propertyCity: z.string().optional(),
-  propertyState: z.string().optional(),
+  propertyCity: z.string().min(2, "City is required"),
+  propertyState: z.string().min(2, "State is required"),
   propertyPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
   address: z.string().min(10, "Please provide complete property address"),
   pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
@@ -474,7 +474,7 @@ export default function ListPropertyWizard() {
     } else if (step === 2) {
       fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
     } else if (step === 3) {
-      fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode"];
+      fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode", "propertyCity", "propertyState"];
     } else if (step === 4) {
       fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
     }
@@ -514,7 +514,7 @@ export default function ListPropertyWizard() {
       } else if (s === 2) {
         fieldsToValidate = ["businessName", "businessAddress", "kycCity", "kycState", "kycPincode", "panNumber"];
       } else if (s === 3) {
-        fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode"];
+        fieldsToValidate = ["propertyTitle", "propertyType", "description", "address", "propertyPincode", "propertyCity", "propertyState"];
       } else if (s === 4) {
         fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
       }
@@ -1276,76 +1276,57 @@ export default function ListPropertyWizard() {
                               )}
                             </div>
                           </FormControl>
+                          <p className="text-xs text-muted-foreground">Enter PIN code to auto-fill city and state</p>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    {/* Show auto-populated city/state from PIN code */}
-                    {(form.watch("propertyCity") || form.watch("propertyState")) && (
-                      <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 mb-4">
-                        <div className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-emerald-600" />
-                          <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                            Location: {form.watch("propertyCity")}{form.watch("propertyCity") && form.watch("propertyState") ? ", " : ""}{form.watch("propertyState")}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Manual destination fallback if PIN lookup didn't populate city */}
-                    {!form.watch("propertyCity") && form.watch("propertyPincode")?.length === 6 && (
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <FormField
                         control={form.control}
-                        name="destination"
+                        name="propertyCity"
                         render={({ field }) => (
-                          <FormItem className="mb-4">
-                            <FormLabel>City/Destination *</FormLabel>
+                          <FormItem>
+                            <FormLabel>City *</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="Enter city name"
-                                list="manual-cities"
-                                {...field}
+                              <Input 
+                                placeholder="City" 
+                                list="property-cities" 
+                                {...field} 
                                 onChange={(e) => {
                                   field.onChange(e);
-                                  form.setValue("propertyCity", e.target.value);
+                                  form.setValue("destination", e.target.value);
                                 }}
-                                data-testid="input-destination-manual"
+                                data-testid="input-property-city" 
                               />
                             </FormControl>
-                            <datalist id="manual-cities">
+                            <datalist id="property-cities">
                               {INDIAN_CITIES.map((city) => <option key={city} value={city} />)}
                             </datalist>
-                            <p className="text-xs text-muted-foreground">PIN code lookup didn't find location - please enter city manually</p>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    )}
+                      <FormField
+                        control={form.control}
+                        name="propertyState"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="State" list="property-states" {...field} data-testid="input-property-state" />
+                            </FormControl>
+                            <datalist id="property-states">
+                              {INDIAN_STATES.map((state) => <option key={state} value={state} />)}
+                            </datalist>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                    {/* Hidden fields for city/state/destination values */}
-                    <FormField
-                      control={form.control}
-                      name="propertyCity"
-                      render={({ field }) => (
-                        <FormItem className="hidden">
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="propertyState"
-                      render={({ field }) => (
-                        <FormItem className="hidden">
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                    {/* Hidden field for destination */}
                     <FormField
                       control={form.control}
                       name="destination"
