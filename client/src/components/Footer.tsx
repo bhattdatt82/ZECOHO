@@ -1,24 +1,84 @@
 import { Mail } from "lucide-react";
+import { SiInstagram, SiYoutube, SiFacebook, SiLinkedin, SiX } from "react-icons/si";
 
 export function Footer() {
   return (
-    <footer className="border-t bg-background py-6 mt-auto">
+    <footer className="border-t bg-background py-8 mt-auto">
       <div className="container px-4 md:px-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail className="h-4 w-4" />
-            <span>
-              For more information, write to{" "}
-              <a 
-                href="mailto:support@zecoho.com" 
-                className="text-primary hover:underline font-medium"
-                data-testid="link-support-email"
+        <div className="flex flex-col gap-6">
+          {/* Main footer content */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail className="h-4 w-4" />
+              <span>
+                For more information, write to{" "}
+                <a 
+                  href="mailto:support@zecoho.com" 
+                  className="text-primary hover:underline font-medium"
+                  data-testid="link-support-email"
+                >
+                  support@zecoho.com
+                </a>
+              </span>
+            </div>
+            
+            {/* Social Media Links */}
+            <div className="flex items-center gap-4">
+              <a
+                href="https://instagram.com/zecoho"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Follow us on Instagram"
+                data-testid="link-social-instagram"
               >
-                support@zecoho.com
+                <SiInstagram className="h-5 w-5" />
               </a>
-            </span>
+              <a
+                href="https://youtube.com/@zecoho"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Subscribe to our YouTube channel"
+                data-testid="link-social-youtube"
+              >
+                <SiYoutube className="h-5 w-5" />
+              </a>
+              <a
+                href="https://facebook.com/zecoho"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Follow us on Facebook"
+                data-testid="link-social-facebook"
+              >
+                <SiFacebook className="h-5 w-5" />
+              </a>
+              <a
+                href="https://linkedin.com/company/zecoho"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Connect with us on LinkedIn"
+                data-testid="link-social-linkedin"
+              >
+                <SiLinkedin className="h-5 w-5" />
+              </a>
+              <a
+                href="https://x.com/zecoho"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Follow us on X (Twitter)"
+                data-testid="link-social-twitter"
+              >
+                <SiX className="h-5 w-5" />
+              </a>
+            </div>
           </div>
-          <div className="text-sm text-muted-foreground">
+          
+          {/* Copyright */}
+          <div className="text-center text-sm text-muted-foreground border-t pt-4">
             © {new Date().getFullYear()} ZECOHO. All rights reserved.
           </div>
         </div>
