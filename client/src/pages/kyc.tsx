@@ -324,6 +324,9 @@ export default function KYC() {
   }, [rejectionDetails]);
 
   const hasTargetedRejection = flaggedSections.size > 0;
+  
+  // Check if this is a revocation (previously verified, now revoked by admin)
+  const isRevocation = rejectionDetails?.isRevocation === true;
 
   // Rejected application status
   if (kycApplication?.status === "rejected" && !isEditing) {
@@ -334,16 +337,20 @@ export default function KYC() {
             <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
               <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
             </div>
-            <CardTitle className="text-2xl" data-testid="text-rejected-title">Application Needs Updates</CardTitle>
+            <CardTitle className="text-2xl" data-testid="text-rejected-title">
+              {isRevocation ? "Verification Revoked" : "Application Needs Updates"}
+            </CardTitle>
             <CardDescription>
-              {hasTargetedRejection 
-                ? `${flaggedSections.size} section${flaggedSections.size > 1 ? 's' : ''} need${flaggedSections.size === 1 ? 's' : ''} your attention`
-                : "Your KYC application requires some changes before it can be approved"
+              {isRevocation 
+                ? "Your property owner verification has been revoked by our team"
+                : hasTargetedRejection 
+                  ? `${flaggedSections.size} section${flaggedSections.size > 1 ? 's' : ''} need${flaggedSections.size === 1 ? 's' : ''} your attention`
+                  : "Your KYC application requires some changes before it can be approved"
               }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {hasTargetedRejection && rejectionDetails?.sections && (
+            {hasTargetedRejection && rejectionDetails?.sections && !isRevocation && (
               <div className="space-y-3">
                 <p className="font-semibold text-sm text-muted-foreground">Sections requiring updates:</p>
                 {rejectionDetails.sections.map((section) => {
@@ -371,7 +378,9 @@ export default function KYC() {
             
             {kycApplication.reviewNotes && (
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                <p className="font-semibold text-amber-800 dark:text-amber-200 mb-1 text-sm">Additional Notes:</p>
+                <p className="font-semibold text-amber-800 dark:text-amber-200 mb-1 text-sm">
+                  {isRevocation ? "Reason for Revocation:" : "Additional Notes:"}
+                </p>
                 <p className="text-amber-700 dark:text-amber-300 text-sm" data-testid="text-rejection-reason">
                   {kycApplication.reviewNotes}
                 </p>
@@ -380,9 +389,11 @@ export default function KYC() {
             
             <div className="text-center text-muted-foreground text-sm">
               <p>
-                {hasTargetedRejection 
-                  ? "Click below to update only the required sections. Your other information has been saved."
-                  : "Please review the feedback above and update your application with the required changes."
+                {isRevocation
+                  ? "If you believe this was done in error or would like to reapply, please contact our support team or submit a new application."
+                  : hasTargetedRejection 
+                    ? "Click below to update only the required sections. Your other information has been saved."
+                    : "Please review the feedback above and update your application with the required changes."
                 }
               </p>
             </div>
@@ -393,7 +404,7 @@ export default function KYC() {
                 data-testid="button-edit-application"
               >
                 <FileText className="h-4 w-4 mr-2" />
-                Fix & Resubmit
+                {isRevocation ? "Reapply" : "Fix & Resubmit"}
               </Button>
               <Button 
                 variant="outline"

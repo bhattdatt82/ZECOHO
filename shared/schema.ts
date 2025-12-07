@@ -681,5 +681,6 @@ export interface KycRejectionItem {
 
 // Complete rejection details structure stored in the database
 export interface KycRejectionDetails {
-  sections: KycRejectionItem[];  // List of sections that need attention
+  sections?: KycRejectionItem[];  // List of sections that need attention
+  isRevocation?: boolean;  // True if this is a revocation of previously verified status
 }

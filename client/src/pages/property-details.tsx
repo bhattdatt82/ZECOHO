@@ -65,7 +65,11 @@ import {
   Snowflake,
   CircleParking,
   Refrigerator,
+  CalendarIcon,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 import type { LucideIcon } from "lucide-react";
 import { PropertyMap } from "@/components/PropertyMap";
 import type { Property, Amenity } from "@shared/schema";
@@ -1094,25 +1098,82 @@ export default function PropertyDetails() {
                 <div className="space-y-4 mb-6">
                   <div>
                     <label className="text-sm font-semibold block mb-2">Check-in</label>
-                    <input
-                      type="date"
-                      value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border rounded-lg"
-                      data-testid="input-checkin-booking"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          data-testid="input-checkin-booking"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {checkIn ? format(new Date(checkIn), "PPP") : <span className="text-muted-foreground">Select date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={checkIn ? new Date(checkIn) : undefined}
+                          onSelect={(date) => {
+                            const dateStr = date ? date.toISOString().split('T')[0] : "";
+                            setCheckIn(dateStr);
+                            if (checkOut && date && new Date(checkOut) <= date) {
+                              setCheckOut("");
+                            }
+                          }}
+                          disabled={(date) => {
+                            const today = new Date(new Date().setHours(0, 0, 0, 0));
+                            if (date < today) return true;
+                            return bookedDates.some((booked) => {
+                              const bookedStart = new Date(booked.checkIn);
+                              const bookedEnd = new Date(booked.checkOut);
+                              bookedStart.setHours(0, 0, 0, 0);
+                              bookedEnd.setHours(0, 0, 0, 0);
+                              const currentDate = new Date(date);
+                              currentDate.setHours(0, 0, 0, 0);
+                              return currentDate >= bookedStart && currentDate < bookedEnd;
+                            });
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <label className="text-sm font-semibold block mb-2">Check-out</label>
-                    <input
-                      type="date"
-                      value={checkOut}
-                      onChange={(e) => setCheckOut(e.target.value)}
-                      min={checkIn || new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border rounded-lg"
-                      data-testid="input-checkout-booking"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          data-testid="input-checkout-booking"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {checkOut ? format(new Date(checkOut), "PPP") : <span className="text-muted-foreground">Select date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={checkOut ? new Date(checkOut) : undefined}
+                          onSelect={(date) => setCheckOut(date ? date.toISOString().split('T')[0] : "")}
+                          disabled={(date) => {
+                            const today = new Date(new Date().setHours(0, 0, 0, 0));
+                            if (date <= today) return true;
+                            if (checkIn && date <= new Date(checkIn)) return true;
+                            return bookedDates.some((booked) => {
+                              const bookedStart = new Date(booked.checkIn);
+                              const bookedEnd = new Date(booked.checkOut);
+                              bookedStart.setHours(0, 0, 0, 0);
+                              bookedEnd.setHours(0, 0, 0, 0);
+                              const currentDate = new Date(date);
+                              currentDate.setHours(0, 0, 0, 0);
+                              return currentDate >= bookedStart && currentDate < bookedEnd;
+                            });
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <label className="text-sm font-semibold block mb-2">Guests</label>

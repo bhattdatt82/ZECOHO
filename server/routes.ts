@@ -755,11 +755,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "KYC application not found" });
       }
       
-      // Update KYC application status to rejected
+      // Update KYC application status to rejected with isRevocation flag
       const updatedApplication = await storage.updateKycApplicationStatus(
         req.params.id,
         "rejected",
-        reviewNotes || "Verification revoked by admin"
+        reviewNotes || "Verification revoked by admin",
+        { isRevocation: true }
       );
 
       // Demote user back to guest
