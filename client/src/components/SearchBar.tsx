@@ -329,29 +329,49 @@ export function SearchBar({
       
         {showDates && (
           <>
-            <div className="flex-1 px-4 py-2 border-r">
-              <label className="text-xs font-semibold block mb-1 text-gray-700">Check in</label>
+            <div 
+              className="flex-1 px-4 py-2 border-r cursor-pointer"
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement;
+                if (input && typeof input.showPicker === 'function') {
+                  input.showPicker();
+                } else if (input) {
+                  input.focus();
+                }
+              }}
+            >
+              <label className="text-xs font-semibold block mb-1 text-gray-700 cursor-pointer">Check in</label>
               <div className="relative">
-                <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
                   type="date"
                   value={checkIn}
                   onChange={(e) => setCheckIn(e.target.value)}
-                  className="w-full pl-6 bg-transparent focus:outline-none text-sm text-gray-900"
+                  className="w-full pl-6 bg-transparent focus:outline-none text-sm text-gray-900 cursor-pointer"
                   data-testid="input-checkin"
                 />
               </div>
             </div>
             
-            <div className={`flex-1 px-4 py-2 ${showGuests ? 'border-r' : ''}`}>
-              <label className="text-xs font-semibold block mb-1 text-gray-700">Check out</label>
+            <div 
+              className={`flex-1 px-4 py-2 ${showGuests ? 'border-r' : ''} cursor-pointer`}
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement;
+                if (input && typeof input.showPicker === 'function') {
+                  input.showPicker();
+                } else if (input) {
+                  input.focus();
+                }
+              }}
+            >
+              <label className="text-xs font-semibold block mb-1 text-gray-700 cursor-pointer">Check out</label>
               <div className="relative">
-                <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Calendar className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
                   type="date"
                   value={checkOut}
                   onChange={(e) => setCheckOut(e.target.value)}
-                  className="w-full pl-6 bg-transparent focus:outline-none text-sm text-gray-900"
+                  className="w-full pl-6 bg-transparent focus:outline-none text-sm text-gray-900 cursor-pointer"
                   data-testid="input-checkout"
                 />
               </div>
