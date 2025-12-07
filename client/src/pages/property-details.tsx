@@ -1175,19 +1175,38 @@ export default function PropertyDetails() {
                         Call Owner
                       </Button>
                     )}
-                    {user?.userRole === "guest" && (
-                      <Button
-                        className="w-full"
-                        variant="outline"
-                        size="lg"
-                        onClick={() => contactOwnerMutation.mutate()}
-                        disabled={contactOwnerMutation.isPending}
-                        data-testid="button-contact-owner"
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        {contactOwnerMutation.isPending ? "Loading..." : "Contact Owner"}
-                      </Button>
-                    )}
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      size="lg"
+                      onClick={() => {
+                        if (!user) {
+                          toast({
+                            title: "Login Required",
+                            description: "Please login to chat with the owner",
+                            variant: "destructive",
+                          });
+                          setTimeout(() => {
+                            window.location.href = "/api/login";
+                          }, 500);
+                          return;
+                        }
+                        if (user.userRole !== "guest") {
+                          toast({
+                            title: "Guest Account Required",
+                            description: "Only guests can chat with property owners",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        contactOwnerMutation.mutate();
+                      }}
+                      disabled={contactOwnerMutation.isPending}
+                      data-testid="button-contact-owner"
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      {contactOwnerMutation.isPending ? "Loading..." : "Chat with Owner"}
+                    </Button>
                   </div>
                 )}
                 
