@@ -300,17 +300,51 @@ export default function ListPropertyWizard() {
     }
   }, []);
 
-  // Auto-save form data and additional state to localStorage
-  const formValues = form.watch();
+  // Auto-save state management
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedDraft = useRef(false);
+  const lastSavedDataRef = useRef<string>("");
+  const [formChangeCounter, setFormChangeCounter] = useState(0);
 
-  // Save wizard data to localStorage with debounce
+  // Subscribe to form changes to trigger auto-save
   useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const subscription = form.watch(() => {
+      // Increment counter to trigger the save effect
+      setFormChangeCounter(prev => prev + 1);
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form, isAuthenticated]);
+
+  // Save wizard data to localStorage with debounce - only when authenticated
+  useEffect(() => {
+    // Don't save if not authenticated
+    if (!isAuthenticated) return;
     // Don't save if we haven't finished initial loading
     if (!hasLoadedDraft.current) return;
     // Don't save for KYC resubmission (they already have existing data)
     if (isKycResubmission) return;
+
+    // Get current form values
+    const currentFormValues = form.getValues();
+    
+    // Create the data object to save
+    const draftData = {
+      formValues: currentFormValues,
+      categorizedImages,
+      kycDocuments,
+      selectedAmenities,
+      videos,
+      propertyAddress,
+      step,
+      savedAt: new Date().toISOString(),
+    };
+    
+    // Serialize and compare to avoid unnecessary saves
+    const serialized = JSON.stringify(draftData);
+    if (serialized === lastSavedDataRef.current) return;
 
     // Debounce saving to avoid too many writes
     if (saveTimeoutRef.current) {
@@ -319,17 +353,8 @@ export default function ListPropertyWizard() {
 
     saveTimeoutRef.current = setTimeout(() => {
       try {
-        const draftData = {
-          formValues,
-          categorizedImages,
-          kycDocuments,
-          selectedAmenities,
-          videos,
-          propertyAddress,
-          step,
-          savedAt: new Date().toISOString(),
-        };
-        localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(draftData));
+        localStorage.setItem(WIZARD_STORAGE_KEY, serialized);
+        lastSavedDataRef.current = serialized;
       } catch (error) {
         console.error("Failed to save wizard draft:", error);
       }
@@ -340,10 +365,12 @@ export default function ListPropertyWizard() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [formValues, categorizedImages, kycDocuments, selectedAmenities, videos, propertyAddress, step, isKycResubmission]);
+  }, [isAuthenticated, categorizedImages, kycDocuments, selectedAmenities, videos, propertyAddress, step, isKycResubmission, form, formChangeCounter]);
 
-  // Load saved draft data on mount
+  // Load saved draft data on mount - only when authenticated
   useEffect(() => {
+    // Don't load if not authenticated
+    if (!isAuthenticated) return;
     if (hasLoadedDraft.current) return;
     // Don't load draft for KYC resubmission (they have existing data)
     if (isKycResubmission) {
@@ -353,62 +380,93 @@ export default function ListPropertyWizard() {
 
     try {
       const savedDraft = localStorage.getItem(WIZARD_STORAGE_KEY);
-      if (savedDraft) {
-        const draftData = JSON.parse(savedDraft);
-        
-        // Check if draft is not too old (7 days max)
-        const savedAt = new Date(draftData.savedAt);
-        const now = new Date();
-        const daysDiff = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (daysDiff < 7) {
-          // Restore form values (preserve user's email from current session)
-          if (draftData.formValues) {
-            const restoredValues = {
-              ...draftData.formValues,
-              email: user?.email || draftData.formValues.email,
-              firstName: user?.firstName || draftData.formValues.firstName,
-              lastName: user?.lastName || draftData.formValues.lastName,
-            };
-            form.reset(restoredValues);
-          }
-          
-          // Restore additional state
-          if (draftData.categorizedImages) {
-            setCategorizedImages(draftData.categorizedImages);
-          }
-          if (draftData.kycDocuments) {
-            setKycDocuments(draftData.kycDocuments);
-          }
-          if (draftData.selectedAmenities) {
-            setSelectedAmenities(draftData.selectedAmenities);
-          }
-          if (draftData.videos) {
-            setVideos(draftData.videos);
-          }
-          if (draftData.propertyAddress) {
-            setPropertyAddress(draftData.propertyAddress);
-          }
-          // Restore step if it's valid for current user's KYC status
-          if (draftData.step && draftData.step >= firstStep && draftData.step <= totalSteps) {
-            setStep(draftData.step);
-          }
-          
-          toast({
-            title: "Draft Restored",
-            description: "Your previously saved progress has been restored.",
-          });
-        } else {
-          // Draft is too old, clear it
-          clearWizardDraft();
-        }
+      if (!savedDraft) {
+        hasLoadedDraft.current = true;
+        return;
       }
+      
+      // Safely parse JSON with error handling
+      let draftData: any;
+      try {
+        draftData = JSON.parse(savedDraft);
+      } catch (parseError) {
+        console.error("Failed to parse wizard draft, clearing corrupted data:", parseError);
+        clearWizardDraft();
+        hasLoadedDraft.current = true;
+        return;
+      }
+      
+      // Validate the parsed data structure
+      if (!draftData || typeof draftData !== 'object' || !draftData.savedAt) {
+        console.error("Invalid wizard draft structure, clearing");
+        clearWizardDraft();
+        hasLoadedDraft.current = true;
+        return;
+      }
+      
+      // Check if draft is not too old (7 days max)
+      const savedAt = new Date(draftData.savedAt);
+      if (isNaN(savedAt.getTime())) {
+        console.error("Invalid savedAt date in wizard draft, clearing");
+        clearWizardDraft();
+        hasLoadedDraft.current = true;
+        return;
+      }
+      
+      const now = new Date();
+      const daysDiff = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60 * 24);
+      
+      if (daysDiff >= 7) {
+        // Draft is too old, clear it
+        clearWizardDraft();
+        hasLoadedDraft.current = true;
+        return;
+      }
+      
+      // Restore form values (preserve user's email from current session)
+      if (draftData.formValues && typeof draftData.formValues === 'object') {
+        const restoredValues = {
+          ...draftData.formValues,
+          email: user?.email || draftData.formValues.email,
+          firstName: user?.firstName || draftData.formValues.firstName,
+          lastName: user?.lastName || draftData.formValues.lastName,
+        };
+        form.reset(restoredValues);
+      }
+      
+      // Restore additional state with type checking
+      if (draftData.categorizedImages && typeof draftData.categorizedImages === 'object') {
+        setCategorizedImages(draftData.categorizedImages);
+      }
+      if (draftData.kycDocuments && typeof draftData.kycDocuments === 'object') {
+        setKycDocuments(draftData.kycDocuments);
+      }
+      if (Array.isArray(draftData.selectedAmenities)) {
+        setSelectedAmenities(draftData.selectedAmenities);
+      }
+      if (Array.isArray(draftData.videos)) {
+        setVideos(draftData.videos);
+      }
+      if (draftData.propertyAddress && typeof draftData.propertyAddress === 'object') {
+        setPropertyAddress(draftData.propertyAddress);
+      }
+      // Restore step if it's valid for current user's KYC status
+      if (typeof draftData.step === 'number' && draftData.step >= firstStep && draftData.step <= totalSteps) {
+        setStep(draftData.step);
+      }
+      
+      toast({
+        title: "Draft Restored",
+        description: "Your previously saved progress has been restored.",
+      });
     } catch (error) {
       console.error("Failed to load wizard draft:", error);
+      // Clear corrupted data to prevent future errors
+      clearWizardDraft();
     }
     
     hasLoadedDraft.current = true;
-  }, [form, user, isKycResubmission, firstStep, totalSteps, clearWizardDraft, toast]);
+  }, [isAuthenticated, form, user, isKycResubmission, firstStep, totalSteps, clearWizardDraft, toast]);
 
   // KYC PIN code lookup
   const handleKycPincodeChange = async (pincode: string) => {
