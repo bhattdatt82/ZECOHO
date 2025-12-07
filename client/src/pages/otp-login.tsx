@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +7,23 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Mail, ArrowLeft, Loader2, CheckCircle2, Shield } from "lucide-react";
+import { Mail, Phone, ArrowLeft, Loader2, Shield } from "lucide-react";
 
-type LoginStep = "email" | "otp";
+type LoginStep = "input" | "otp";
+type LoginMethod = "email" | "phone";
 
 export default function OtpLogin() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { toast } = useToast();
-  const [step, setStep] = useState<LoginStep>("email");
+  
+  const urlParams = new URLSearchParams(search);
+  const initialMethod = urlParams.get("method") === "phone" ? "phone" : "email";
+  
+  const [step, setStep] = useState<LoginStep>("input");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>(initialMethod);
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -27,9 +35,12 @@ export default function OtpLogin() {
     }
   }, [countdown]);
 
+  const getContact = () => loginMethod === "email" ? email : phone;
+
   const sendOtpMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const response = await apiRequest("POST", "/api/auth/send-otp", { email });
+    mutationFn: async (contact: string) => {
+      const payload = loginMethod === "email" ? { email: contact } : { phone: contact };
+      const response = await apiRequest("POST", "/api/auth/send-otp", payload);
       return response.json();
     },
     onSuccess: (data) => {
@@ -37,7 +48,9 @@ export default function OtpLogin() {
       setCountdown(60);
       toast({
         title: "OTP Sent",
-        description: `We've sent a 6-digit code to ${data.email}`,
+        description: loginMethod === "email" 
+          ? `We've sent a 6-digit code to ${data.email}`
+          : `We've sent a 6-digit code to ${phone}`,
       });
     },
     onError: (error: any) => {
@@ -50,8 +63,11 @@ export default function OtpLogin() {
   });
 
   const verifyOtpMutation = useMutation({
-    mutationFn: async ({ email, otp }: { email: string; otp: string }) => {
-      const response = await apiRequest("POST", "/api/auth/verify-otp", { email, otp });
+    mutationFn: async ({ contact, otp }: { contact: string; otp: string }) => {
+      const payload = loginMethod === "email" 
+        ? { email: contact, otp } 
+        : { phone: contact, otp };
+      const response = await apiRequest("POST", "/api/auth/verify-otp", payload);
       return response.json();
     },
     onSuccess: () => {
@@ -73,10 +89,11 @@ export default function OtpLogin() {
     },
   });
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-    sendOtpMutation.mutate(email);
+    const contact = getContact();
+    if (!contact.trim()) return;
+    sendOtpMutation.mutate(contact);
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -91,7 +108,7 @@ export default function OtpLogin() {
     }
 
     if (newOtp.every(digit => digit) && newOtp.join("").length === 6) {
-      verifyOtpMutation.mutate({ email, otp: newOtp.join("") });
+      verifyOtpMutation.mutate({ contact: getContact(), otp: newOtp.join("") });
     }
   };
 
@@ -107,13 +124,13 @@ export default function OtpLogin() {
     if (pastedData.length === 6) {
       const newOtp = pastedData.split("");
       setOtp(newOtp);
-      verifyOtpMutation.mutate({ email, otp: pastedData });
+      verifyOtpMutation.mutate({ contact: getContact(), otp: pastedData });
     }
   };
 
   const handleResendOtp = () => {
     if (countdown > 0) return;
-    sendOtpMutation.mutate(email);
+    sendOtpMutation.mutate(getContact());
   };
 
   return (
@@ -122,43 +139,89 @@ export default function OtpLogin() {
         <CardHeader className="text-center pb-4">
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              {step === "email" ? (
-                <Mail className="h-8 w-8 text-primary" />
+              {step === "input" ? (
+                loginMethod === "email" ? (
+                  <Mail className="h-8 w-8 text-primary" />
+                ) : (
+                  <Phone className="h-8 w-8 text-primary" />
+                )
               ) : (
                 <Shield className="h-8 w-8 text-primary" />
               )}
             </div>
           </div>
           <CardTitle className="text-2xl">
-            {step === "email" ? "Login to ZECOHO" : "Enter Verification Code"}
+            {step === "input" ? "Login to ZECOHO" : "Enter Verification Code"}
           </CardTitle>
           <CardDescription>
-            {step === "email" 
-              ? "Enter your email to receive a one-time password"
-              : `We've sent a 6-digit code to ${email}`
+            {step === "input" 
+              ? loginMethod === "email"
+                ? "Enter your email to receive a one-time password"
+                : "Enter your phone number to receive a one-time password"
+              : `We've sent a 6-digit code to ${loginMethod === "email" ? email : phone}`
             }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {step === "email" ? (
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                  data-testid="input-email"
-                />
+          {step === "input" ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant={loginMethod === "email" ? "default" : "outline"}
+                  onClick={() => setLoginMethod("email")}
+                  className="flex-1"
+                  data-testid="button-method-email"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email
+                </Button>
+                <Button
+                  type="button"
+                  variant={loginMethod === "phone" ? "default" : "outline"}
+                  onClick={() => setLoginMethod("phone")}
+                  className="flex-1"
+                  data-testid="button-method-phone"
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Phone
+                </Button>
               </div>
+
+              {loginMethod === "email" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                    data-testid="input-email"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    autoFocus
+                    data-testid="input-phone"
+                  />
+                </div>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={sendOtpMutation.isPending || !email.trim()}
+                disabled={sendOtpMutation.isPending || !getContact().trim()}
                 data-testid="button-send-otp"
               >
                 {sendOtpMutation.isPending ? (
@@ -168,7 +231,11 @@ export default function OtpLogin() {
                   </>
                 ) : (
                   <>
-                    <Mail className="h-4 w-4 mr-2" />
+                    {loginMethod === "email" ? (
+                      <Mail className="h-4 w-4 mr-2" />
+                    ) : (
+                      <Phone className="h-4 w-4 mr-2" />
+                    )}
                     Send OTP
                   </>
                 )}
@@ -233,13 +300,13 @@ export default function OtpLogin() {
                 <Button 
                   variant="ghost" 
                   onClick={() => {
-                    setStep("email");
+                    setStep("input");
                     setOtp(["", "", "", "", "", ""]);
                   }}
-                  data-testid="button-change-email"
+                  data-testid="button-change-contact"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Change Email
+                  Change {loginMethod === "email" ? "Email" : "Phone"}
                 </Button>
               </div>
             </div>
