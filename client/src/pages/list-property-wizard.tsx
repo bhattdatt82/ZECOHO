@@ -36,6 +36,8 @@ import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
 import type { KycSectionId, KycRejectionDetails } from "@shared/schema";
 import { useEffect, useMemo, useRef, useCallback } from "react";
 
+const WIZARD_STORAGE_KEY = "zecoho_list_property_wizard_draft";
+
 const SECTION_LABELS: Record<KycSectionId, { label: string; icon: any }> = {
   personal: { label: "Personal Information", icon: User },
   business: { label: "Business Information", icon: MapPin },
@@ -289,6 +291,125 @@ export default function ListPropertyWizard() {
     }
   }, [isKycResubmission, existingKycApplication, form]);
 
+  // Helper function to clear wizard draft from localStorage
+  const clearWizardDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(WIZARD_STORAGE_KEY);
+    } catch (error) {
+      console.error("Failed to clear wizard draft:", error);
+    }
+  }, []);
+
+  // Auto-save form data and additional state to localStorage
+  const formValues = form.watch();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedDraft = useRef(false);
+
+  // Save wizard data to localStorage with debounce
+  useEffect(() => {
+    // Don't save if we haven't finished initial loading
+    if (!hasLoadedDraft.current) return;
+    // Don't save for KYC resubmission (they already have existing data)
+    if (isKycResubmission) return;
+
+    // Debounce saving to avoid too many writes
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      try {
+        const draftData = {
+          formValues,
+          categorizedImages,
+          kycDocuments,
+          selectedAmenities,
+          videos,
+          propertyAddress,
+          step,
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(draftData));
+      } catch (error) {
+        console.error("Failed to save wizard draft:", error);
+      }
+    }, 1000); // Save after 1 second of no changes
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [formValues, categorizedImages, kycDocuments, selectedAmenities, videos, propertyAddress, step, isKycResubmission]);
+
+  // Load saved draft data on mount
+  useEffect(() => {
+    if (hasLoadedDraft.current) return;
+    // Don't load draft for KYC resubmission (they have existing data)
+    if (isKycResubmission) {
+      hasLoadedDraft.current = true;
+      return;
+    }
+
+    try {
+      const savedDraft = localStorage.getItem(WIZARD_STORAGE_KEY);
+      if (savedDraft) {
+        const draftData = JSON.parse(savedDraft);
+        
+        // Check if draft is not too old (7 days max)
+        const savedAt = new Date(draftData.savedAt);
+        const now = new Date();
+        const daysDiff = (now.getTime() - savedAt.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysDiff < 7) {
+          // Restore form values (preserve user's email from current session)
+          if (draftData.formValues) {
+            const restoredValues = {
+              ...draftData.formValues,
+              email: user?.email || draftData.formValues.email,
+              firstName: user?.firstName || draftData.formValues.firstName,
+              lastName: user?.lastName || draftData.formValues.lastName,
+            };
+            form.reset(restoredValues);
+          }
+          
+          // Restore additional state
+          if (draftData.categorizedImages) {
+            setCategorizedImages(draftData.categorizedImages);
+          }
+          if (draftData.kycDocuments) {
+            setKycDocuments(draftData.kycDocuments);
+          }
+          if (draftData.selectedAmenities) {
+            setSelectedAmenities(draftData.selectedAmenities);
+          }
+          if (draftData.videos) {
+            setVideos(draftData.videos);
+          }
+          if (draftData.propertyAddress) {
+            setPropertyAddress(draftData.propertyAddress);
+          }
+          // Restore step if it's valid for current user's KYC status
+          if (draftData.step && draftData.step >= firstStep && draftData.step <= totalSteps) {
+            setStep(draftData.step);
+          }
+          
+          toast({
+            title: "Draft Restored",
+            description: "Your previously saved progress has been restored.",
+          });
+        } else {
+          // Draft is too old, clear it
+          clearWizardDraft();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load wizard draft:", error);
+    }
+    
+    hasLoadedDraft.current = true;
+  }, [form, user, isKycResubmission, firstStep, totalSteps, clearWizardDraft, toast]);
+
   // KYC PIN code lookup
   const handleKycPincodeChange = async (pincode: string) => {
     form.setValue("kycPincode", pincode);
@@ -430,6 +551,7 @@ export default function ListPropertyWizard() {
       return await response.json();
     },
     onSuccess: () => {
+      clearWizardDraft(); // Clear saved draft on successful submission
       toast({
         title: "KYC Resubmission Successful!",
         description: "Your updated KYC information has been submitted for review.",
@@ -526,6 +648,7 @@ export default function ListPropertyWizard() {
       return await response.json();
     },
     onSuccess: () => {
+      clearWizardDraft(); // Clear saved draft on successful submission
       toast({
         title: "Application Submitted Successfully!",
         description: "Your KYC and property listing have been submitted for review. You'll be notified once approved.",
