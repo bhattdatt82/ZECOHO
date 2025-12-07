@@ -79,6 +79,27 @@ export default function Landing() {
           <div className="flex justify-center">
             <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
           </div>
+          
+          {/* Popular Cities Quick Search */}
+          <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-6">
+            {["Bangalore", "Pune", "Hyderabad", "Chennai", "Kolkata", "Mumbai", "New Delhi", "Nagpur", "Noida", "Visakhapatnam"].map((city) => (
+              <button
+                key={city}
+                onClick={() => setLocation(`/search?destination=${encodeURIComponent(city)}`)}
+                className="text-white/90 hover:text-white text-sm font-medium hover:underline transition-colors"
+                data-testid={`link-quick-city-${city.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {city}
+              </button>
+            ))}
+            <button
+              onClick={() => setLocation("/destinations")}
+              className="text-primary font-semibold text-sm hover:underline transition-colors"
+              data-testid="link-all-cities"
+            >
+              All Cities
+            </button>
+          </div>
         </div>
       </div>
 
