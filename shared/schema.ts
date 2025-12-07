@@ -27,6 +27,27 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// OTP codes table for email authentication
+export const otpCodes = pgTable(
+  "otp_codes",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    email: varchar("email", { length: 255 }).notNull(),
+    code: varchar("code", { length: 6 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    verified: boolean("verified").default(false),
+    attempts: integer("attempts").default(0),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("IDX_otp_email").on(table.email),
+    index("IDX_otp_expires").on(table.expiresAt),
+  ],
+);
+
+export type OtpCode = typeof otpCodes.$inferSelect;
+export type InsertOtpCode = typeof otpCodes.$inferInsert;
+
 // User roles enum
 export const userRoleEnum = pgEnum("user_role", ["guest", "owner", "admin"]);
 

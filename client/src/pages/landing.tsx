@@ -50,11 +50,10 @@ export default function Landing() {
             size="default"
             variant="outline" 
             className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20"
-            asChild
+            onClick={() => setLocation("/login")}
+            data-testid="button-login-hero"
           >
-            <a href="/api/login" data-testid="button-login-hero">
-              Login / Sign Up
-            </a>
+            Login / Sign Up
           </Button>
         </div>
       </header>

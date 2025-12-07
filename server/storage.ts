@@ -14,6 +14,7 @@ import {
   destinations,
   searchHistory,
   kycApplications,
+  otpCodes,
   type User,
   type UpsertUser,
   type Property,
@@ -41,6 +42,8 @@ import {
   type KycApplication,
   type InsertKycApplication,
   type KycApplicationFormData,
+  type OtpCode,
+  type InsertOtpCode,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc } from "drizzle-orm";
@@ -137,6 +140,15 @@ export interface IStorage {
   updateKycApplicationStatus(id: string, status: "verified" | "rejected", reviewNotes?: string, rejectionDetails?: any): Promise<KycApplication | undefined>;
   updateKycApplication(id: string, updates: KycApplicationFormData): Promise<KycApplication | undefined>;
   deleteKycApplication(id: string): Promise<void>;
+
+  // OTP operations
+  createOtpCode(email: string, code: string, expiresAt: Date): Promise<OtpCode>;
+  getValidOtpCode(email: string, code: string): Promise<OtpCode | undefined>;
+  incrementOtpAttempts(id: string): Promise<void>;
+  markOtpVerified(id: string): Promise<void>;
+  deleteExpiredOtpCodes(): Promise<void>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUserFromEmail(email: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -918,6 +930,76 @@ export class DatabaseStorage implements IStorage {
 
   async deleteKycApplication(id: string): Promise<void> {
     await db.delete(kycApplications).where(eq(kycApplications.id, id));
+  }
+
+  // OTP operations
+  async createOtpCode(email: string, code: string, expiresAt: Date): Promise<OtpCode> {
+    // Delete any existing OTP codes for this email first
+    await db.delete(otpCodes).where(eq(otpCodes.email, email.toLowerCase()));
+    
+    const [otp] = await db
+      .insert(otpCodes)
+      .values({
+        email: email.toLowerCase(),
+        code,
+        expiresAt,
+      })
+      .returning();
+    return otp;
+  }
+
+  async getValidOtpCode(email: string, code: string): Promise<OtpCode | undefined> {
+    const [otp] = await db
+      .select()
+      .from(otpCodes)
+      .where(
+        and(
+          eq(otpCodes.email, email.toLowerCase()),
+          eq(otpCodes.code, code),
+          eq(otpCodes.verified, false),
+          gt(otpCodes.expiresAt, new Date()),
+          lt(otpCodes.attempts, 5) // Max 5 attempts
+        )
+      )
+      .limit(1);
+    return otp;
+  }
+
+  async incrementOtpAttempts(id: string): Promise<void> {
+    await db
+      .update(otpCodes)
+      .set({ attempts: sql`${otpCodes.attempts} + 1` })
+      .where(eq(otpCodes.id, id));
+  }
+
+  async markOtpVerified(id: string): Promise<void> {
+    await db
+      .update(otpCodes)
+      .set({ verified: true })
+      .where(eq(otpCodes.id, id));
+  }
+
+  async deleteExpiredOtpCodes(): Promise<void> {
+    await db.delete(otpCodes).where(lt(otpCodes.expiresAt, new Date()));
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()));
+    return user;
+  }
+
+  async createUserFromEmail(email: string): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        email: email.toLowerCase(),
+        userRole: "guest",
+      })
+      .returning();
+    return user;
   }
 }
 

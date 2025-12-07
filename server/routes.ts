@@ -9,6 +9,8 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
+import { sendOtpEmail } from "./emailService";
+import crypto from "crypto";
 
 // Helper function to check if a user has a specific role (checks both primary and additional roles)
 function userHasRole(user: any, role: string): boolean {
@@ -31,6 +33,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // OTP Authentication - Send OTP to email
+  app.post('/api/auth/send-otp', async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+
+      // Generate 6-digit OTP
+      const otp = crypto.randomInt(100000, 999999).toString();
+      
+      // Set expiry to 10 minutes from now
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      // Store OTP in database
+      await storage.createOtpCode(email, otp, expiresAt);
+
+      // Send OTP email
+      const emailSent = await sendOtpEmail(email, otp);
+      
+      if (!emailSent) {
+        return res.status(500).json({ message: "Failed to send OTP email. Please try again." });
+      }
+
+      // Clean up expired codes periodically
+      storage.deleteExpiredOtpCodes().catch(console.error);
+
+      res.json({ 
+        message: "OTP sent successfully",
+        email: email.toLowerCase(),
+        expiresIn: 600 // 10 minutes in seconds
+      });
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      res.status(500).json({ message: "Failed to send OTP" });
+    }
+  });
+
+  // OTP Authentication - Verify OTP and create session
+  app.post('/api/auth/verify-otp', async (req: any, res) => {
+    try {
+      const { email, otp } = req.body;
+      
+      if (!email || !otp) {
+        return res.status(400).json({ message: "Email and OTP are required" });
+      }
+
+      // Get valid OTP code
+      const otpCode = await storage.getValidOtpCode(email, otp);
+      
+      if (!otpCode) {
+        return res.status(400).json({ 
+          message: "Invalid or expired OTP. Please request a new one." 
+        });
+      }
+
+      // Check attempts
+      if (otpCode.attempts && otpCode.attempts >= 5) {
+        return res.status(400).json({ 
+          message: "Too many attempts. Please request a new OTP." 
+        });
+      }
+
+      // Increment attempts before checking
+      await storage.incrementOtpAttempts(otpCode.id);
+
+      // Verify the OTP matches
+      if (otpCode.code !== otp) {
+        return res.status(400).json({ 
+          message: "Incorrect OTP. Please try again." 
+        });
+      }
+
+      // Mark OTP as verified
+      await storage.markOtpVerified(otpCode.id);
+
+      // Get or create user
+      let user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        // Create new user with email
+        user = await storage.createUserFromEmail(email);
+      }
+
+      // Create session for the user
+      req.user = {
+        claims: { sub: user.id, email: user.email },
+        access_token: `otp-session-${user.id}`,
+        expires_at: Math.floor(Date.now() / 1000) + 86400, // 24 hours
+      };
+      
+      // Save session
+      if (req.session) {
+        req.session.passport = { user: req.user };
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err: any) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
+
+      res.json({ 
+        message: "Login successful",
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          userRole: user.userRole,
+          profileImageUrl: user.profileImageUrl,
+        }
+      });
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      res.status(500).json({ message: "Failed to verify OTP" });
     }
   });
 
