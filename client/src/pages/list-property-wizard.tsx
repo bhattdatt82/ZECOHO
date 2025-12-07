@@ -99,7 +99,7 @@ type CombinedFormData = z.infer<typeof combinedSchema>;
 export default function ListPropertyWizard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   
   // Check for existing KYC application
   const { data: existingKycApplication, isLoading: isLoadingKyc } = useQuery<KycApplication>({
@@ -1136,6 +1136,55 @@ export default function ListPropertyWizard() {
             </form>
           </Form>
         </div>
+      </div>
+    );
+  }
+
+  // Show loading state while checking authentication
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Sign In Required</CardTitle>
+            <p className="text-muted-foreground mt-2">
+              Please log in to list your property on ZECOHO
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-center text-muted-foreground">
+              Join our ZERO commission platform and connect directly with guests.
+            </p>
+            <Button 
+              className="w-full" 
+              onClick={() => setLocation("/login")}
+              data-testid="button-login-to-list"
+            >
+              Log In to Continue
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => setLocation("/")}
+              data-testid="button-back-home"
+            >
+              Back to Home
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

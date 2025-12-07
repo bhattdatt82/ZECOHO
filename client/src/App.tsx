@@ -40,7 +40,6 @@ function Router() {
       {isAuthenticated && !isLoading && (
         <>
           <Route path="/" component={Home} />
-          <Route path="/list-property" component={ListPropertyWizard} />
           <Route path="/wishlist" component={Wishlist} />
           <Route path="/search-history" component={SearchHistoryPage} />
           <Route path="/messages" component={Messages} />
@@ -54,6 +53,7 @@ function Router() {
         </>
       )}
       <Route path="/login" component={OtpLogin} />
+      <Route path="/list-property" component={ListPropertyWizard} />
       <Route path="/admin-access" component={AdminAccess} />
       <Route path="/dev-admin" component={DevAdminLogin} />
       <Route path="/kyc" component={KYC} />
