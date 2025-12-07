@@ -160,18 +160,18 @@ export function PropertyImageUploader({
 
   const handleImageUpload = (category: PropertyImageCategory, result: any) => {
     if (result.successful && result.successful.length > 0) {
-      const accessPath = result.successful[0].accessPath;
-      const newImage: CategorizedImage = {
-        url: accessPath,
+      const newImages: CategorizedImage[] = result.successful.map((upload: any) => ({
+        url: upload.accessPath,
         category,
-      };
+      }));
       onChange({
         ...value,
-        [category]: [...(value[category] || []), newImage],
+        [category]: [...(value[category] || []), ...newImages],
       });
+      const categoryLabel = IMAGE_CATEGORIES.find(c => c.id === category)?.label;
       toast({
-        title: "Image uploaded",
-        description: `Photo added to ${IMAGE_CATEGORIES.find(c => c.id === category)?.label}`,
+        title: "Images uploaded",
+        description: `${newImages.length} photo${newImages.length > 1 ? 's' : ''} added to ${categoryLabel}`,
       });
     }
   };
@@ -196,11 +196,11 @@ export function PropertyImageUploader({
 
   const handleVideoUpload = (result: any) => {
     if (result.successful && result.successful.length > 0 && onVideosChange) {
-      const uploadedUrl = result.successful[0].uploadURL;
-      onVideosChange([...videos, uploadedUrl]);
+      const uploadedUrls = result.successful.map((upload: any) => upload.accessPath);
+      onVideosChange([...videos, ...uploadedUrls]);
       toast({
-        title: "Video uploaded",
-        description: "Room walkthrough video added successfully",
+        title: "Videos uploaded",
+        description: `${uploadedUrls.length} video${uploadedUrls.length > 1 ? 's' : ''} added successfully`,
       });
     }
   };

@@ -46,28 +46,37 @@ export function ObjectUploader({
     if (!files) return;
 
     const fileArray = Array.from(files).slice(0, maxNumberOfFiles);
-    
-    for (const file of fileArray) {
+    const validFiles = fileArray.filter(file => {
       if (file.size > maxFileSize) {
         toast({
           title: "File too large",
-          description: `File size must be less than ${(maxFileSize / 1024 / 1024).toFixed(2)}MB`,
+          description: `${file.name} exceeds ${(maxFileSize / 1024 / 1024).toFixed(2)}MB limit`,
           variant: "destructive",
         });
-        continue;
+        return false;
       }
+      return true;
+    });
 
-      setUploading(true);
-      setProgress(0);
+    if (validFiles.length === 0) return;
 
+    setUploading(true);
+    setProgress(0);
+
+    const successfulUploads: Array<{ uploadURL: string; accessPath: string; name?: string }> = [];
+    const totalFiles = validFiles.length;
+    let completedFiles = 0;
+
+    for (const file of validFiles) {
       try {
         const { url, accessPath, aclToken } = await onGetUploadParameters();
         
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            setProgress(percentComplete);
+            const fileProgress = (e.loaded / e.total) * 100;
+            const overallProgress = ((completedFiles * 100) + fileProgress) / totalFiles;
+            setProgress(overallProgress);
           }
         });
 
@@ -87,27 +96,34 @@ export function ObjectUploader({
         // Set ACL policy so the owner can access the file later
         await apiRequest("POST", "/api/objects/set-acl", { accessPath, aclToken });
 
-        onComplete?.({
-          successful: [{ uploadURL: url, accessPath, name: file.name }],
-        });
-
-        toast({
-          title: "Success",
-          description: "File uploaded successfully",
-        });
+        successfulUploads.push({ uploadURL: url, accessPath, name: file.name });
+        completedFiles++;
       } catch (error) {
         toast({
           title: "Error",
-          description: `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          description: `Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
           variant: "destructive",
         });
-      } finally {
-        setUploading(false);
-        setProgress(0);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+        completedFiles++;
       }
+    }
+
+    // Call onComplete once with all successful uploads
+    if (successfulUploads.length > 0) {
+      onComplete?.({
+        successful: successfulUploads,
+      });
+
+      toast({
+        title: "Success",
+        description: `${successfulUploads.length} file${successfulUploads.length > 1 ? 's' : ''} uploaded successfully`,
+      });
+    }
+
+    setUploading(false);
+    setProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
