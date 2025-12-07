@@ -80,11 +80,14 @@ function Router() {
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  const showHeader = location !== "/" || (isAuthenticated && !isLoading);
 
   return (
     <div className="flex flex-col min-h-screen">
       <ScrollToTop />
-      {!isLoading && isAuthenticated && <Header />}
+      {showHeader && <Header />}
       <div className="flex-1">
         <Router />
       </div>
