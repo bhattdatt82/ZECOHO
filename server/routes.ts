@@ -370,6 +370,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Forgot Password - Step 1: Send reset OTP
+  app.post('/api/auth/forgot-password', async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+
+      // Check if user exists with this email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists or not for security
+        return res.json({ 
+          message: "If an account with this email exists, you will receive a password reset code.",
+          email: email.toLowerCase()
+        });
+      }
+
+      // Check if user has a password (can only reset password if they registered with email/password)
+      if (!user.passwordHash) {
+        return res.status(400).json({ 
+          message: "This account was created with a different login method. Please use OTP login instead." 
+        });
+      }
+
+      // Generate 6-digit OTP
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Store OTP in database
+      await storage.createOtpCode(email, otp, expiresAt);
+
+      // Send password reset OTP email
+      const emailSent = await sendOtpEmail(email, otp, 'Password Reset');
+      
+      if (!emailSent) {
+        return res.status(500).json({ message: "Failed to send password reset email. Please try again." });
+      }
+
+      // Clean up expired codes periodically
+      storage.deleteExpiredOtpCodes().catch(console.error);
+
+      res.json({ 
+        message: "Password reset code sent successfully",
+        email: email.toLowerCase(),
+        expiresIn: 600
+      });
+    } catch (error) {
+      console.error("Error sending forgot password OTP:", error);
+      res.status(500).json({ message: "Failed to send password reset code" });
+    }
+  });
+
+  // Forgot Password - Step 2: Verify OTP and reset password
+  app.post('/api/auth/reset-password', async (req: any, res) => {
+    try {
+      const { email, otp, newPassword } = req.body;
+      
+      if (!email || !otp || !newPassword) {
+        return res.status(400).json({ message: "Email, OTP, and new password are required" });
+      }
+
+      // Validate password strength
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+
+      // Get valid OTP code
+      const otpCode = await storage.getValidOtpCode(email, otp);
+      if (!otpCode) {
+        return res.status(400).json({ message: "Invalid or expired code. Please request a new one." });
+      }
+
+      // Check attempts
+      if (otpCode.attempts && otpCode.attempts >= 5) {
+        return res.status(400).json({ message: "Too many attempts. Please request a new code." });
+      }
+
+      await storage.incrementOtpAttempts(otpCode.id);
+
+      if (otpCode.code !== otp) {
+        return res.status(400).json({ message: "Incorrect code. Please try again." });
+      }
+
+      // Get user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Hash new password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update user's password
+      await storage.updateUserPassword(user.id, passwordHash);
+
+      // Mark OTP as verified
+      await storage.markOtpVerified(otpCode.id);
+
+      res.json({ 
+        message: "Password reset successfully! You can now log in with your new password."
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   // Admin promotion endpoint - requires email in body
   app.post('/api/admin/promote', async (req: any, res) => {
     try {

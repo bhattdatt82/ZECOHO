@@ -15,16 +15,23 @@ async function getResendClient() {
   };
 }
 
-export async function sendOtpEmail(email: string, otp: string): Promise<boolean> {
+export async function sendOtpEmail(email: string, otp: string, purpose: 'Login' | 'Password Reset' = 'Login'): Promise<boolean> {
   try {
-    console.log('Attempting to send OTP email to:', email);
+    console.log('Attempting to send OTP email to:', email, 'for:', purpose);
     const { client, fromEmail } = await getResendClient();
     console.log('Resend client obtained, using from email:', fromEmail);
+    
+    const isPasswordReset = purpose === 'Password Reset';
+    const subject = isPasswordReset ? 'Reset Your ZECOHO Password' : 'Your ZECOHO Login Code';
+    const heading = isPasswordReset ? 'Password Reset Code' : 'Your Login Code';
+    const description = isPasswordReset 
+      ? 'Enter this code to reset your ZECOHO password. This code expires in 10 minutes.'
+      : 'Enter this code to sign in to your ZECOHO account. This code expires in 10 minutes.';
     
     const { data, error } = await client.emails.send({
       from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
       to: [email],
-      subject: 'Your ZECOHO Login Code',
+      subject: subject,
       html: `
         <!DOCTYPE html>
         <html>
@@ -40,9 +47,9 @@ export async function sendOtpEmail(email: string, otp: string): Promise<boolean>
             </div>
             
             <div style="padding: 32px;">
-              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Your Login Code</h2>
+              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">${heading}</h2>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
-                Enter this code to sign in to your ZECOHO account. This code expires in 10 minutes.
+                ${description}
               </p>
               
               <div style="background: #f3f4f6; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">

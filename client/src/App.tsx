@@ -39,6 +39,7 @@ import ListPropertyWizard from "@/pages/list-property-wizard";
 import DevAdminLogin from "@/pages/dev-admin-login";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import ForgotPassword from "@/pages/forgot-password";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -66,6 +67,7 @@ function Router() {
       )}
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/list-property" component={ListPropertyWizard} />
       <Route path="/admin-access" component={AdminAccess} />
       <Route path="/dev-admin" component={DevAdminLogin} />
