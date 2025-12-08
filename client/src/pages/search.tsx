@@ -8,6 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SlidersHorizontal, X } from "lucide-react";
 import type { Property } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +23,7 @@ export default function Search() {
   const { user } = useAuth();
   const [location] = useLocation();
   const [priceRange, setPriceRange] = useState([0, 89000]);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedType, setSelectedType] = useState<string>("");
   const [minGuests, setMinGuests] = useState(1);
   const [showFilters, setShowFilters] = useState(true);
   const [searchDestination, setSearchDestination] = useState("");
@@ -86,7 +93,7 @@ export default function Search() {
     const price = Number(property.pricePerNight);
     if (price < priceRange[0] || price > priceRange[1]) return false;
     
-    if (selectedTypes.length > 0 && !selectedTypes.includes(property.propertyType)) {
+    if (selectedType && property.propertyType !== selectedType) {
       return false;
     }
     
@@ -95,12 +102,7 @@ export default function Search() {
     return true;
   });
 
-  const toggleType = (type: string) => {
-    setSelectedTypes(prev =>
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
-  };
-
+  
   return (
     <div className="min-h-screen bg-background">
       {/* Search Header */}
@@ -153,21 +155,27 @@ export default function Search() {
               </div>
 
               {/* Property Type Filter */}
-              <div className="flex-1 min-w-[200px]">
+              <div className="min-w-[180px]">
                 <Label className="text-sm font-medium mb-2 block">Property type</Label>
-                <div className="flex flex-wrap gap-2">
-                  {propertyTypes.map((type) => (
-                    <Badge
-                      key={type.value}
-                      variant={selectedTypes.includes(type.value) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleType(type.value)}
-                      data-testid={`checkbox-type-${type.value}`}
-                    >
-                      {type.label}
-                    </Badge>
-                  ))}
-                </div>
+                <Select
+                  value={selectedType}
+                  onValueChange={setSelectedType}
+                >
+                  <SelectTrigger data-testid="select-property-type" className="w-full">
+                    <SelectValue placeholder="All property types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {propertyTypes.map((type) => (
+                      <SelectItem
+                        key={type.value}
+                        value={type.value}
+                        data-testid={`select-type-${type.value}`}
+                      >
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Guests Filter */}
@@ -184,13 +192,13 @@ export default function Search() {
               </div>
 
               {/* Clear Filters */}
-              {(selectedTypes.length > 0 || priceRange[0] > 0 || priceRange[1] < 89000 || minGuests > 1 || searchDestination) && (
+              {(selectedType || priceRange[0] > 0 || priceRange[1] < 89000 || minGuests > 1 || searchDestination) && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setPriceRange([0, 89000]);
-                    setSelectedTypes([]);
+                    setSelectedType("");
                     setMinGuests(1);
                     setSearchDestination("");
                   }}
@@ -259,8 +267,8 @@ export default function Search() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setPriceRange([0, 1000]);
-                    setSelectedTypes([]);
+                    setPriceRange([0, 89000]);
+                    setSelectedType("");
                     setMinGuests(1);
                     setSearchDestination("");
                   }}
