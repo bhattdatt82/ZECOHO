@@ -149,6 +149,11 @@ export interface IStorage {
   deleteExpiredOtpCodes(): Promise<void>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUserFromEmail(email: string): Promise<User>;
+
+  // Password-based auth operations
+  createLocalUser(data: { firstName: string; lastName: string; email: string; passwordHash: string }): Promise<User>;
+  updateUserEmailVerified(userId: string): Promise<User | undefined>;
+  updateUserPassword(userId: string, passwordHash: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -998,6 +1003,46 @@ export class DatabaseStorage implements IStorage {
         email: email.toLowerCase(),
         userRole: "guest",
       })
+      .returning();
+    return user;
+  }
+
+  // Password-based auth operations
+  async createLocalUser(data: { firstName: string; lastName: string; email: string; passwordHash: string }): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email.toLowerCase(),
+        passwordHash: data.passwordHash,
+        registrationMethod: "local",
+        userRole: "guest",
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUserEmailVerified(userId: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        emailVerifiedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        passwordHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
       .returning();
     return user;
   }

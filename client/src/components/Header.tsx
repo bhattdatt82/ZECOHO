@@ -300,9 +300,18 @@ export function Header() {
               </DropdownMenu>
             </>
           ) : (
-            <Button asChild data-testid="button-login">
-              <a href="/api/login">Log in / Sign up</a>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Link href="/login">
+                <Button variant="outline" size="sm" data-testid="button-login">
+                  Log in
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button size="sm" data-testid="button-signup">
+                  Sign up
+                </Button>
+              </Link>
+            </div>
           )}
 
           {/* Language Selector */}

@@ -1,0 +1,427 @@
+import { useState, useRef, useEffect } from "react";
+import { useLocation, Link, useSearch } from "wouter";
+import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Mail, Lock, ArrowLeft, Loader2, Shield, Eye, EyeOff } from "lucide-react";
+
+type LoginStep = "input" | "otp";
+type LoginMethod = "password" | "otp";
+
+export default function Login() {
+  const [, setLocation] = useLocation();
+  const search = useSearch();
+  const { toast } = useToast();
+  
+  const urlParams = new URLSearchParams(search);
+  const initialMethod = urlParams.get("method") === "otp" ? "otp" : "password";
+  
+  const [step, setStep] = useState<LoginStep>("input");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>(initialMethod);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [countdown, setCountdown] = useState(0);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  const passwordLoginMutation = useMutation({
+    mutationFn: async (data: { email: string; password: string }) => {
+      const response = await apiRequest("POST", "/api/auth/login/password", data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.requiresVerification) {
+        setPendingVerificationEmail(data.email);
+        setStep("otp");
+        setCountdown(60);
+        toast({
+          title: "Email Not Verified",
+          description: `We've sent a verification code to ${data.email}`,
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        });
+        setLocation("/");
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Login Failed",
+        description: error.message || "Invalid email or password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendOtpMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await apiRequest("POST", "/api/auth/send-otp", { email });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setStep("otp");
+      setCountdown(60);
+      toast({
+        title: "OTP Sent",
+        description: `We've sent a 6-digit code to ${data.email}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to send OTP",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const verifyOtpMutation = useMutation({
+    mutationFn: async ({ email, otp }: { email: string; otp: string }) => {
+      const response = await apiRequest("POST", "/api/auth/verify-otp", { email, otp });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Welcome to ZECOHO!",
+        description: "You have successfully logged in.",
+      });
+      setLocation("/");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Verification failed",
+        description: error.message || "Invalid or expired OTP",
+        variant: "destructive",
+      });
+      setOtp(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
+    },
+  });
+
+  const verifyRegistrationOtpMutation = useMutation({
+    mutationFn: async ({ email, otp }: { email: string; otp: string }) => {
+      const response = await apiRequest("POST", "/api/auth/register/verify", { email, otp });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Welcome to ZECOHO!",
+        description: "Your email has been verified.",
+      });
+      setLocation("/");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Verification failed",
+        description: error.message || "Invalid or expired OTP",
+        variant: "destructive",
+      });
+      setOtp(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
+    },
+  });
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+    passwordLoginMutation.mutate({ email: email.trim(), password });
+  };
+
+  const handleOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    sendOtpMutation.mutate(email.trim());
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
+    setOtp(newOtp);
+
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+
+    if (newOtp.every(digit => digit) && newOtp.join("").length === 6) {
+      const targetEmail = pendingVerificationEmail || email;
+      if (pendingVerificationEmail) {
+        verifyRegistrationOtpMutation.mutate({ email: targetEmail, otp: newOtp.join("") });
+      } else {
+        verifyOtpMutation.mutate({ email: targetEmail, otp: newOtp.join("") });
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pastedData.length === 6) {
+      const newOtp = pastedData.split("");
+      setOtp(newOtp);
+      const targetEmail = pendingVerificationEmail || email;
+      if (pendingVerificationEmail) {
+        verifyRegistrationOtpMutation.mutate({ email: targetEmail, otp: pastedData });
+      } else {
+        verifyOtpMutation.mutate({ email: targetEmail, otp: pastedData });
+      }
+    }
+  };
+
+  const handleResendOtp = () => {
+    if (countdown > 0) return;
+    const targetEmail = pendingVerificationEmail || email;
+    sendOtpMutation.mutate(targetEmail);
+  };
+
+  const isVerifyingPending = verifyOtpMutation.isPending || verifyRegistrationOtpMutation.isPending;
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 px-4 py-12">
+      <Card className="w-full max-w-md" data-testid="card-login">
+        <CardHeader className="text-center pb-4">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              {step === "input" ? (
+                loginMethod === "password" ? (
+                  <Lock className="h-8 w-8 text-primary" />
+                ) : (
+                  <Mail className="h-8 w-8 text-primary" />
+                )
+              ) : (
+                <Shield className="h-8 w-8 text-primary" />
+              )}
+            </div>
+          </div>
+          <CardTitle className="text-2xl">
+            {step === "input" ? "Login to ZECOHO" : "Enter Verification Code"}
+          </CardTitle>
+          <CardDescription>
+            {step === "input" 
+              ? "Choose your preferred login method"
+              : `We've sent a 6-digit code to ${pendingVerificationEmail || email}`
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {step === "input" ? (
+            <Tabs value={loginMethod} onValueChange={(v) => setLoginMethod(v as LoginMethod)} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="password" data-testid="tab-password">
+                  <Lock className="h-4 w-4 mr-2" />
+                  Password
+                </TabsTrigger>
+                <TabsTrigger value="otp" data-testid="tab-otp">
+                  <Mail className="h-4 w-4 mr-2" />
+                  OTP
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="password">
+                <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email-password">Email Address</Label>
+                    <Input
+                      id="email-password"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                      data-testid="input-email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="pr-10"
+                        data-testid="input-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        data-testid="button-toggle-password"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={passwordLoginMutation.isPending || !email.trim() || !password}
+                    data-testid="button-login"
+                  >
+                    {passwordLoginMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4 mr-2" />
+                        Sign In
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="otp">
+                <form onSubmit={handleOtpSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email-otp">Email Address</Label>
+                    <Input
+                      id="email-otp"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                      data-testid="input-email-otp"
+                    />
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={sendOtpMutation.isPending || !email.trim()}
+                    data-testid="button-send-otp"
+                  >
+                    {sendOtpMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Send OTP
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <div className="mt-6 text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Don't have an account?{" "}
+                  <Link href="/register" className="text-primary hover:underline font-medium" data-testid="link-register">
+                    Create one
+                  </Link>
+                </p>
+
+                <Button 
+                  type="button"
+                  variant="ghost" 
+                  onClick={() => setLocation("/")}
+                  data-testid="button-back-home"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Home
+                </Button>
+              </div>
+            </Tabs>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
+                {otp.map((digit, index) => (
+                  <Input
+                    key={index}
+                    ref={(el) => (otpRefs.current[index] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    className="w-12 h-14 text-center text-2xl font-bold"
+                    disabled={isVerifyingPending}
+                    autoFocus={index === 0}
+                    data-testid={`input-otp-${index}`}
+                  />
+                ))}
+              </div>
+
+              {isVerifyingPending && (
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Verifying...
+                </div>
+              )}
+
+              <div className="text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Didn't receive the code?{" "}
+                  {countdown > 0 ? (
+                    <span>Resend in {countdown}s</span>
+                  ) : (
+                    <button
+                      onClick={handleResendOtp}
+                      disabled={sendOtpMutation.isPending}
+                      className="text-primary hover:underline font-medium"
+                      data-testid="button-resend-otp"
+                    >
+                      Resend OTP
+                    </button>
+                  )}
+                </p>
+
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    setStep("input");
+                    setOtp(["", "", "", "", "", ""]);
+                    setPendingVerificationEmail("");
+                  }}
+                  data-testid="button-change-email"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Login
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

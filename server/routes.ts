@@ -11,6 +11,7 @@ import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyU
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
 import { sendOtpEmail } from "./emailService";
 import crypto from "crypto";
+import bcrypt from "bcrypt";
 
 // Helper function to check if a user has a specific role (checks both primary and additional roles)
 function userHasRole(user: any, role: string): boolean {
@@ -159,6 +160,213 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error verifying OTP:", error);
       res.status(500).json({ message: "Failed to verify OTP" });
+    }
+  });
+
+  // Password-based Registration - Step 1: Register with name, email, password
+  app.post('/api/auth/register', async (req: any, res) => {
+    try {
+      const { firstName, lastName, email, password } = req.body;
+      
+      if (!firstName || !lastName || !email || !password) {
+        return res.status(400).json({ message: "First name, last name, email, and password are required" });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+
+      // Validate password strength (min 8 chars)
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "An account with this email already exists" });
+      }
+
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // Create user with unverified email
+      const user = await storage.createLocalUser({
+        firstName,
+        lastName,
+        email,
+        passwordHash,
+      });
+
+      // Generate and send OTP for email verification
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      await storage.createOtpCode(email, otp, expiresAt);
+      
+      const emailSent = await sendOtpEmail(email, otp);
+      if (!emailSent) {
+        return res.status(500).json({ message: "Account created but failed to send verification email. Please try logging in." });
+      }
+
+      res.json({ 
+        message: "Registration successful! Please verify your email.",
+        email: email.toLowerCase(),
+        userId: user.id,
+        requiresVerification: true
+      });
+    } catch (error) {
+      console.error("Error during registration:", error);
+      res.status(500).json({ message: "Failed to register" });
+    }
+  });
+
+  // Password-based Registration - Step 2: Verify email with OTP
+  app.post('/api/auth/register/verify', async (req: any, res) => {
+    try {
+      const { email, otp } = req.body;
+      
+      if (!email || !otp) {
+        return res.status(400).json({ message: "Email and OTP are required" });
+      }
+
+      // Get valid OTP code
+      const otpCode = await storage.getValidOtpCode(email, otp);
+      if (!otpCode) {
+        return res.status(400).json({ message: "Invalid or expired OTP. Please request a new one." });
+      }
+
+      // Check attempts
+      if (otpCode.attempts && otpCode.attempts >= 5) {
+        return res.status(400).json({ message: "Too many attempts. Please request a new OTP." });
+      }
+
+      await storage.incrementOtpAttempts(otpCode.id);
+
+      if (otpCode.code !== otp) {
+        return res.status(400).json({ message: "Incorrect OTP. Please try again." });
+      }
+
+      await storage.markOtpVerified(otpCode.id);
+
+      // Get user and mark email as verified
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.updateUserEmailVerified(user.id);
+
+      // Create session for the user
+      req.user = {
+        claims: { sub: user.id, email: user.email },
+        access_token: `local-session-${user.id}`,
+        expires_at: Math.floor(Date.now() / 1000) + 86400,
+      };
+      
+      if (req.session) {
+        req.session.passport = { user: req.user };
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err: any) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
+
+      res.json({ 
+        message: "Email verified successfully! Welcome to ZECOHO.",
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          userRole: user.userRole,
+          profileImageUrl: user.profileImageUrl,
+        }
+      });
+    } catch (error) {
+      console.error("Error verifying registration:", error);
+      res.status(500).json({ message: "Failed to verify email" });
+    }
+  });
+
+  // Password-based Login
+  app.post('/api/auth/login/password', async (req: any, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Get user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Check if user has a password (registered with email/password)
+      if (!user.passwordHash) {
+        return res.status(400).json({ 
+          message: "This account was created with a different login method. Please use OTP login." 
+        });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Check if email is verified
+      if (!user.emailVerifiedAt) {
+        // Send new OTP for verification
+        const otp = crypto.randomInt(100000, 999999).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        await storage.createOtpCode(email, otp, expiresAt);
+        await sendOtpEmail(email, otp);
+        
+        return res.status(403).json({ 
+          message: "Please verify your email first. A new verification code has been sent.",
+          requiresVerification: true,
+          email: email.toLowerCase()
+        });
+      }
+
+      // Create session
+      req.user = {
+        claims: { sub: user.id, email: user.email },
+        access_token: `local-session-${user.id}`,
+        expires_at: Math.floor(Date.now() / 1000) + 86400,
+      };
+      
+      if (req.session) {
+        req.session.passport = { user: req.user };
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err: any) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
+
+      res.json({ 
+        message: "Login successful",
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          userRole: user.userRole,
+          profileImageUrl: user.profileImageUrl,
+        }
+      });
+    } catch (error) {
+      console.error("Error during password login:", error);
+      res.status(500).json({ message: "Failed to login" });
     }
   });
 
