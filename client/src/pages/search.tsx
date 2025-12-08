@@ -6,7 +6,6 @@ import { SearchBar } from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -15,17 +14,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SlidersHorizontal, X } from "lucide-react";
-import type { Property } from "@shared/schema";
+import { SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
+import type { Property, Amenity } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Search() {
   const { user } = useAuth();
   const [location] = useLocation();
-  const [priceRange, setPriceRange] = useState([0, 89000]);
-  const [selectedType, setSelectedType] = useState<string>("");
-  const [minGuests, setMinGuests] = useState(1);
+  
+  // Filter states
+  const [selectedType, setSelectedType] = useState<string>("hotel"); // Default to Hotels
+  const [selectedBudget, setSelectedBudget] = useState<string>("");
+  const [selectedRating, setSelectedRating] = useState<string>("");
+  const [selectedAmenity, setSelectedAmenity] = useState<string>("");
+  const [coupleFriendly, setCoupleFriendly] = useState<string>("");
+  const [hourlyAvailability, setHourlyAvailability] = useState<string>("");
+  const [localIdAllowed, setLocalIdAllowed] = useState<string>("");
+  const [selectedBrand, setSelectedBrand] = useState<string>("");
+  const [selectedStarRating, setSelectedStarRating] = useState<string>("");
+  const [selectedLocality, setSelectedLocality] = useState<string>("");
+  
   const [showFilters, setShowFilters] = useState(true);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [searchDestination, setSearchDestination] = useState("");
   const [initialSearchValues, setInitialSearchValues] = useState({
     destination: "",
@@ -55,6 +65,10 @@ export default function Search() {
     queryKey: ["/api/properties"],
   });
 
+  const { data: amenities = [] } = useQuery<Amenity[]>({
+    queryKey: ["/api/amenities"],
+  });
+
   const { data: wishlists = [] } = useQuery<any[]>({
     queryKey: ["/api/wishlists"],
     enabled: user?.userRole === "guest",
@@ -62,6 +76,7 @@ export default function Search() {
 
   const wishlistedPropertyIds = new Set(wishlists.map((w: any) => w.propertyId));
 
+  // Filter options
   const propertyTypes = [
     { value: "hotel", label: "Hotels" },
     { value: "villa", label: "Villas" },
@@ -73,6 +88,56 @@ export default function Search() {
     { value: "homestay", label: "Homestays" },
   ];
 
+  const budgetOptions = [
+    { value: "0-1000", label: "Under ₹1,000" },
+    { value: "1000-2500", label: "₹1,000 - ₹2,500" },
+    { value: "2500-5000", label: "₹2,500 - ₹5,000" },
+    { value: "5000-10000", label: "₹5,000 - ₹10,000" },
+    { value: "10000-25000", label: "₹10,000 - ₹25,000" },
+    { value: "25000-50000", label: "₹25,000 - ₹50,000" },
+    { value: "50000-0", label: "₹50,000+" },
+  ];
+
+  const ratingOptions = [
+    { value: "4.5", label: "4.5+ Excellent" },
+    { value: "4", label: "4+ Very Good" },
+    { value: "3.5", label: "3.5+ Good" },
+    { value: "3", label: "3+ Average" },
+  ];
+
+  const starRatingOptions = [
+    { value: "5", label: "5 Star" },
+    { value: "4", label: "4 Star" },
+    { value: "3", label: "3 Star" },
+    { value: "2", label: "2 Star" },
+    { value: "1", label: "1 Star" },
+  ];
+
+  const hotelBrands = [
+    { value: "taj", label: "Taj Hotels" },
+    { value: "oberoi", label: "The Oberoi Group" },
+    { value: "itc", label: "ITC Hotels" },
+    { value: "marriott", label: "Marriott" },
+    { value: "hyatt", label: "Hyatt" },
+    { value: "radisson", label: "Radisson" },
+    { value: "oyo", label: "OYO" },
+    { value: "treebo", label: "Treebo" },
+    { value: "fabhotels", label: "FabHotels" },
+    { value: "lemon_tree", label: "Lemon Tree" },
+  ];
+
+  const booleanOptions = [
+    { value: "yes", label: "Yes" },
+    { value: "no", label: "No" },
+  ];
+
+  // Get unique localities from properties
+  const localities = Array.from(new Set(
+    properties
+      .filter(p => p.propLocality)
+      .map(p => p.propLocality as string)
+  )).sort();
+
   const handleSearch = ({ destination }: { destination?: string; checkIn?: string; checkOut?: string; guests?: number }) => {
     if (destination !== undefined) {
       setSearchDestination(destination);
@@ -82,6 +147,7 @@ export default function Search() {
   const filteredProperties = properties.filter((property) => {
     if (property.status !== "published") return false;
     
+    // Destination filter
     if (searchDestination && searchDestination.trim().length > 0) {
       const searchLower = searchDestination.toLowerCase().trim();
       const destinationLower = property.destination.toLowerCase();
@@ -90,19 +156,53 @@ export default function Search() {
       }
     }
     
-    const price = Number(property.pricePerNight);
-    if (price < priceRange[0] || price > priceRange[1]) return false;
-    
+    // Property type filter
     if (selectedType && property.propertyType !== selectedType) {
       return false;
     }
     
-    if (property.maxGuests < minGuests) return false;
+    // Budget filter
+    if (selectedBudget) {
+      const price = Number(property.pricePerNight);
+      const [min, max] = selectedBudget.split("-").map(Number);
+      if (price < min) return false;
+      if (max > 0 && price > max) return false;
+    }
+    
+    // Rating filter
+    if (selectedRating) {
+      const rating = Number(property.rating) || 0;
+      if (rating < Number(selectedRating)) {
+        return false;
+      }
+    }
+    
+    // Locality filter
+    if (selectedLocality && property.propLocality !== selectedLocality) {
+      return false;
+    }
     
     return true;
   });
 
-  
+  const clearAllFilters = () => {
+    setSelectedType("hotel");
+    setSelectedBudget("");
+    setSelectedRating("");
+    setSelectedAmenity("");
+    setCoupleFriendly("");
+    setHourlyAvailability("");
+    setLocalIdAllowed("");
+    setSelectedBrand("");
+    setSelectedStarRating("");
+    setSelectedLocality("");
+    setSearchDestination("");
+  };
+
+  const hasActiveFilters = selectedType !== "hotel" || selectedBudget || selectedRating || 
+    selectedAmenity || coupleFriendly || hourlyAvailability || localIdAllowed || 
+    selectedBrand || selectedStarRating || selectedLocality || searchDestination;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Search Header */}
@@ -136,41 +236,18 @@ export default function Search() {
       {showFilters && (
         <div className="border-b bg-muted/30">
           <div className="container px-4 md:px-6 py-4">
-            <div className="flex flex-wrap items-end gap-6">
-              {/* Price Range Filter */}
-              <div className="flex-1 min-w-[200px] max-w-[300px]">
-                <Label className="text-sm font-medium mb-2 block">Price range</Label>
-                <Slider
-                  min={0}
-                  max={89000}
-                  step={1000}
-                  value={priceRange}
-                  onValueChange={setPriceRange}
-                  data-testid="slider-price"
-                />
-                <div className="flex items-center justify-between text-xs mt-1">
-                  <span className="text-muted-foreground">₹{priceRange[0].toLocaleString('en-IN')}</span>
-                  <span className="text-muted-foreground">₹{priceRange[1].toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-
+            {/* Primary Filters Row */}
+            <div className="flex flex-wrap items-end gap-4 mb-4">
               {/* Property Type Filter */}
-              <div className="min-w-[180px]">
-                <Label className="text-sm font-medium mb-2 block">Property type</Label>
-                <Select
-                  value={selectedType}
-                  onValueChange={setSelectedType}
-                >
+              <div className="min-w-[160px]">
+                <Label className="text-sm font-medium mb-2 block">Property Type</Label>
+                <Select value={selectedType} onValueChange={setSelectedType}>
                   <SelectTrigger data-testid="select-property-type" className="w-full">
-                    <SelectValue placeholder="All property types" />
+                    <SelectValue placeholder="Hotels" />
                   </SelectTrigger>
                   <SelectContent>
                     {propertyTypes.map((type) => (
-                      <SelectItem
-                        key={type.value}
-                        value={type.value}
-                        data-testid={`select-type-${type.value}`}
-                      >
+                      <SelectItem key={type.value} value={type.value} data-testid={`select-type-${type.value}`}>
                         {type.label}
                       </SelectItem>
                     ))}
@@ -178,37 +255,208 @@ export default function Search() {
                 </Select>
               </div>
 
-              {/* Guests Filter */}
-              <div className="min-w-[100px]">
-                <Label className="text-sm font-medium mb-2 block">Min. Guests</Label>
-                <input
-                  type="number"
-                  min="1"
-                  value={minGuests}
-                  onChange={(e) => setMinGuests(Number(e.target.value))}
-                  className="w-20 px-3 py-1.5 border rounded-md text-sm"
-                  data-testid="input-min-guests"
-                />
+              {/* Budget Filter */}
+              <div className="min-w-[160px]">
+                <Label className="text-sm font-medium mb-2 block">Budget</Label>
+                <Select value={selectedBudget} onValueChange={setSelectedBudget}>
+                  <SelectTrigger data-testid="select-budget" className="w-full">
+                    <SelectValue placeholder="Any budget" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {budgetOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} data-testid={`select-budget-${option.value}`}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Clear Filters */}
-              {(selectedType || priceRange[0] > 0 || priceRange[1] < 89000 || minGuests > 1 || searchDestination) && (
+              {/* User Rating Filter */}
+              <div className="min-w-[160px]">
+                <Label className="text-sm font-medium mb-2 block">User Rating</Label>
+                <Select value={selectedRating} onValueChange={setSelectedRating}>
+                  <SelectTrigger data-testid="select-rating" className="w-full">
+                    <SelectValue placeholder="Any rating" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ratingOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} data-testid={`select-rating-${option.value}`}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Amenities Filter */}
+              <div className="min-w-[180px]">
+                <Label className="text-sm font-medium mb-2 block">Amenities</Label>
+                <Select value={selectedAmenity} onValueChange={setSelectedAmenity}>
+                  <SelectTrigger data-testid="select-amenity" className="w-full">
+                    <SelectValue placeholder="All amenities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {amenities.length > 0 ? (
+                      amenities.map((amenity) => (
+                        <SelectItem key={amenity.id} value={amenity.id} data-testid={`select-amenity-${amenity.id}`}>
+                          {amenity.name} {amenity.category ? `(${amenity.category})` : ""}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="wifi">WiFi</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Hotel Star Rating Filter */}
+              <div className="min-w-[140px]">
+                <Label className="text-sm font-medium mb-2 block">Hotel Star Rating</Label>
+                <Select value={selectedStarRating} onValueChange={setSelectedStarRating}>
+                  <SelectTrigger data-testid="select-star-rating" className="w-full">
+                    <SelectValue placeholder="Any stars" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {starRatingOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} data-testid={`select-star-${option.value}`}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Show More Filters Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMoreFilters(!showMoreFilters)}
+                data-testid="button-more-filters"
+                className="mb-0.5"
+              >
+                {showMoreFilters ? (
+                  <>
+                    <ChevronUp className="h-4 w-4 mr-1" />
+                    Less Filters
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-1" />
+                    More Filters
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Secondary Filters Row (Expandable) */}
+            {showMoreFilters && (
+              <div className="flex flex-wrap items-end gap-4 pt-4 border-t">
+                {/* Couple Friendly Filter */}
+                <div className="min-w-[140px]">
+                  <Label className="text-sm font-medium mb-2 block">Couple Friendly</Label>
+                  <Select value={coupleFriendly} onValueChange={setCoupleFriendly}>
+                    <SelectTrigger data-testid="select-couple-friendly" className="w-full">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {booleanOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} data-testid={`select-couple-${option.value}`}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Hourly Availability Filter */}
+                <div className="min-w-[160px]">
+                  <Label className="text-sm font-medium mb-2 block">Hourly Availability</Label>
+                  <Select value={hourlyAvailability} onValueChange={setHourlyAvailability}>
+                    <SelectTrigger data-testid="select-hourly" className="w-full">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {booleanOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} data-testid={`select-hourly-${option.value}`}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Local ID Allowed Filter */}
+                <div className="min-w-[140px]">
+                  <Label className="text-sm font-medium mb-2 block">Local ID Allowed</Label>
+                  <Select value={localIdAllowed} onValueChange={setLocalIdAllowed}>
+                    <SelectTrigger data-testid="select-local-id" className="w-full">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {booleanOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} data-testid={`select-localid-${option.value}`}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Hotel Brands Filter */}
+                <div className="min-w-[160px]">
+                  <Label className="text-sm font-medium mb-2 block">Hotel Brands</Label>
+                  <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                    <SelectTrigger data-testid="select-brand" className="w-full">
+                      <SelectValue placeholder="All brands" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hotelBrands.map((brand) => (
+                        <SelectItem key={brand.value} value={brand.value} data-testid={`select-brand-${brand.value}`}>
+                          {brand.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Localities and Landmarks Filter */}
+                <div className="min-w-[180px]">
+                  <Label className="text-sm font-medium mb-2 block">Localities & Landmarks</Label>
+                  <Select value={selectedLocality} onValueChange={setSelectedLocality}>
+                    <SelectTrigger data-testid="select-locality" className="w-full">
+                      <SelectValue placeholder="All localities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {localities.length > 0 ? (
+                        localities.map((locality) => (
+                          <SelectItem key={locality} value={locality} data-testid={`select-locality-${locality}`}>
+                            {locality}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="all" disabled>No localities available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <div className="flex justify-end mt-4 pt-4 border-t">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    setPriceRange([0, 89000]);
-                    setSelectedType("");
-                    setMinGuests(1);
-                    setSearchDestination("");
-                  }}
+                  onClick={clearAllFilters}
                   data-testid="button-clear-filters"
                 >
                   <X className="h-4 w-4 mr-1" />
-                  Clear all
+                  Clear all filters
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -266,12 +514,7 @@ export default function Search() {
                 </p>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setPriceRange([0, 89000]);
-                    setSelectedType("");
-                    setMinGuests(1);
-                    setSearchDestination("");
-                  }}
+                  onClick={clearAllFilters}
                 >
                   Clear filters
                 </Button>
