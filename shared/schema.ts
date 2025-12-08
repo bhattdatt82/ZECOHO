@@ -27,13 +27,21 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// OTP codes table for email authentication
+// Registration method enum
+export const registrationMethodEnum = pgEnum("registration_method", ["replit", "local"]);
+
+// OTP purpose enum
+export const otpPurposeEnum = pgEnum("otp_purpose", ["signup", "login", "password_reset"]);
+
+// OTP codes table for email/phone authentication
 export const otpCodes = pgTable(
   "otp_codes",
   {
     id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-    email: varchar("email", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }),
+    phone: varchar("phone", { length: 20 }),
     code: varchar("code", { length: 6 }).notNull(),
+    purpose: otpPurposeEnum("purpose").notNull().default("signup"),
     expiresAt: timestamp("expires_at").notNull(),
     verified: boolean("verified").default(false),
     attempts: integer("attempts").default(0),
@@ -41,6 +49,7 @@ export const otpCodes = pgTable(
   },
   (table) => [
     index("IDX_otp_email").on(table.email),
+    index("IDX_otp_phone").on(table.phone),
     index("IDX_otp_expires").on(table.expiresAt),
   ],
 );
@@ -87,7 +96,7 @@ export const kycStatusEnum = pgEnum("kyc_status", [
   "rejected",
 ]);
 
-// User storage table - mandatory for Replit Auth
+// User storage table - supports both Replit Auth and local registration
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -97,6 +106,12 @@ export const users = pgTable("users", {
   userRole: userRoleEnum("user_role").notNull().default("guest"),
   additionalRoles: text("additional_roles").array().default(sql`ARRAY[]::text[]`),
   phone: varchar("phone", { length: 20 }),
+  passwordHash: varchar("password_hash", { length: 255 }),
+  registrationMethod: registrationMethodEnum("registration_method").notNull().default("replit"),
+  emailVerifiedAt: timestamp("email_verified_at"),
+  phoneVerifiedAt: timestamp("phone_verified_at"),
+  failedLoginAttempts: integer("failed_login_attempts").default(0),
+  lockedUntil: timestamp("locked_until"),
   kycAddress: text("kyc_address"),
   governmentIdType: varchar("government_id_type", { length: 50 }),
   governmentIdNumber: varchar("government_id_number", { length: 100 }),
