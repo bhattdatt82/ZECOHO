@@ -5,8 +5,6 @@ import { PropertyCard } from "@/components/PropertyCard";
 import { SearchBar } from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,7 +104,7 @@ export default function Search() {
   return (
     <div className="min-h-screen bg-background">
       {/* Search Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-16 z-40">
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container px-4 md:px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="flex-1">
@@ -123,25 +121,23 @@ export default function Search() {
               variant="outline"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="lg:hidden"
               data-testid="button-toggle-filters"
             >
               <SlidersHorizontal className="h-4 w-4 mr-2" />
-              Filters
+              {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="container px-4 md:px-6 py-6">
-        <div className="flex gap-6">
-          {/* Filters Sidebar */}
-          <aside className={`w-80 flex-shrink-0 space-y-4 sticky top-36 self-start max-h-[calc(100vh-10rem)] overflow-y-auto ${showFilters ? "" : "hidden lg:block"}`}>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Price range</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+      {/* Horizontal Filters Bar */}
+      {showFilters && (
+        <div className="border-b bg-muted/30">
+          <div className="container px-4 md:px-6 py-4">
+            <div className="flex flex-wrap items-end gap-6">
+              {/* Price Range Filter */}
+              <div className="flex-1 min-w-[200px] max-w-[300px]">
+                <Label className="text-sm font-medium mb-2 block">Price range</Label>
                 <Slider
                   min={0}
                   max={89000}
@@ -150,72 +146,68 @@ export default function Search() {
                   onValueChange={setPriceRange}
                   data-testid="slider-price"
                 />
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-xs mt-1">
                   <span className="text-muted-foreground">₹{priceRange[0].toLocaleString('en-IN')}</span>
                   <span className="text-muted-foreground">₹{priceRange[1].toLocaleString('en-IN')}</span>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Property type</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {propertyTypes.map((type) => (
-                  <div key={type.value} className="flex items-center gap-2">
-                    <Checkbox
-                      id={type.value}
-                      checked={selectedTypes.includes(type.value)}
-                      onCheckedChange={() => toggleType(type.value)}
+              {/* Property Type Filter */}
+              <div className="flex-1 min-w-[200px]">
+                <Label className="text-sm font-medium mb-2 block">Property type</Label>
+                <div className="flex flex-wrap gap-2">
+                  {propertyTypes.map((type) => (
+                    <Badge
+                      key={type.value}
+                      variant={selectedTypes.includes(type.value) ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => toggleType(type.value)}
                       data-testid={`checkbox-type-${type.value}`}
-                    />
-                    <Label
-                      htmlFor={type.value}
-                      className="text-sm font-normal cursor-pointer"
                     >
                       {type.label}
-                    </Label>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Guests</CardTitle>
-              </CardHeader>
-              <CardContent>
+              {/* Guests Filter */}
+              <div className="min-w-[100px]">
+                <Label className="text-sm font-medium mb-2 block">Min. Guests</Label>
                 <input
                   type="number"
                   min="1"
                   value={minGuests}
                   onChange={(e) => setMinGuests(Number(e.target.value))}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-20 px-3 py-1.5 border rounded-md text-sm"
                   data-testid="input-min-guests"
                 />
-              </CardContent>
-            </Card>
+              </div>
 
-            {(selectedTypes.length > 0 || priceRange[0] > 0 || priceRange[1] < 89000 || minGuests > 1 || searchDestination) && (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setPriceRange([0, 89000]);
-                  setSelectedTypes([]);
-                  setMinGuests(1);
-                  setSearchDestination("");
-                }}
-                data-testid="button-clear-filters"
-              >
-                Clear all filters
-              </Button>
-            )}
-          </aside>
+              {/* Clear Filters */}
+              {(selectedTypes.length > 0 || priceRange[0] > 0 || priceRange[1] < 89000 || minGuests > 1 || searchDestination) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPriceRange([0, 89000]);
+                    setSelectedTypes([]);
+                    setMinGuests(1);
+                    setSearchDestination("");
+                  }}
+                  data-testid="button-clear-filters"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear all
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Results */}
-          <div className="flex-1">
+      <div className="container px-4 md:px-6 py-6">
+        {/* Results */}
+        <div className="w-full">
             <div className="mb-6">
               <h1 className="text-2xl font-semibold mb-2">
                 {filteredProperties.length} {filteredProperties.length === 1 ? "stay" : "stays"} available
@@ -277,7 +269,6 @@ export default function Search() {
                 </Button>
               </div>
             )}
-          </div>
         </div>
       </div>
     </div>
