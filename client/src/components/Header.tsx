@@ -33,12 +33,21 @@ type ConversationWithUnread = Conversation & { unreadCount: number };
 export function Header() {
   const { user, isAuthenticated, isAdmin, isOwner } = useAuth();
   const [location] = useLocation();
+  const [isScrolled, setIsScrolled] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("preferredLanguage") || "en";
     }
     return "en";
   });
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("preferredLanguage", selectedLanguage);
@@ -102,12 +111,16 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ${
+      isScrolled 
+        ? "bg-background/98 backdrop-blur-lg shadow-md border-border/50" 
+        : "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    }`}>
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/">
-          <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" data-testid="link-home">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-md">
-              <span className="text-white font-bold text-lg">Z</span>
+          <div className="flex items-center gap-2.5 cursor-pointer group" data-testid="link-home">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/20 transition-opacity duration-200 group-hover:opacity-90">
+              <span className="text-white font-bold text-xl">Z</span>
             </div>
             <div className="flex items-baseline">
               <span className="font-bold text-xl text-foreground tracking-tight">
@@ -257,9 +270,8 @@ export function Header() {
 
               <Link href={getListPropertyLink()}>
                 <Button 
-                  variant="default"
                   size="sm"
-                  className="font-medium text-sm"
+                  className="font-semibold text-sm bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md shadow-rose-500/25 border-0"
                   data-testid="button-list-property"
                 >
                   <PlusCircle className="h-4 w-4 md:mr-2" />
