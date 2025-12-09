@@ -116,6 +116,18 @@ const KYC_SECTIONS: Array<{ id: KycSectionId; label: string; icon: React.Compone
   },
 ];
 
+const REVOCATION_REASONS = [
+  { id: "policy_violation", label: "Policy Violation", description: "Violated platform terms and conditions or community guidelines" },
+  { id: "fraudulent_activity", label: "Fraudulent Activity", description: "Engaged in fraudulent or deceptive practices" },
+  { id: "fake_documents", label: "Fake/Forged Documents", description: "Submitted forged or falsified verification documents" },
+  { id: "guest_complaints", label: "Multiple Guest Complaints", description: "Received multiple verified complaints from guests" },
+  { id: "property_misrepresentation", label: "Property Misrepresentation", description: "Property details significantly differ from actual condition" },
+  { id: "safety_concerns", label: "Safety Concerns", description: "Property fails to meet safety standards or poses risks to guests" },
+  { id: "inactive_property", label: "Inactive/Abandoned Property", description: "Property has been inactive or unavailable for extended period" },
+  { id: "legal_issues", label: "Legal Issues", description: "Involved in legal disputes or regulatory non-compliance" },
+  { id: "other", label: "Other Reason", description: "Specify custom reason for revocation" },
+];
+
 interface KycDocument {
   url: string;
   documentType: string;
@@ -198,6 +210,8 @@ export default function AdminKYC() {
     safetyCertificates: { selected: false, message: "" },
   });
   const [showRejectionForm, setShowRejectionForm] = useState(false);
+  const [selectedRevocationReasons, setSelectedRevocationReasons] = useState<Record<string, boolean>>({});
+  const [customRevocationReason, setCustomRevocationReason] = useState("");
 
   const resetRejectionForm = () => {
     setSelectedRejectionSections({
@@ -211,6 +225,8 @@ export default function AdminKYC() {
     });
     setShowRejectionForm(false);
     setReviewNotes("");
+    setSelectedRevocationReasons({});
+    setCustomRevocationReason("");
   };
 
   useEffect(() => {
@@ -280,8 +296,17 @@ export default function AdminKYC() {
 
   const revokeVerificationMutation = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
+      const selectedReasons = REVOCATION_REASONS.filter(r => selectedRevocationReasons[r.id]).map(r => ({
+        id: r.id,
+        label: r.label,
+        description: r.id === "other" ? customRevocationReason : r.description,
+      }));
+      
+      const reviewNotesText = selectedReasons.map(r => `${r.label}: ${r.description}`).join("\n");
+      
       await apiRequest("PATCH", `/api/admin/kyc/${id}/revoke`, {
-        reviewNotes,
+        reviewNotes: reviewNotesText || reviewNotes,
+        revocationReasons: selectedReasons,
       });
     },
     onSuccess: () => {
@@ -291,7 +316,7 @@ export default function AdminKYC() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/kyc"] });
       setSelectedApp(null);
-      setReviewNotes("");
+      resetRejectionForm();
     },
     onError: (error: Error) => {
       toast({
@@ -724,27 +749,100 @@ export default function AdminKYC() {
               {selectedApp.status === "verified" && (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="revoke-notes">Reason for Revocation</Label>
+                    <Label className="text-base font-medium">Select Reason(s) for Revocation</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Choose one or more reasons why this verification is being revoked.
+                    </p>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto border rounded-lg p-3">
+                      {REVOCATION_REASONS.map((reason) => (
+                        <div key={reason.id} className="flex items-start gap-3 p-2 rounded-md hover-elevate">
+                          <Checkbox
+                            id={`revoke-${reason.id}`}
+                            checked={selectedRevocationReasons[reason.id] || false}
+                            onCheckedChange={(checked) => {
+                              setSelectedRevocationReasons(prev => ({
+                                ...prev,
+                                [reason.id]: checked === true
+                              }));
+                            }}
+                            data-testid={`checkbox-revoke-${reason.id}`}
+                          />
+                          <div className="flex-1">
+                            <Label 
+                              htmlFor={`revoke-${reason.id}`} 
+                              className="font-medium cursor-pointer"
+                            >
+                              {reason.label}
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              {reason.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {selectedRevocationReasons["other"] && (
+                      <div className="mt-3">
+                        <Label htmlFor="custom-revoke-reason">Specify Custom Reason</Label>
+                        <Textarea
+                          id="custom-revoke-reason"
+                          placeholder="Enter the specific reason for revocation..."
+                          value={customRevocationReason}
+                          onChange={(e) => setCustomRevocationReason(e.target.value)}
+                          rows={2}
+                          className="mt-1"
+                          data-testid="input-custom-revoke-reason"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="revoke-notes">Additional Notes (Optional)</Label>
                     <Textarea
                       id="revoke-notes"
-                      placeholder="Enter reason for revoking verification (e.g., policy violation, fraudulent activity)..."
+                      placeholder="Add any additional context or notes..."
                       value={reviewNotes}
                       onChange={(e) => setReviewNotes(e.target.value)}
-                      rows={3}
+                      rows={2}
                       data-testid="input-revoke-notes"
                     />
                   </div>
+                  
                   <DialogFooter className="gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => setSelectedApp(null)}
+                      onClick={() => {
+                        setSelectedApp(null);
+                        resetRejectionForm();
+                      }}
                       data-testid="button-cancel-revoke"
                     >
                       Cancel
                     </Button>
                     <Button
                       variant="destructive"
-                      onClick={() => revokeVerificationMutation.mutate({ id: selectedApp.id })}
+                      onClick={() => {
+                        const hasSelectedReasons = Object.values(selectedRevocationReasons).some(v => v);
+                        if (!hasSelectedReasons) {
+                          toast({
+                            title: "Select at least one reason",
+                            description: "Please select at least one reason for revocation.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        if (selectedRevocationReasons["other"] && !customRevocationReason.trim()) {
+                          toast({
+                            title: "Custom reason required",
+                            description: "Please enter a custom reason when 'Other Reason' is selected.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        revokeVerificationMutation.mutate({ id: selectedApp.id });
+                      }}
                       disabled={revokeVerificationMutation.isPending}
                       data-testid="button-revoke"
                     >
