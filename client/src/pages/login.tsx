@@ -40,8 +40,23 @@ export default function Login() {
 
   const passwordLoginMutation = useMutation({
     mutationFn: async (data: { email: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/auth/login/password", data);
-      return response.json();
+      const response = await fetch("/api/auth/login/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const result = await response.json();
+      
+      if (response.status === 403 && result.requiresVerification) {
+        return { requiresVerification: true, email: result.email };
+      }
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Invalid email or password");
+      }
+      
+      return result;
     },
     onSuccess: (data) => {
       if (data.requiresVerification) {
