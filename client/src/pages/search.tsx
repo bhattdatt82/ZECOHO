@@ -147,11 +147,13 @@ export default function Search() {
   const filteredProperties = properties.filter((property) => {
     if (property.status !== "published") return false;
     
-    // Destination filter
+    // Destination and property name filter
     if (searchDestination && searchDestination.trim().length > 0) {
       const searchLower = searchDestination.toLowerCase().trim();
       const destinationLower = property.destination.toLowerCase();
-      if (!destinationLower.includes(searchLower)) {
+      const titleLower = property.title.toLowerCase();
+      // Match either destination OR property name
+      if (!destinationLower.includes(searchLower) && !titleLower.includes(searchLower)) {
         return false;
       }
     }
