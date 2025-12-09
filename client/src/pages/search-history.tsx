@@ -1,9 +1,10 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trash2, Plus, MapPin, Calendar, Users } from "lucide-react";
+import { Trash2, Plus, MapPin, Calendar, Users, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import type { SearchHistory } from "@shared/schema";
@@ -11,6 +12,16 @@ import { format } from "date-fns";
 
 export default function SearchHistoryPage() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleSearchAgain = (search: SearchHistory) => {
+    const params = new URLSearchParams();
+    params.set("destination", search.destination);
+    if (search.checkIn) params.set("checkIn", format(new Date(search.checkIn), "yyyy-MM-dd"));
+    if (search.checkOut) params.set("checkOut", format(new Date(search.checkOut), "yyyy-MM-dd"));
+    if (search.guests) params.set("guests", search.guests.toString());
+    setLocation(`/search?${params.toString()}`);
+  };
 
   // Fetch search history
   const { data: searchHistory = [], isLoading } = useQuery<SearchHistory[]>({
@@ -122,6 +133,14 @@ export default function SearchHistoryPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSearchAgain(search)}
+                        data-testid={`button-search-again-${search.id}`}
+                      >
+                        <Search className="h-4 w-4 mr-1" />
+                        Search
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
