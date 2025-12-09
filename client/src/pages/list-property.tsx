@@ -38,6 +38,7 @@ const propertyInfoSchema = z.object({
   address: z.string().min(5, "Address is required"),
   pricePerNight: z.string().min(1, "Price is required"),
   maxGuests: z.string().min(1, "Max guests is required"),
+  receptionNumber: z.string().optional(),
   images: z.string().url("Valid image URL required"),
   amenityIds: z.array(z.string()).min(1, "Select at least one amenity"),
 });
@@ -97,6 +98,7 @@ export default function ListProperty() {
       address: "",
       pricePerNight: "",
       maxGuests: "2",
+      receptionNumber: "",
       images: "",
       amenityIds: [],
     },
@@ -499,17 +501,33 @@ export default function ListProperty() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="pricePerNight">Price per Night (INR)</Label>
-                  <Input
-                    id="pricePerNight"
-                    type="number"
-                    min="1"
-                    step="100"
-                    placeholder="5000"
-                    {...propertyForm.register("pricePerNight")}
-                    data-testid="input-price"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="pricePerNight">Price per Night (INR)</Label>
+                    <Input
+                      id="pricePerNight"
+                      type="number"
+                      min="1"
+                      step="100"
+                      placeholder="5000"
+                      {...propertyForm.register("pricePerNight")}
+                      data-testid="input-price"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="receptionNumber">Reception Number (Optional)</Label>
+                    <Input
+                      id="receptionNumber"
+                      type="tel"
+                      placeholder="+91 98765 43210"
+                      {...propertyForm.register("receptionNumber")}
+                      data-testid="input-reception-number"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Contact number for guests to reach reception
+                    </p>
+                  </div>
                 </div>
 
                 <div>

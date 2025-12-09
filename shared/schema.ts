@@ -159,6 +159,7 @@ export const properties = pgTable("properties", {
   policies: text("policies"),
   checkInTime: varchar("check_in_time", { length: 20 }),
   checkOutTime: varchar("check_out_time", { length: 20 }),
+  receptionNumber: varchar("reception_number", { length: 20 }),
   safetyFeatures: text("safety_features").array().default(sql`ARRAY[]::text[]`),
   cancellationPolicy: text("cancellation_policy"),
   createdAt: timestamp("created_at").defaultNow(),
