@@ -562,6 +562,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Change password for authenticated users who already have a password
+  app.post('/api/auth/change-password', async (req: any, res) => {
+    try {
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const userId = req.user.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        return res.status(400).json({ message: "Current password, new password, and confirmation are required" });
+      }
+
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({ message: "New passwords don't match" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters long" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user has a password
+      if (!user.passwordHash) {
+        return res.status(400).json({ message: "You don't have a password set. Use 'Set Password' instead." });
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash and update the new password
+      const saltRounds = 10;
+      const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+      await storage.updateUserPassword(user.id, newPasswordHash);
+
+      res.json({ 
+        message: "Password changed successfully!"
+      });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
   // Admin promotion endpoint - requires email in body
   app.post('/api/admin/promote', async (req: any, res) => {
     try {

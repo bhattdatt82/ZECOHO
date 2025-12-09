@@ -40,6 +40,17 @@ const setPasswordSchema = z.object({
 
 type SetPasswordFormData = z.infer<typeof setPasswordSchema>;
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+  confirmPassword: z.string().min(8, "Please confirm your new password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "New passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+
 export default function Profile() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, isAdmin, isOwner } = useAuth();
@@ -47,6 +58,10 @@ export default function Profile() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordSet, setPasswordSet] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -114,6 +129,52 @@ export default function Profile() {
 
   const onSetPassword = (data: SetPasswordFormData) => {
     setPasswordMutation.mutate(data);
+  };
+
+  const changePasswordForm = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: ChangePasswordFormData) => {
+      return await apiRequest("POST", "/api/auth/change-password", data);
+    },
+    onSuccess: () => {
+      setPasswordChanged(true);
+      changePasswordForm.reset();
+      toast({
+        title: "Password changed successfully",
+        description: "Your password has been updated.",
+      });
+      setTimeout(() => setPasswordChanged(false), 5000);
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onChangePassword = (data: ChangePasswordFormData) => {
+    changePasswordMutation.mutate(data);
   };
 
   const {
@@ -411,21 +472,142 @@ export default function Profile() {
               </Card>
             )}
 
-            {/* Password Set Success Message */}
-            {(passwordSet || (passwordStatus && passwordStatus.hasPassword)) && (
-              <Card className="border-green-200 dark:border-green-800">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                      <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-green-800 dark:text-green-200">Password is set</p>
-                      <p className="text-sm text-green-700 dark:text-green-300">
-                        You can log in with your email ({user?.email}) and password.
-                      </p>
-                    </div>
+            {/* Change Password Section - Only show for users who have a password */}
+            {!passwordStatusLoading && passwordStatus && passwordStatus.hasPassword && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle>Change Password</CardTitle>
                   </div>
+                  <CardDescription>
+                    Update your account password. You'll need to enter your current password first.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {passwordChanged ? (
+                    <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                        <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-800 dark:text-green-200">Password changed successfully!</p>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          Your password has been updated.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={changePasswordForm.handleSubmit(onChangePassword)} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">Current Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="currentPassword"
+                            type={showCurrentPassword ? "text" : "password"}
+                            placeholder="Enter your current password"
+                            {...changePasswordForm.register("currentPassword")}
+                            data-testid="input-current-password"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            data-testid="button-toggle-current-password"
+                          >
+                            {showCurrentPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </div>
+                        {changePasswordForm.formState.errors.currentPassword && (
+                          <p className="text-sm text-destructive">
+                            {changePasswordForm.formState.errors.currentPassword.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="newPassword"
+                            type={showNewPassword ? "text" : "password"}
+                            placeholder="Enter your new password"
+                            {...changePasswordForm.register("newPassword")}
+                            data-testid="input-new-password"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            data-testid="button-toggle-new-password"
+                          >
+                            {showNewPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </div>
+                        {changePasswordForm.formState.errors.newPassword && (
+                          <p className="text-sm text-destructive">
+                            {changePasswordForm.formState.errors.newPassword.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                        <div className="relative">
+                          <Input
+                            id="confirmNewPassword"
+                            type={showConfirmNewPassword ? "text" : "password"}
+                            placeholder="Confirm your new password"
+                            {...changePasswordForm.register("confirmPassword")}
+                            data-testid="input-confirm-new-password"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                            data-testid="button-toggle-confirm-new-password"
+                          >
+                            {showConfirmNewPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </div>
+                        {changePasswordForm.formState.errors.confirmPassword && (
+                          <p className="text-sm text-destructive">
+                            {changePasswordForm.formState.errors.confirmPassword.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        Password must be at least 8 characters long.
+                      </p>
+
+                      <Button
+                        type="submit"
+                        disabled={changePasswordMutation.isPending}
+                        data-testid="button-change-password-submit"
+                      >
+                        {changePasswordMutation.isPending ? "Changing Password..." : "Change Password"}
+                      </Button>
+                    </form>
+                  )}
                 </CardContent>
               </Card>
             )}
