@@ -145,7 +145,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
               <Handshake className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">Self Negotiate with Hotelier</span>
+              <span className="text-white/90 text-sm">Negotiate Directly with Hotelier</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
               <Star className="h-4 w-4 text-emerald-400" />
@@ -291,7 +291,7 @@ export default function Home() {
                 <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl inline-flex mb-4">
                   <Handshake className="h-7 w-7 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Self Negotiate with Hotelier</h3>
+                <h3 className="text-xl font-bold mb-2">Negotiate Directly with Hotelier</h3>
                 <p className="text-muted-foreground">Chat or call property owners directly to negotiate your best deal — you're in control!</p>
               </CardContent>
             </Card>
