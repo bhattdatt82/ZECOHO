@@ -2058,7 +2058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Destinations routes
   
-  // Lightweight search endpoint - returns only essential fields for autocomplete
+  // Lightweight search endpoint - returns destinations and matching properties for autocomplete
   app.get("/api/destinations/search", async (req, res) => {
     try {
       const { q } = req.query;
@@ -2067,7 +2067,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
       
-      const results = await storage.searchDestinations(q.trim(), 10);
+      const searchQuery = q.trim();
+      
+      // Search destinations
+      const destinations = await storage.searchDestinations(searchQuery, 8);
+      
+      // Also search for matching published properties (hotels)
+      const allProperties = await storage.getProperties();
+      const searchLower = searchQuery.toLowerCase();
+      const matchingProperties = allProperties
+        .filter((p: any) => 
+          p.status === "published" && (
+            p.title?.toLowerCase().includes(searchLower) ||
+            p.propCity?.toLowerCase().includes(searchLower)
+          )
+        )
+        .slice(0, 5) // Limit to 5 properties
+        .map((p: any) => ({
+          id: p.id,
+          name: p.title || "Unnamed Property",
+          state: p.propState || "",
+          city: p.propCity || "",
+          isProperty: true,
+          propertyId: p.id,
+        }));
+      
+      // Combine: destinations first, then properties
+      const results = [
+        ...destinations.map(d => ({ ...d, isProperty: false })),
+        ...matchingProperties,
+      ];
+      
       res.json(results);
     } catch (error) {
       console.error("Error searching destinations:", error);

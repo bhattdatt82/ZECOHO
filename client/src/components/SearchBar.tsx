@@ -4,6 +4,7 @@ import { Search, MapPin, Calendar, Users, Loader2, Building2 } from "lucide-reac
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 interface GooglePlacePrediction {
   place_id: string;
@@ -58,6 +59,7 @@ export function SearchBar({
   initialGuests = 2,
 }: SearchBarProps) {
   const { isAuthenticated } = useAuth();
+  const [, navigate] = useLocation();
   const [destination, setDestination] = useState(initialDestination);
   const [checkIn, setCheckIn] = useState(initialCheckIn);
   const [checkOut, setCheckOut] = useState(initialCheckOut);
@@ -189,7 +191,10 @@ export function SearchBar({
   });
 
   const combinedDestinations = useMemo(() => {
-    const dbNames = new Set(filteredDestinations.map((d: any) => d.name.toLowerCase()));
+    // Separate database destinations and properties
+    const dbDestinations = filteredDestinations.filter((d: any) => !d.isProperty);
+    const dbProperties = filteredDestinations.filter((d: any) => d.isProperty);
+    const dbNames = new Set(dbDestinations.map((d: any) => d.name.toLowerCase()));
     
     // Add cities from Google Places (that aren't already in our database)
     const googleCities = googleCityPredictions
@@ -200,21 +205,30 @@ export function SearchBar({
         state: p.structured_formatting?.secondary_text?.split(",")[0] || "",
         isGoogle: true,
         isHotel: false,
+        isProperty: false,
       }));
 
-    // Add hotels/lodging from Google Places
+    // Add hotels/lodging from Google Places (only if not already in our DB properties)
+    const dbPropertyNames = new Set(dbProperties.map((p: any) => p.name.toLowerCase()));
     const googleHotels = googleHotelPredictions
-      .slice(0, 5) // Limit to top 5 hotels
+      .filter(p => !dbPropertyNames.has(p.structured_formatting?.main_text?.toLowerCase() || ""))
+      .slice(0, 3) // Limit to top 3 Google hotels since we have our own
       .map(p => ({
         id: `google-hotel-${p.place_id}`,
         name: p.structured_formatting?.main_text || p.description.split(",")[0],
         state: p.structured_formatting?.secondary_text || "",
         isGoogle: true,
         isHotel: true,
+        isProperty: false,
       }));
 
-    // Combine: database destinations first, then Google cities, then hotels
-    return [...filteredDestinations.map((d: any) => ({ ...d, isHotel: false })), ...googleCities, ...googleHotels];
+    // Combine: DB properties first (hotels from our system), then destinations, then Google cities, then Google hotels
+    return [
+      ...dbProperties.map((d: any) => ({ ...d, isHotel: true })),
+      ...dbDestinations.map((d: any) => ({ ...d, isHotel: false, isProperty: false })),
+      ...googleCities,
+      ...googleHotels,
+    ];
   }, [filteredDestinations, googleCityPredictions, googleHotelPredictions]);
 
   // Close suggestions when clicking outside
@@ -229,8 +243,16 @@ export function SearchBar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectDestination = (name: string) => {
-    setDestination(name);
+  const handleSelectDestination = (dest: any) => {
+    // If it's a property from our database, navigate directly to it
+    if (dest.isProperty && dest.propertyId) {
+      setShowSuggestions(false);
+      navigate(`/property/${dest.propertyId}`);
+      return;
+    }
+    
+    // Otherwise, just set the destination name for search
+    setDestination(dest.name);
     setShowSuggestions(false);
   };
 
@@ -282,7 +304,7 @@ export function SearchBar({
             {combinedDestinations.map((dest: any) => (
               <button
                 key={dest.id}
-                onClick={() => handleSelectDestination(dest.name)}
+                onClick={() => handleSelectDestination(dest)}
                 className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white"
                 data-testid={`suggestion-destination-compact-${dest.id}`}
               >
@@ -459,7 +481,7 @@ export function SearchBar({
           {combinedDestinations.map((dest: any) => (
             <button
               key={dest.id}
-              onClick={() => handleSelectDestination(dest.name)}
+              onClick={() => handleSelectDestination(dest)}
               className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white"
               data-testid={`suggestion-destination-${dest.id}`}
             >
