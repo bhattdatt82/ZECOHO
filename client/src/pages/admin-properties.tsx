@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-import { CheckCircle, XCircle, Trash2, Eye, MapPin, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Trash2, Eye, MapPin, AlertCircle, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,8 @@ export default function AdminProperties() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("pending");
+  
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [propertyToApprove, setPropertyToApprove] = useState<Property | null>(null);
@@ -171,9 +174,21 @@ export default function AdminProperties() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const pendingProperties = properties.filter((p) => p.status === "pending");
-  const publishedProperties = properties.filter((p) => p.status === "published");
-  const draftProperties = properties.filter((p) => p.status === "draft");
+  // Filter properties based on search query
+  const filteredProperties = useMemo(() => {
+    if (!searchQuery.trim()) return properties;
+    const query = searchQuery.toLowerCase().trim();
+    return properties.filter((p) =>
+      p.title?.toLowerCase().includes(query) ||
+      p.destination?.toLowerCase().includes(query) ||
+      p.propCity?.toLowerCase().includes(query) ||
+      p.ownerId?.toLowerCase().includes(query)
+    );
+  }, [properties, searchQuery]);
+
+  const pendingProperties = filteredProperties.filter((p) => p.status === "pending");
+  const publishedProperties = filteredProperties.filter((p) => p.status === "published");
+  const draftProperties = filteredProperties.filter((p) => p.status === "draft");
 
   const renderPropertyCards = (props: Property[]) => {
     if (props.length === 0) {
@@ -335,6 +350,20 @@ export default function AdminProperties() {
           <p className="text-muted-foreground">
             Manage and review property listings
           </p>
+        </div>
+
+        {/* Search Input */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by property name, city, or owner ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-properties"
+            />
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-import { Plus, Pencil, Trash2, Sparkles, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2, Sparkles, MapPin, Search } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,7 @@ export default function AdminDestinations() {
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [destinationToDelete, setDestinationToDelete] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Check if user is owner or admin (either role can manage destinations)
   if (!isAdmin && !isOwner) {
@@ -75,6 +76,17 @@ export default function AdminDestinations() {
   const { data: destinations = [], isLoading } = useQuery<Destination[]>({
     queryKey: ["/api/destinations"],
   });
+
+  // Filter destinations based on search query
+  const filteredDestinations = useMemo(() => {
+    if (!searchQuery.trim()) return destinations;
+    const query = searchQuery.toLowerCase().trim();
+    return destinations.filter((d) =>
+      d.name?.toLowerCase().includes(query) ||
+      d.state?.toLowerCase().includes(query) ||
+      d.shortDescription?.toLowerCase().includes(query)
+    );
+  }, [destinations, searchQuery]);
 
   const form = useForm<DestinationFormValues>({
     resolver: zodResolver(destinationFormSchema),
@@ -228,8 +240,26 @@ export default function AdminDestinations() {
         </div>
       </div>
 
-      {/* Destinations Grid */}
+      {/* Search and Destinations Grid */}
       <div className="container px-4 md:px-6 py-8">
+        {/* Search Input */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by destination name or state..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-destinations"
+            />
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Showing {filteredDestinations.length} of {destinations.length} destinations
+            </p>
+          )}
+        </div>
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -243,9 +273,9 @@ export default function AdminDestinations() {
               </Card>
             ))}
           </div>
-        ) : destinations.length > 0 ? (
+        ) : filteredDestinations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {destinations.map((destination) => (
+            {filteredDestinations.map((destination) => (
               <Card key={destination.id} data-testid={`card-destination-${destination.id}`}>
                 <div
                   className="h-48 bg-cover bg-center relative"

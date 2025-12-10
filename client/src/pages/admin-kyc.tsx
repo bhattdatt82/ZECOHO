@@ -23,8 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Eye, FileText, Building, Home, IdCard, Shield, Flame, ExternalLink, User, MapPin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle, XCircle, Eye, FileText, Building, Home, IdCard, Shield, Flame, ExternalLink, User, MapPin, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -200,6 +201,7 @@ export default function AdminKYC() {
   const [selectedApp, setSelectedApp] = useState<KycApplication | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [statusFilter, setStatusFilter] = useState<"pending" | "verified" | "rejected">("pending");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedRejectionSections, setSelectedRejectionSections] = useState<Record<KycSectionId, { selected: boolean; message: string; customMessage?: string }>>({
     personal: { selected: false, message: "" },
     business: { selected: false, message: "" },
@@ -338,6 +340,20 @@ export default function AdminKYC() {
     );
   }
 
+  // Filter applications based on search query
+  const filteredApplications = useMemo(() => {
+    if (!searchQuery.trim()) return applications;
+    const query = searchQuery.toLowerCase().trim();
+    return applications.filter((app) =>
+      app.firstName?.toLowerCase().includes(query) ||
+      app.lastName?.toLowerCase().includes(query) ||
+      app.businessName?.toLowerCase().includes(query) ||
+      app.email?.toLowerCase().includes(query) ||
+      app.city?.toLowerCase().includes(query) ||
+      app.state?.toLowerCase().includes(query)
+    );
+  }, [applications, searchQuery]);
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive"; label: string }> = {
       pending: { variant: "secondary", label: "Pending Review" },
@@ -363,33 +379,47 @@ export default function AdminKYC() {
           </div>
         </div>
 
+        {/* Search Input */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, business, email, or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-kyc"
+            />
+          </div>
+        </div>
+
         <div className="flex gap-2 mb-6">
           <Button
             variant={statusFilter === "pending" ? "default" : "outline"}
             onClick={() => setStatusFilter("pending")}
             data-testid="button-filter-pending"
           >
-            Pending ({applications.filter(a => a.status === "pending").length})
+            Pending ({filteredApplications.filter(a => a.status === "pending").length})
           </Button>
           <Button
             variant={statusFilter === "verified" ? "default" : "outline"}
             onClick={() => setStatusFilter("verified")}
             data-testid="button-filter-verified"
           >
-            Verified ({applications.filter(a => a.status === "verified").length})
+            Verified ({filteredApplications.filter(a => a.status === "verified").length})
           </Button>
           <Button
             variant={statusFilter === "rejected" ? "default" : "outline"}
             onClick={() => setStatusFilter("rejected")}
             data-testid="button-filter-rejected"
           >
-            Rejected ({applications.filter(a => a.status === "rejected").length})
+            Rejected ({filteredApplications.filter(a => a.status === "rejected").length})
           </Button>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Applications ({applications.length})</CardTitle>
+            <CardTitle>Applications ({filteredApplications.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -398,7 +428,7 @@ export default function AdminKYC() {
                   <Skeleton key={i} className="h-16 w-full" />
                 ))}
               </div>
-            ) : applications.length > 0 ? (
+            ) : filteredApplications.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -412,7 +442,7 @@ export default function AdminKYC() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {applications.filter(app => app.status === statusFilter).map((app) => (
+                  {filteredApplications.filter(app => app.status === statusFilter).map((app) => (
                     <TableRow key={app.id}>
                       <TableCell className="font-medium">
                         {app.firstName} {app.lastName}
