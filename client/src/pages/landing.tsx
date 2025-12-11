@@ -260,7 +260,8 @@ export default function Landing() {
                       className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                       style={{ backgroundImage: `url(${destination.imageUrl})` }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    {/* Stronger gradient overlay for better text readability */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
                     <div className="absolute bottom-0 left-0 right-0 p-5">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 text-xs">
@@ -274,13 +275,16 @@ export default function Landing() {
                           </Badge>
                         )}
                       </div>
-                      <h3 className={`font-bold text-white mb-2 ${index === 0 ? 'text-3xl' : 'text-xl'}`} data-testid={`text-destination-name-${destination.id}`}>
+                      <h3 className={`font-bold text-white mb-1 ${index === 0 ? 'text-3xl' : 'text-xl'}`} style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }} data-testid={`text-destination-name-${destination.id}`}>
                         {destination.name}
                       </h3>
-                      <p className={`text-white/80 ${index === 0 ? 'text-base line-clamp-3' : 'text-sm line-clamp-2'}`}>
+                      <p className="text-emerald-400 font-semibold text-sm mb-2">
+                        From ₹799/night
+                      </p>
+                      <p className={`text-white/90 ${index === 0 ? 'text-base line-clamp-2' : 'text-sm line-clamp-1'}`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                         {destination.shortDescription}
                       </p>
-                      <div className="flex items-center gap-2 mt-3 text-white/90 text-sm font-medium group-hover:text-white transition-colors">
+                      <div className="flex items-center gap-2 mt-3 text-white text-sm font-medium group-hover:text-emerald-300 transition-colors">
                         <span>Explore Properties</span>
                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                       </div>
@@ -328,11 +332,12 @@ export default function Landing() {
                     alt={destination.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  {/* Stronger gradient for better text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
                   <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <h3 className="text-2xl font-bold text-white mb-1">{destination.name}</h3>
-                    <p className="text-white/90 text-sm mb-3">Stays from <span className="font-semibold text-amber-400">{destination.price}</span></p>
-                    <div className="flex items-center gap-1 text-white font-medium text-sm group-hover:text-amber-400 transition-colors">
+                    <h3 className="text-2xl font-bold text-white mb-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{destination.name}</h3>
+                    <p className="text-emerald-400 font-semibold text-sm mb-3">From {destination.price}/night</p>
+                    <div className="flex items-center gap-1 text-white font-medium text-sm group-hover:text-emerald-300 transition-colors">
                       View Stays <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </div>
