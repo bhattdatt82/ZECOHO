@@ -137,27 +137,19 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Trust Indicators with Premium Styling */}
-          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4">
+          {/* Trust Badges - Simple + Powerful */}
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <IndianRupee className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">Lowest & Honest Price</span>
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-white/90 text-sm">Direct from Hotel — No Middleman</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <Handshake className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">Negotiate Directly with Hotelier</span>
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-white/90 text-sm">No Hidden Fees — No Convenience Charges</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <Star className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">Honest Ratings & Reviews</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <BadgeCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">100% Verified Properties</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <Clock className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">24 Hours Check-in</span>
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-white/90 text-sm">Instant WhatsApp Confirmation</span>
             </div>
           </div>
         </div>
