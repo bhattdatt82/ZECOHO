@@ -198,6 +198,49 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Popular Destinations Section */}
+      <div className="py-16 px-4 md:px-6 bg-background">
+        <div className="container mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">Popular Destinations</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Discover amazing stays at India's most loved destinations</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { name: "Goa", price: "₹899", image: "/attached_assets/stock_images/goa_beach_india_suns_fcb832ea.jpg" },
+              { name: "Manali", price: "₹1,199", image: "/attached_assets/stock_images/manali_mountains_him_01ba7d34.jpg" },
+              { name: "Jaipur", price: "₹799", image: "/attached_assets/stock_images/jaipur_hawa_mahal_pi_f05b7750.jpg" },
+              { name: "Rishikesh", price: "₹699", image: "/attached_assets/stock_images/rishikesh_ganges_riv_88870393.jpg" },
+              { name: "Ooty", price: "₹999", image: "/attached_assets/stock_images/ooty_tea_gardens_hil_06b99c0a.jpg" },
+              { name: "Udaipur", price: "₹1,099", image: "/attached_assets/stock_images/udaipur_lake_palace__7af7058e.jpg" },
+            ].map((destination) => (
+              <div
+                key={destination.name}
+                className="group cursor-pointer overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                onClick={() => setLocation(`/search?destination=${destination.name}`)}
+                data-testid={`destination-card-${destination.name.toLowerCase()}`}
+              >
+                <div className="relative h-64 overflow-hidden">
+                  <img
+                    src={destination.image}
+                    alt={destination.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h3 className="text-2xl font-bold text-white mb-1">{destination.name}</h3>
+                    <p className="text-white/90 text-sm mb-3">Stays from <span className="font-semibold text-amber-400">{destination.price}</span></p>
+                    <div className="flex items-center gap-1 text-white font-medium text-sm group-hover:text-amber-400 transition-colors">
+                      View Stays <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Explore by Category Section - Enhanced */}
       <div className="py-16 px-4 md:px-6 bg-background">
         <div className="container mx-auto">
