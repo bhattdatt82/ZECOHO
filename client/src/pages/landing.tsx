@@ -213,7 +213,7 @@ export default function Landing() {
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* Discover India Section - Enhanced (Moved to top for inspiration) */}
+      {/* Popular Destinations Section - Single Grid */}
       <div className="py-16 px-4 md:px-6">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
@@ -236,109 +236,38 @@ export default function Landing() {
             </Button>
           </div>
 
-          {destinationsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="space-y-3">
-                  <Skeleton className="aspect-[16/10] rounded-2xl" />
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              ))}
-            </div>
-          ) : featuredDestinations.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {featuredDestinations.map((destination, index) => (
-                <div 
-                  key={destination.id} 
-                  className={`group cursor-pointer ${index === 0 ? 'md:row-span-2' : ''}`}
-                  onClick={() => setLocation(`/search?destination=${encodeURIComponent(destination.name)}`)}
-                  data-testid={`card-destination-${destination.id}`}
-                >
-                  <div className={`relative overflow-hidden rounded-2xl ${index === 0 ? 'h-full min-h-[400px]' : 'aspect-[16/10]'}`}>
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                      style={{ backgroundImage: `url(${destination.imageUrl})` }}
-                    />
-                    {/* Stronger gradient overlay for better text readability */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
-                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 text-xs">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {destination.state}
-                        </Badge>
-                        {destination.bestSeason && (
-                          <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 text-xs">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {destination.bestSeason}
-                          </Badge>
-                        )}
-                      </div>
-                      <h3 className={`font-bold text-white mb-1 ${index === 0 ? 'text-3xl' : 'text-xl'}`} style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }} data-testid={`text-destination-name-${destination.id}`}>
-                        {destination.name}
-                      </h3>
-                      <p className="text-emerald-400 font-semibold text-sm mb-2">
-                        From ₹799/night
-                      </p>
-                      <p className={`text-white/90 ${index === 0 ? 'text-base line-clamp-2' : 'text-sm line-clamp-1'}`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                        {destination.shortDescription}
-                      </p>
-                      <div className="flex items-center gap-2 mt-3 text-white text-sm font-medium group-hover:text-emerald-300 transition-colors">
-                        <span>Explore Properties</span>
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-muted/30 rounded-2xl">
-              <MapPin className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground text-lg">
-                No featured destinations available yet. Check back soon!
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Popular Destinations Section */}
-      <div className="py-16 px-4 md:px-6 bg-background">
-        <div className="container mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">Popular Destinations</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">Discover amazing stays at India's most loved destinations</p>
-          </div>
+          {/* Single Grid - Bigger, Brighter Tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { name: "Goa", price: "₹899", image: "/attached_assets/stock_images/goa_beach_india_suns_fcb832ea.jpg" },
-              { name: "Manali", price: "₹1,199", image: "/attached_assets/stock_images/manali_mountains_him_01ba7d34.jpg" },
-              { name: "Jaipur", price: "₹799", image: "/attached_assets/stock_images/jaipur_hawa_mahal_pi_f05b7750.jpg" },
-              { name: "Rishikesh", price: "₹699", image: "/attached_assets/stock_images/rishikesh_ganges_riv_88870393.jpg" },
-              { name: "Ooty", price: "₹999", image: "/attached_assets/stock_images/ooty_tea_gardens_hil_06b99c0a.jpg" },
-              { name: "Udaipur", price: "₹1,099", image: "/attached_assets/stock_images/udaipur_lake_palace__7af7058e.jpg" },
+              { name: "Goa", price: "₹899", image: "/attached_assets/stock_images/goa_beach_india_suns_fcb832ea.jpg", desc: "Sun, sand & vibrant nightlife" },
+              { name: "Manali", price: "₹1,199", image: "/attached_assets/stock_images/manali_mountains_him_01ba7d34.jpg", desc: "Snow-capped peaks & adventure" },
+              { name: "Jaipur", price: "₹799", image: "/attached_assets/stock_images/jaipur_hawa_mahal_pi_f05b7750.jpg", desc: "Royal palaces & rich heritage" },
+              { name: "Rishikesh", price: "₹699", image: "/attached_assets/stock_images/rishikesh_ganges_riv_88870393.jpg", desc: "Yoga capital & river rafting" },
+              { name: "Ooty", price: "₹999", image: "/attached_assets/stock_images/ooty_tea_gardens_hil_06b99c0a.jpg", desc: "Misty hills & tea gardens" },
+              { name: "Udaipur", price: "₹1,099", image: "/attached_assets/stock_images/udaipur_lake_palace__7af7058e.jpg", desc: "Lake city of romance" },
             ].map((destination) => (
               <div
                 key={destination.name}
-                className="group cursor-pointer overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="group cursor-pointer overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
                 onClick={() => setLocation(`/search?destination=${destination.name}`)}
                 data-testid={`destination-card-${destination.name.toLowerCase()}`}
               >
-                <div className="relative h-64 overflow-hidden">
+                {/* Bigger thumbnail - h-80 instead of h-64 */}
+                <div className="relative h-80 overflow-hidden">
                   <img
                     src={destination.image}
                     alt={destination.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 brightness-105"
                   />
-                  {/* Stronger gradient for better text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <h3 className="text-2xl font-bold text-white mb-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{destination.name}</h3>
-                    <p className="text-emerald-400 font-semibold text-sm mb-3">From {destination.price}/night</p>
-                    <div className="flex items-center gap-1 text-white font-medium text-sm group-hover:text-emerald-300 transition-colors">
-                      View Stays <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  {/* Strong gradient for maximum text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <h3 className="text-3xl font-bold text-white mb-1" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>{destination.name}</h3>
+                    <p className="text-white/90 text-sm mb-2" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>{destination.desc}</p>
+                    <p className="text-emerald-400 font-bold text-base mb-3">From {destination.price}/night</p>
+                    <div className="flex items-center gap-2 text-white font-bold text-sm group-hover:text-emerald-300 transition-colors">
+                      <span>View Stays</span>
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </div>
                 </div>
