@@ -604,7 +604,7 @@ export default function Landing() {
           <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
             Join thousands of travelers who save 15-25% by booking directly with property owners
           </p>
-          <div className="flex flex-wrap gap-4 justify-center">
+          <div className="flex flex-wrap gap-4 justify-center mb-6">
             <Button 
               size="lg" 
               variant="secondary"
@@ -626,6 +626,9 @@ export default function Landing() {
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </div>
+          <p className="text-white/80 text-sm">
+            Thousands of smart travelers are already booking direct and saving big.
+          </p>
         </div>
       </div>
     </div>
