@@ -159,36 +159,6 @@ export default function Landing() {
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* List Your Property CTA Banner - Premium Design */}
-      <div className="bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white py-5 px-4 md:px-6 relative overflow-hidden">
-        {/* Decorative Elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
-        </div>
-        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-              <HomeIcon className="h-7 w-7" />
-            </div>
-            <div>
-              <h3 className="font-bold text-xl">Become a Property Owner</h3>
-              <p className="text-sm text-white/95">List your property and reach customers directly — zero commission for you too!</p>
-            </div>
-          </div>
-          <Button 
-            variant="secondary"
-            size="lg"
-            onClick={() => setLocation("/list-property")}
-            data-testid="button-list-property-cta-top"
-            className="whitespace-nowrap shadow-lg font-semibold group"
-          >
-            List Your Property FREE
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
-        </div>
-      </div>
-
       {/* Popular Destinations Section */}
       <div className="py-16 px-4 md:px-6 bg-background">
         <div className="container mx-auto">
@@ -603,6 +573,35 @@ export default function Landing() {
               <div className="text-slate-400 text-sm mt-1">You Save</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* List Your Property CTA Banner - Near Footer */}
+      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white py-6 px-4 md:px-6 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
+        </div>
+        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl">
+              <HomeIcon className="h-7 w-7" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xl">Own a Property?</h3>
+              <p className="text-sm text-white/80">List your property and reach customers directly — zero commission for you too!</p>
+            </div>
+          </div>
+          <Button 
+            variant="secondary"
+            size="lg"
+            onClick={() => setLocation("/list-property")}
+            data-testid="button-list-property-cta-footer"
+            className="whitespace-nowrap shadow-lg font-semibold group"
+          >
+            List Your Property FREE
+            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Button>
         </div>
       </div>
 
