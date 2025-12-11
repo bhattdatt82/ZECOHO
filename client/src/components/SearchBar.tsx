@@ -33,6 +33,7 @@ interface SearchBarProps {
   initialCheckIn?: string;
   initialCheckOut?: string;
   initialGuests?: number;
+  ctaText?: string;
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -60,6 +61,7 @@ export function SearchBar({
   initialCheckIn = "",
   initialCheckOut = "",
   initialGuests = 2,
+  ctaText = "Find Lowest Direct Prices →",
 }: SearchBarProps) {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
@@ -479,7 +481,7 @@ export function SearchBar({
           onClick={handleSearch}
           data-testid="button-search-full"
         >
-          Find Lowest Direct Prices →
+          {ctaText}
         </Button>
       </div>
       

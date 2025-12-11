@@ -132,77 +132,77 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Cinematic & Impressive */}
-      <div className="relative min-h-[600px] md:min-h-[680px] flex items-center justify-center overflow-hidden">
+      {/* Hero Section - Premium High-Impact Design */}
+      <div className="relative min-h-[490px] md:min-h-[520px] flex items-center justify-center overflow-hidden">
         {/* Background with Parallax Effect */}
         <div 
           className="absolute inset-0 bg-cover bg-center scale-105"
           style={{ backgroundImage: `url(${heroImage})` }}
         />
-        {/* Dramatic Gradient Overlay - Darkened for better text contrast */}
+        {/* Dramatic Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/60 to-rose-900/50" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/20" />
         
         <div className="relative z-10 container px-4 md:px-6 text-center py-12 pt-24">
-          {/* Premium Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6">
-            <Sparkles className="h-4 w-4 text-amber-400" />
-            <span className="text-white/90 text-sm font-medium">India's First Zero Commission Platform</span>
+          {/* Premium Badge - Subtle */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-3">
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-white/90 text-xs font-medium">India's First Zero Commission Platform</span>
           </div>
 
-          {/* Main Headline - Punchy */}
+          {/* Main Headline - Pixel Perfect Typography */}
           <h1 
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight tracking-tight" 
+            className="text-[28px] md:text-[54px] font-extrabold text-white leading-[1.2] md:leading-[1.1] tracking-tight mb-1" 
             data-testid="text-hero-title"
-            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.5), 0 4px 40px rgba(0,0,0,0.3)' }}
+            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}
           >
-            Book Hotels at Guaranteed Lowest Prices{" "}
-            <span className="bg-gradient-to-r from-amber-400 via-rose-400 to-rose-500 bg-clip-text text-transparent drop-shadow-lg">
-              — Cheaper Than OTAs
-            </span>
+            Book Hotels at True Prices —
           </h1>
+          <h1 
+            className="text-[32px] md:text-[58px] font-extrabold leading-[1.2] md:leading-[1.1] tracking-tight mb-2.5 md:mb-3"
+            style={{ 
+              background: 'linear-gradient(90deg, #FF7A00, #FF2768)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              textShadow: 'none'
+            }}
+          >
+            Cheaper Than OTAs
+          </h1>
+          
+          {/* Subheadline */}
           <p 
-            className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto"
+            className="text-base md:text-xl text-white font-normal md:font-medium leading-[1.4] mb-7 md:mb-8 max-w-2xl mx-auto"
             style={{ textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}
           >
-            <span className="font-semibold text-white">Save 15–25% instantly.</span>{" "}
-            Zero commission. Zero convenience fees.
+            Direct booking. Zero commission. Zero hidden fees. Save 15–25% instantly.
           </p>
 
-          {/* Glass Morphism Search Bar */}
-          <div className="max-w-4xl mx-auto mb-4">
-            <div className="bg-white/95 dark:bg-background/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 p-3 md:p-4">
-              <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
+          {/* Airbnb-Style Search Bar */}
+          <div className="max-w-4xl mx-auto mb-6">
+            <div className="bg-white dark:bg-background backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 p-2 md:p-2.5">
+              <SearchBar 
+                onSearch={handleSearch} 
+                compact={false} 
+                showDates={true} 
+                showGuests={true} 
+                ctaText="Find Lowest Direct Prices →"
+              />
             </div>
           </div>
 
           {/* Trust Badges Under Search Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
-            <div className="flex items-center gap-1.5">
-              <BadgeCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">100% Verified Stays</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Star className="h-4 w-4 text-amber-400" />
-              <span className="text-white/90 text-sm">Real Guest Ratings</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Hotel className="h-4 w-4 text-rose-400" />
-              <span className="text-white/90 text-sm">Direct Contact with Hotel</span>
-            </div>
-          </div>
-
-          {/* Bottom Trust Icons */}
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
+            <div className="flex items-center gap-1.5">
               <Hotel className="h-4 w-4 text-amber-400" />
               <span className="text-white/90 text-sm">Direct from Hotel</span>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
+            <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
               <span className="text-white/90 text-sm">No Hidden Fees</span>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
+            <div className="flex items-center gap-1.5">
               <MessageCircle className="h-4 w-4 text-green-400" />
               <span className="text-white/90 text-sm">WhatsApp Confirmation</span>
             </div>

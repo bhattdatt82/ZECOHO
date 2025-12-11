@@ -1,0 +1,103 @@
+ZECOHO — Final High-Impact Hero Section Redesign
+
+(Premium, clear, conversion-focused, OTA-killer tone)
+
+🟩 1. Headline (Final Version — Best Performing)
+Book Hotels at True Prices — Cheaper Than OTAs
+
+Direct booking. Zero commission. Zero hidden fees. Save 15–25% instantly.
+
+🟦 2. Typography + Layout Specs (Use EXACTLY this)
+DESKTOP
+Element	Font Size	Weight	Line Height
+Headline Line 1	54px	800	1.1
+Headline Line 2	58px (Gradient)	800	1.1
+Subheadline	20px	400–500	1.4
+Search Bar Input Text	16px	500	—
+
+Max hero height: 490–520px
+Spacing between headline and subheadline: 8–12px
+Spacing between subheadline and search bar: 24–32px
+
+MOBILE
+Element	Font Size	Weight	Line Height
+Headline Line 1	28px	800	1.2
+Headline Line 2	32px	800	1.2
+Subheadline	16px	400	1.4
+Search Bar Inputs	14px	500	
+
+Important:
+✔ Search bar MUST appear immediately after subheadline.
+✔ No scrolling needed to see the search bar on mobile.
+✔ Keep headline max 3 lines.
+
+🟥 3. Gradient Style (Use This Exact Color Logic)
+
+Apply gradient ONLY on the phrase:
+“Cheaper Than OTAs”
+
+Use a left-to-right gradient:
+
+#FF7A00 → #FF2768
+
+
+This gives a premium travel-tech feel like Airbnb + OYO mix.
+
+🔶 4. Spacing Guide (Pixel-Perfect)
+ABOVE THE FOLD STACK
+[Badge: India’s First Zero Commission Platform] (tiny, subtle)
+   ↓ 12px
+[Headline Line 1]
+   ↓ 4px
+[Headline Line 2]
+   ↓ 10px
+[Subheadline]
+   ↓ 28px
+[Search Bar Row]
+
+SEARCH BAR DESIGN
+
+Make it look like Airbnb:
+
+Full width rounded container
+
+Soft shadow
+
+Icons before labels
+
+Strong CTA button in orange #FF7A00
+
+CTA text: "Find Lowest Direct Prices →"
+
+🟣 5. CSS Snippet (Copy-Paste Ready)
+.hero-title {
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.hero-title .highlight {
+  background: linear-gradient(90deg, #FF7A00, #FF2768);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: #fff;
+  margin-top: 12px;
+}
+
+.hero-search {
+  margin-top: 30px;
+}
+
+🟢 6. Copy With Highlight Applied (Final Output)
+**Book Hotels at True Prices —
+
+<span class="highlight">Cheaper Than OTAs</span>**
+
+Direct booking. Zero commission. Zero hidden fees. Save 15–25% instantly.
