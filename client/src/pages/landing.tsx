@@ -220,7 +220,7 @@ export default function Landing() {
             <div>
               <Badge className="mb-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-0 px-3 py-1">
                 <MapPin className="h-3 w-3 mr-1" />
-                Explore India
+                Popular Destinations
               </Badge>
               <h2 className="text-3xl md:text-4xl font-bold mb-2" data-testid="text-discover-india-heading">Discover Incredible India</h2>
               <p className="text-muted-foreground text-lg">From pristine beaches to majestic mountains — find your perfect escape</p>
