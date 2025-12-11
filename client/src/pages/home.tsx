@@ -96,9 +96,9 @@ export default function Home() {
 
           {/* Main Headline with Gradient */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 leading-tight tracking-tight">
-            Book Hotels at{" "}
+            Book Hotels at Guaranteed Lowest Prices{" "}
             <span className="bg-gradient-to-r from-amber-400 via-rose-400 to-rose-500 bg-clip-text text-transparent">
-              True Prices
+              — Cheaper Than OTA Platforms
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto font-light">
