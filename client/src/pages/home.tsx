@@ -102,8 +102,8 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto font-light">
-            Connect directly with property owners. No middleman. No commission.{" "}
-            <span className="font-semibold text-white">Save 15-25%</span> on every booking.
+            Direct booking. Zero commission. Zero convenience fees.{" "}
+            <span className="font-semibold text-white">Save 15–25% instantly.</span>
           </p>
 
           {/* Glass Morphism Search Bar */}
