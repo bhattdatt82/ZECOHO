@@ -166,6 +166,93 @@ export default function Landing() {
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </div>
 
+      {/* Discover India Section - Enhanced (Moved to top for inspiration) */}
+      <div className="py-16 px-4 md:px-6">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
+            <div>
+              <Badge className="mb-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-0 px-3 py-1">
+                <MapPin className="h-3 w-3 mr-1" />
+                Explore India
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold mb-2" data-testid="text-discover-india-heading">Discover Incredible India</h2>
+              <p className="text-muted-foreground text-lg">From pristine beaches to majestic mountains — find your perfect escape</p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation("/destinations")}
+              data-testid="button-view-all-destinations"
+              className="group self-start md:self-auto"
+            >
+              View All Destinations
+              <ChevronRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </div>
+
+          {destinationsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-[16/10] rounded-2xl" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : featuredDestinations.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredDestinations.map((destination, index) => (
+                <div 
+                  key={destination.id} 
+                  className={`group cursor-pointer ${index === 0 ? 'md:row-span-2' : ''}`}
+                  onClick={() => setLocation(`/search?destination=${encodeURIComponent(destination.name)}`)}
+                  data-testid={`card-destination-${destination.id}`}
+                >
+                  <div className={`relative overflow-hidden rounded-2xl ${index === 0 ? 'h-full min-h-[400px]' : 'aspect-[16/10]'}`}>
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                      style={{ backgroundImage: `url(${destination.imageUrl})` }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 text-xs">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {destination.state}
+                        </Badge>
+                        {destination.bestSeason && (
+                          <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 text-xs">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {destination.bestSeason}
+                          </Badge>
+                        )}
+                      </div>
+                      <h3 className={`font-bold text-white mb-2 ${index === 0 ? 'text-3xl' : 'text-xl'}`} data-testid={`text-destination-name-${destination.id}`}>
+                        {destination.name}
+                      </h3>
+                      <p className={`text-white/80 ${index === 0 ? 'text-base line-clamp-3' : 'text-sm line-clamp-2'}`}>
+                        {destination.shortDescription}
+                      </p>
+                      <div className="flex items-center gap-2 mt-3 text-white/90 text-sm font-medium group-hover:text-white transition-colors">
+                        <span>Explore Properties</span>
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 bg-muted/30 rounded-2xl">
+              <MapPin className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground text-lg">
+                No featured destinations available yet. Check back soon!
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Popular Destinations Section */}
       <div className="py-16 px-4 md:px-6 bg-background">
         <div className="container mx-auto">
@@ -405,93 +492,6 @@ export default function Landing() {
               </CardContent>
             </Card>
           </div>
-        </div>
-      </div>
-
-      {/* Discover India Section - Enhanced */}
-      <div className="py-16 px-4 md:px-6">
-        <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
-            <div>
-              <Badge className="mb-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-0 px-3 py-1">
-                <MapPin className="h-3 w-3 mr-1" />
-                Popular Destinations
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-2" data-testid="text-discover-india-heading">Discover Incredible India</h2>
-              <p className="text-muted-foreground text-lg">From pristine beaches to majestic mountains — find your perfect escape</p>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setLocation("/destinations")}
-              data-testid="button-view-all-destinations"
-              className="group self-start md:self-auto"
-            >
-              View All Destinations
-              <ChevronRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </div>
-
-          {destinationsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="space-y-3">
-                  <Skeleton className="aspect-[16/10] rounded-2xl" />
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              ))}
-            </div>
-          ) : featuredDestinations.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {featuredDestinations.map((destination, index) => (
-                <div 
-                  key={destination.id} 
-                  className={`group cursor-pointer ${index === 0 ? 'md:row-span-2' : ''}`}
-                  onClick={() => setLocation(`/search?destination=${encodeURIComponent(destination.name)}`)}
-                  data-testid={`card-destination-${destination.id}`}
-                >
-                  <div className={`relative overflow-hidden rounded-2xl ${index === 0 ? 'h-full min-h-[400px]' : 'aspect-[16/10]'}`}>
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                      style={{ backgroundImage: `url(${destination.imageUrl})` }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 text-xs">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {destination.state}
-                        </Badge>
-                        {destination.bestSeason && (
-                          <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 text-xs">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {destination.bestSeason}
-                          </Badge>
-                        )}
-                      </div>
-                      <h3 className={`font-bold text-white mb-2 ${index === 0 ? 'text-3xl' : 'text-xl'}`} data-testid={`text-destination-name-${destination.id}`}>
-                        {destination.name}
-                      </h3>
-                      <p className={`text-white/80 ${index === 0 ? 'text-base line-clamp-3' : 'text-sm line-clamp-2'}`}>
-                        {destination.shortDescription}
-                      </p>
-                      <div className="flex items-center gap-2 mt-3 text-white/90 text-sm font-medium group-hover:text-white transition-colors">
-                        <span>Explore Properties</span>
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-muted/30 rounded-2xl">
-              <MapPin className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground text-lg">
-                No featured destinations available yet. Check back soon!
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
