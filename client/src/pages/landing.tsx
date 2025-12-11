@@ -124,7 +124,7 @@ export default function Landing() {
           {/* Glass Morphism Search Bar */}
           <div className="max-w-4xl mx-auto mb-10">
             <div className="bg-white/95 dark:bg-background/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 p-3 md:p-4">
-              <SearchBar onSearch={handleSearch} compact={true} showDates={false} showGuests={false} />
+              <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
             </div>
           </div>
 

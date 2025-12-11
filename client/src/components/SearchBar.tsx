@@ -479,8 +479,7 @@ export function SearchBar({
           onClick={handleSearch}
           data-testid="button-search-full"
         >
-          <Search className="h-5 w-5 mr-2" />
-          Search
+          Find Lowest Direct Prices →
         </Button>
       </div>
       
