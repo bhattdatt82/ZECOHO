@@ -150,55 +150,61 @@ export default function Landing() {
             <span className="text-white/90 text-sm font-medium">India's First Zero Commission Platform</span>
           </div>
 
-          {/* Main Headline with Gradient */}
+          {/* Main Headline - Punchy */}
           <h1 
-            className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 leading-tight tracking-tight" 
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight tracking-tight" 
             data-testid="text-hero-title"
             style={{ textShadow: '0 2px 20px rgba(0,0,0,0.5), 0 4px 40px rgba(0,0,0,0.3)' }}
           >
             Book Hotels at Guaranteed Lowest Prices{" "}
             <span className="bg-gradient-to-r from-amber-400 via-rose-400 to-rose-500 bg-clip-text text-transparent drop-shadow-lg">
-              — Cheaper Than OTA Platforms
+              — Cheaper Than OTAs
             </span>
           </h1>
           <p 
-            className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto font-light"
+            className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto"
             style={{ textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}
           >
-            Direct booking. Zero commission. Zero convenience fees.{" "}
-            <span className="font-semibold text-white">Save 15–25% instantly.</span>
+            <span className="font-semibold text-white">Save 15–25% instantly.</span>{" "}
+            Zero commission. Zero convenience fees.
           </p>
 
           {/* Glass Morphism Search Bar */}
-          <div className="max-w-4xl mx-auto mb-6">
+          <div className="max-w-4xl mx-auto mb-4">
             <div className="bg-white/95 dark:bg-background/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 p-3 md:p-4">
               <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
             </div>
           </div>
 
-          {/* OTA Price Comparison Bar */}
-          <div className="max-w-2xl mx-auto mb-10">
-            <div className="bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 rounded-full px-6 py-3 flex items-center justify-center gap-3">
-              <span className="text-white font-semibold">Zecoho Price vs OTA</span>
-              <span className="text-white/70">|</span>
-              <span className="text-emerald-300 font-medium">Save up to ₹800 per night</span>
-              <span className="text-white/60 text-sm">(real-time comparison)</span>
+          {/* Trust Badges Under Search Bar */}
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
+            <div className="flex items-center gap-1.5">
+              <BadgeCheck className="h-4 w-4 text-emerald-400" />
+              <span className="text-white/90 text-sm">100% Verified Stays</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Star className="h-4 w-4 text-amber-400" />
+              <span className="text-white/90 text-sm">Real Guest Ratings</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Hotel className="h-4 w-4 text-rose-400" />
+              <span className="text-white/90 text-sm">Direct Contact with Hotel</span>
             </div>
           </div>
 
-          {/* Trust Badges - Simple + Powerful */}
+          {/* Bottom Trust Icons */}
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
               <Hotel className="h-4 w-4 text-amber-400" />
-              <span className="text-white/90 text-sm">Direct from Hotel — No Middleman</span>
+              <span className="text-white/90 text-sm">Direct from Hotel</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">No Hidden Fees — No Convenience Charges</span>
+              <span className="text-white/90 text-sm">No Hidden Fees</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
               <MessageCircle className="h-4 w-4 text-green-400" />
-              <span className="text-white/90 text-sm">Instant WhatsApp Confirmation</span>
+              <span className="text-white/90 text-sm">WhatsApp Confirmation</span>
             </div>
           </div>
         </div>
