@@ -138,30 +138,6 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Animated Stats */}
-          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12 mb-8">
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white">
-                <AnimatedCounter end={56} suffix="+" />
-              </div>
-              <div className="text-white/70 text-sm">Verified Properties</div>
-            </div>
-            <div className="hidden md:block w-px h-12 bg-white/20" />
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white">
-                <AnimatedCounter end={65} suffix="+" />
-              </div>
-              <div className="text-white/70 text-sm">Indian Destinations</div>
-            </div>
-            <div className="hidden md:block w-px h-12 bg-white/20" />
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-amber-400 font-extrabold">
-                0%
-              </div>
-              <div className="text-white/70 text-sm">Commission Fee</div>
-            </div>
-          </div>
-
           {/* Trust Badges - Simple + Powerful */}
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
@@ -592,6 +568,41 @@ export default function Landing() {
               </p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Stats Section */}
+      <div className="py-16 px-4 md:px-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+        <div className="container mx-auto">
+          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-16">
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-white">
+                <AnimatedCounter end={56} suffix="+" />
+              </div>
+              <div className="text-slate-400 text-sm mt-1">Verified Properties</div>
+            </div>
+            <div className="hidden md:block w-px h-16 bg-slate-600" />
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-white">
+                <AnimatedCounter end={65} suffix="+" />
+              </div>
+              <div className="text-slate-400 text-sm mt-1">Indian Destinations</div>
+            </div>
+            <div className="hidden md:block w-px h-16 bg-slate-600" />
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-amber-400">
+                0%
+              </div>
+              <div className="text-slate-400 text-sm mt-1">Commission Fee</div>
+            </div>
+            <div className="hidden md:block w-px h-16 bg-slate-600" />
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-emerald-400">
+                15-25%
+              </div>
+              <div className="text-slate-400 text-sm mt-1">You Save</div>
+            </div>
+          </div>
         </div>
       </div>
 
