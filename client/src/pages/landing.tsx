@@ -5,7 +5,7 @@ import { PropertyCard } from "@/components/PropertyCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building, Home as HomeIcon, Hotel, Mountain, Waves, TreePine, Wheat, Heart, MapPin, Calendar, Handshake, TrendingDown, Shield, Sparkles, Check, Percent, BadgeCheck, HandCoins, FileCheck2, Star, ArrowRight, ChevronRight } from "lucide-react";
+import { Building, Home as HomeIcon, Hotel, Mountain, Waves, TreePine, Wheat, Heart, MapPin, Calendar, Handshake, TrendingDown, Shield, Sparkles, Check, Percent, BadgeCheck, HandCoins, FileCheck2, Star, ArrowRight, ChevronRight, MessageCircle, ShieldCheck } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import type { Property, Destination } from "@shared/schema";
 import heroImage from "@assets/generated_images/mountain_resort_balcony_view.png";
@@ -297,82 +297,158 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Why Choose ZECOHO Section - Premium Bento Grid */}
+      {/* Why Zecoho Beats OTAs - Comparison Table */}
       <div className="py-20 px-4 md:px-6 bg-gradient-to-b from-muted/30 to-background">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <Badge className="mb-4 bg-primary/10 text-primary border-0 px-4 py-1.5">
-              Why Choose Us
+              The Clear Choice
             </Badge>
             <h2 className="text-3xl md:text-5xl font-bold mb-4" data-testid="text-why-choose-heading">
-              The ZECOHO{" "}
-              <span className="bg-gradient-to-r from-rose-500 to-amber-500 bg-clip-text text-transparent">
-                Advantage
+              Why Zecoho{" "}
+              <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                Beats OTAs
               </span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Experience hotel booking the way it should be — transparent, direct, and commission-free
+              See the difference — transparent pricing, direct access, zero hidden fees
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Large Feature Card */}
-            <div className="lg:col-span-2 bg-gradient-to-br from-rose-500 to-rose-600 rounded-3xl p-8 text-white relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
-              <div className="relative z-10">
-                <div className="p-4 bg-white/20 backdrop-blur rounded-2xl inline-flex mb-6">
-                  <Percent className="h-10 w-10" />
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold mb-3">Zero Commission</h3>
-                <p className="text-white/90 text-lg mb-4 max-w-lg">
-                  Other platforms charge 15-25% commission. We charge nothing. 
-                  You save on every booking — that's money back in your pocket.
-                </p>
-                <div className="flex items-center gap-2 text-sm">
-                  <Check className="h-5 w-5" />
-                  <span>Save ₹500-₹2000+ per night</span>
-                </div>
+          {/* Comparison Table */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <Card className="rounded-2xl border shadow-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full" data-testid="table-comparison">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      <th className="text-left p-4 font-semibold text-muted-foreground">Feature</th>
+                      <th className="text-center p-4">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-bold text-lg text-primary">Zecoho</span>
+                        </div>
+                      </th>
+                      <th className="text-center p-4">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-semibold text-muted-foreground">Other OTA</span>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b hover:bg-muted/20 transition-colors">
+                      <td className="p-4 font-medium">Commission Charged to Hotels</td>
+                      <td className="p-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <Check className="h-5 w-5" />
+                          0%
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-rose-500 font-medium">15–25%</span>
+                      </td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/20 transition-colors">
+                      <td className="p-4 font-medium">Convenience Fee to User</td>
+                      <td className="p-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <Check className="h-5 w-5" />
+                          ₹0
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-rose-500 font-medium">₹200–₹400</span>
+                      </td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/20 transition-colors">
+                      <td className="p-4 font-medium">Direct Hotel Contact</td>
+                      <td className="p-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <Check className="h-5 w-5" />
+                          Yes
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-rose-500 font-medium">Hidden</span>
+                      </td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/20 transition-colors">
+                      <td className="p-4 font-medium">Direct Negotiation</td>
+                      <td className="p-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <Check className="h-5 w-5" />
+                          Yes
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-rose-500 font-medium">No</span>
+                      </td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/20 transition-colors">
+                      <td className="p-4 font-medium">Real Price Transparency</td>
+                      <td className="p-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <Check className="h-5 w-5" />
+                          Yes
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-rose-500 font-medium">Hidden charges</span>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-muted/20 transition-colors">
+                      <td className="p-4 font-medium">WhatsApp Confirmation</td>
+                      <td className="p-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          <Check className="h-5 w-5" />
+                          Instant
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-rose-500 font-medium">Sometimes delayed</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            </div>
-            
-            {/* Feature Cards */}
-            <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
-              <CardContent className="p-6">
-                <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl inline-flex mb-4">
-                  <BadgeCheck className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+            </Card>
+          </div>
+          
+          {/* 3 Feature Cards Under Table */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <Card className="rounded-2xl border-0 shadow-lg overflow-hidden hover-elevate">
+              <CardContent className="p-6 text-center">
+                <div className="p-4 bg-amber-100 dark:bg-amber-900/30 rounded-xl inline-flex mb-4">
+                  <HandCoins className="h-8 w-8 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">100% Verified</h3>
-                <p className="text-muted-foreground">Every property is personally verified for quality and authenticity</p>
+                <h3 className="text-lg font-bold mb-2">Pay the Real Price</h3>
+                <p className="text-muted-foreground text-sm">
+                  No markup. No commission. No inflated OTA rates.
+                </p>
               </CardContent>
             </Card>
             
-            <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
-              <CardContent className="p-6">
-                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl inline-flex mb-4">
-                  <Handshake className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+            <Card className="rounded-2xl border-0 shadow-lg overflow-hidden hover-elevate">
+              <CardContent className="p-6 text-center">
+                <div className="p-4 bg-blue-100 dark:bg-blue-900/30 rounded-xl inline-flex mb-4">
+                  <MessageCircle className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Direct Communication</h3>
-                <p className="text-muted-foreground">Chat or call property owners directly — no middlemen</p>
+                <h3 className="text-lg font-bold mb-2">Chat Directly with Hotel</h3>
+                <p className="text-muted-foreground text-sm">
+                  Ask questions, request early check-in, confirm amenities.
+                </p>
               </CardContent>
             </Card>
             
-            <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
-              <CardContent className="p-6">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl inline-flex mb-4">
-                  <HandCoins className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+            <Card className="rounded-2xl border-0 shadow-lg overflow-hidden hover-elevate">
+              <CardContent className="p-6 text-center">
+                <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl inline-flex mb-4">
+                  <ShieldCheck className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Best Price Guarantee</h3>
-                <p className="text-muted-foreground">Negotiate directly for the best rates — true pricing, always</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
-              <CardContent className="p-6">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl inline-flex mb-4">
-                  <FileCheck2 className="h-7 w-7 text-purple-600 dark:text-purple-400" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">0% Check-in Denial</h3>
-                <p className="text-muted-foreground">Direct bookings mean guaranteed check-ins, every time</p>
+                <h3 className="text-lg font-bold mb-2">Verified Properties Only</h3>
+                <p className="text-muted-foreground text-sm">
+                  Manually verified for authenticity & quality.
+                </p>
               </CardContent>
             </Card>
           </div>
