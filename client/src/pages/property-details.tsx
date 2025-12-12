@@ -68,6 +68,9 @@ import {
   CalendarIcon,
   BadgeCheck,
   Handshake,
+  Minus,
+  Plus,
+  ChevronDown,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -138,15 +141,24 @@ export default function PropertyDetails() {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(2);
+  const [adults, setAdults] = useState(2);
+  const [children, setChildren] = useState(0);
+  const [rooms, setRooms] = useState(1);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   
-  // Controlled popover states for date pickers with auto-navigation
+  // Controlled popover states for date pickers and guests with auto-navigation
   const [checkInPopoverOpen, setCheckInPopoverOpen] = useState(false);
   const [checkOutPopoverOpen, setCheckOutPopoverOpen] = useState(false);
+  const [guestsPopoverOpen, setGuestsPopoverOpen] = useState(false);
   const [ownerResponseDialogOpen, setOwnerResponseDialogOpen] = useState(false);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [amenitiesDialogOpen, setAmenitiesDialogOpen] = useState(false);
   const getHelpfulStorageKey = () => user?.id ? `markedHelpfulReviews_${user.id}` : 'markedHelpfulReviews';
+  
+  // Sync guests from adults + children
+  useEffect(() => {
+    setGuests(adults + children);
+  }, [adults, children]);
   
   const [markedHelpfulReviews, setMarkedHelpfulReviews] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined' && user?.id) {
@@ -456,6 +468,9 @@ export default function PropertyDetails() {
       setCheckIn("");
       setCheckOut("");
       setGuests(2);
+      setAdults(2);
+      setChildren(0);
+      setRooms(1);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -1126,17 +1141,18 @@ export default function PropertyDetails() {
                           data-testid="input-checkin-booking"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {checkIn ? format(new Date(checkIn), "PPP") : <span className="text-muted-foreground">Select date</span>}
+                          {checkIn ? format(new Date(checkIn + "T00:00:00"), "PPP") : <span className="text-muted-foreground">Select date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={checkIn ? new Date(checkIn) : undefined}
+                          selected={checkIn ? new Date(checkIn + "T00:00:00") : undefined}
                           onSelect={(date) => {
-                            const dateStr = date ? date.toISOString().split('T')[0] : "";
+                            // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
+                            const dateStr = date ? format(date, "yyyy-MM-dd") : "";
                             setCheckIn(dateStr);
-                            if (checkOut && date && new Date(checkOut) <= date) {
+                            if (checkOut && date && new Date(checkOut + "T00:00:00") <= date) {
                               setCheckOut("");
                             }
                             // Close check-in and auto-open check-out using requestAnimationFrame to prevent race condition
@@ -1177,15 +1193,16 @@ export default function PropertyDetails() {
                           data-testid="input-checkout-booking"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {checkOut ? format(new Date(checkOut), "PPP") : <span className="text-muted-foreground">Select date</span>}
+                          {checkOut ? format(new Date(checkOut + "T00:00:00"), "PPP") : <span className="text-muted-foreground">Select date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={checkOut ? new Date(checkOut) : undefined}
+                          selected={checkOut ? new Date(checkOut + "T00:00:00") : undefined}
                           onSelect={(date) => {
-                            setCheckOut(date ? date.toISOString().split('T')[0] : "");
+                            // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
+                            setCheckOut(date ? format(date, "yyyy-MM-dd") : "");
                             if (date) {
                               setCheckOutPopoverOpen(false);
                             }
@@ -1193,7 +1210,7 @@ export default function PropertyDetails() {
                           disabled={(date) => {
                             const today = new Date(new Date().setHours(0, 0, 0, 0));
                             if (date <= today) return true;
-                            if (checkIn && date <= new Date(checkIn)) return true;
+                            if (checkIn && date <= new Date(checkIn + "T00:00:00")) return true;
                             return bookedDates.some((booked) => {
                               const bookedStart = new Date(booked.checkIn);
                               const bookedEnd = new Date(booked.checkOut);
@@ -1211,15 +1228,128 @@ export default function PropertyDetails() {
                   </div>
                   <div>
                     <label className="text-sm font-semibold block mb-2">Guests</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max={property.maxGuests}
-                      value={guests}
-                      onChange={(e) => setGuests(Number(e.target.value))}
-                      className="w-full px-3 py-2 border rounded-lg"
-                      data-testid="input-guests-booking"
-                    />
+                    <Popover open={guestsPopoverOpen} onOpenChange={setGuestsPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between text-left font-normal"
+                          data-testid="input-guests-booking"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            <span>
+                              {adults} Adult{adults !== 1 ? 's' : ''}, {children} Child{children !== 1 ? 'ren' : ''}
+                            </span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-4" align="start">
+                        <div className="space-y-4">
+                          {/* Adults */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">Adults</div>
+                              <div className="text-xs text-muted-foreground">Ages 13 or above</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setAdults(Math.max(1, adults - 1))}
+                                disabled={adults <= 1}
+                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                data-testid="button-adults-minus"
+                              >
+                                <Minus className="h-4 w-4 text-gray-600" />
+                              </button>
+                              <span className="w-6 text-center font-medium" data-testid="text-adults-count">{adults}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const maxAllowed = property?.maxGuests || 10;
+                                  if (adults + children < maxAllowed) {
+                                    setAdults(Math.min(10, adults + 1));
+                                  }
+                                }}
+                                disabled={adults >= 10 || (adults + children) >= (property?.maxGuests || 10)}
+                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                data-testid="button-adults-plus"
+                              >
+                                <Plus className="h-4 w-4 text-gray-600" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Children */}
+                          <div className="flex items-center justify-between border-t pt-4">
+                            <div>
+                              <div className="font-medium">Children</div>
+                              <div className="text-xs text-muted-foreground">Ages 2–12</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setChildren(Math.max(0, children - 1))}
+                                disabled={children <= 0}
+                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                data-testid="button-children-minus"
+                              >
+                                <Minus className="h-4 w-4 text-gray-600" />
+                              </button>
+                              <span className="w-6 text-center font-medium" data-testid="text-children-count">{children}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const maxAllowed = property?.maxGuests || 10;
+                                  if (adults + children < maxAllowed) {
+                                    setChildren(Math.min(6, children + 1));
+                                  }
+                                }}
+                                disabled={children >= 6 || (adults + children) >= (property?.maxGuests || 10)}
+                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                data-testid="button-children-plus"
+                              >
+                                <Plus className="h-4 w-4 text-gray-600" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Rooms */}
+                          <div className="flex items-center justify-between border-t pt-4">
+                            <div>
+                              <div className="font-medium">Rooms</div>
+                              <div className="text-xs text-muted-foreground">Number of rooms</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setRooms(Math.max(1, rooms - 1))}
+                                disabled={rooms <= 1}
+                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                data-testid="button-rooms-minus"
+                              >
+                                <Minus className="h-4 w-4 text-gray-600" />
+                              </button>
+                              <span className="w-6 text-center font-medium" data-testid="text-rooms-count">{rooms}</span>
+                              <button
+                                type="button"
+                                onClick={() => setRooms(Math.min(5, rooms + 1))}
+                                disabled={rooms >= 5}
+                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                data-testid="button-rooms-plus"
+                              >
+                                <Plus className="h-4 w-4 text-gray-600" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Max guests info */}
+                          <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                            Maximum {property?.maxGuests || 10} guests allowed
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 
