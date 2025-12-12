@@ -192,19 +192,19 @@ export default function Landing() {
             />
           </div>
 
-          {/* Trust Badges Under Search Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-            <div className="flex items-center gap-1.5">
-              <Hotel className="h-4 w-4 text-amber-400" />
-              <span className="text-white/90 text-sm">Direct from Hotel</span>
+          {/* USPs Under Search Bar */}
+          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-white/90 text-sm">Save ₹500–₹1500/night</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">No Hidden Fees</span>
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-white/90 text-sm">Direct hotel contact</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <MessageCircle className="h-4 w-4 text-green-400" />
-              <span className="text-white/90 text-sm">WhatsApp Confirmation</span>
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span className="text-white/90 text-sm">Zero convenience fees</span>
             </div>
           </div>
         </div>
@@ -321,99 +321,6 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Why Zecoho Beats OTAs - Clean, Minimal Design */}
-      <div className="py-20 px-4 md:px-6 bg-background">
-        <div className="container mx-auto max-w-5xl">
-          {/* Section Header */}
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4" data-testid="text-why-choose-heading">
-              Why Zecoho Beats OTAs
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Transparent pricing. Direct access. Zero hidden fees.
-            </p>
-          </div>
-          
-          {/* Minimal Feature Grid - Icons Only, No Photos */}
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
-            {[
-              { 
-                icon: Percent, 
-                title: "Zero Commission", 
-                desc: "Hotels don't pay us commission, so they charge you less.",
-                color: "text-emerald-600 dark:text-emerald-400"
-              },
-              { 
-                icon: HandCoins, 
-                title: "No Hidden Fees", 
-                desc: "No convenience fees. No service charges. What you see is what you pay.",
-                color: "text-amber-600 dark:text-amber-400"
-              },
-              { 
-                icon: MessageCircle, 
-                title: "Direct Communication", 
-                desc: "Chat directly with the hotel. No middleman delays.",
-                color: "text-blue-600 dark:text-blue-400"
-              },
-              { 
-                icon: TrendingDown, 
-                title: "15–25% Lower Prices", 
-                desc: "Same hotel, same room — just without the OTA markup.",
-                color: "text-rose-600 dark:text-rose-400"
-              },
-              { 
-                icon: ShieldCheck, 
-                title: "Verified Properties", 
-                desc: "Every listing is manually verified for quality and authenticity.",
-                color: "text-violet-600 dark:text-violet-400"
-              },
-              { 
-                icon: Handshake, 
-                title: "Negotiate Directly", 
-                desc: "Request special rates, upgrades, or flexible check-in times.",
-                color: "text-cyan-600 dark:text-cyan-400"
-              },
-            ].map((feature, index) => (
-              <div key={index} className="flex gap-4">
-                <div className="flex-shrink-0">
-                  <feature.icon className={`h-6 w-6 ${feature.color}`} />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-1">{feature.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{feature.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Simple Comparison - Clean Table */}
-          <div className="bg-muted/30 rounded-2xl p-8">
-            <h3 className="text-xl font-bold text-center mb-8">Quick Comparison</h3>
-            <div className="grid grid-cols-3 gap-4 text-center text-sm">
-              <div className="font-medium text-muted-foreground">Feature</div>
-              <div className="font-bold text-primary">Zecoho</div>
-              <div className="font-medium text-muted-foreground">Other OTAs</div>
-              
-              <div className="text-left py-3 border-t">Commission</div>
-              <div className="py-3 border-t text-emerald-600 dark:text-emerald-400 font-semibold">0%</div>
-              <div className="py-3 border-t text-rose-500">15–25%</div>
-              
-              <div className="text-left py-3 border-t">Booking Fees</div>
-              <div className="py-3 border-t text-emerald-600 dark:text-emerald-400 font-semibold">₹0</div>
-              <div className="py-3 border-t text-rose-500">₹200–400</div>
-              
-              <div className="text-left py-3 border-t">Hotel Contact</div>
-              <div className="py-3 border-t text-emerald-600 dark:text-emerald-400 font-semibold">Direct</div>
-              <div className="py-3 border-t text-rose-500">Hidden</div>
-              
-              <div className="text-left py-3 border-t">Price Match</div>
-              <div className="py-3 border-t text-emerald-600 dark:text-emerald-400 font-semibold">Guaranteed</div>
-              <div className="py-3 border-t text-rose-500">Inflated</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Featured Properties - Enhanced */}
       <div className="py-16 px-4 md:px-6 bg-muted/20">
         <div className="container mx-auto">
@@ -467,6 +374,191 @@ export default function Landing() {
         </div>
       </div>
 
+      {/* Why Zecoho Beats OTAs - Clean, Minimal Design */}
+      <div className="py-20 px-4 md:px-6 bg-background">
+        <div className="container mx-auto max-w-5xl">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" data-testid="text-why-choose-heading">
+              Why Zecoho Beats OTAs
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Transparent pricing. Direct access. Zero hidden fees.
+            </p>
+          </div>
+          
+          {/* Minimal Feature Grid - Icons Only, No Photos */}
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { 
+                icon: Percent, 
+                title: "Zero Commission", 
+                desc: "Hotels don't pay us commission, so they charge you less.",
+                color: "text-emerald-600 dark:text-emerald-400"
+              },
+              { 
+                icon: HandCoins, 
+                title: "No Hidden Fees", 
+                desc: "No convenience fees. No service charges. What you see is what you pay.",
+                color: "text-amber-600 dark:text-amber-400"
+              },
+              { 
+                icon: MessageCircle, 
+                title: "Direct Communication", 
+                desc: "Chat directly with the hotel. No middleman delays.",
+                color: "text-blue-600 dark:text-blue-400"
+              },
+              { 
+                icon: TrendingDown, 
+                title: "15–25% Lower Prices", 
+                desc: "Same hotel, same room — just without the OTA markup.",
+                color: "text-rose-600 dark:text-rose-400"
+              },
+              { 
+                icon: ShieldCheck, 
+                title: "Verified Properties", 
+                desc: "Every listing is manually verified for quality and authenticity.",
+                color: "text-violet-600 dark:text-violet-400"
+              },
+              { 
+                icon: Handshake, 
+                title: "Negotiate Directly", 
+                desc: "Request special rates, upgrades, or flexible check-in times.",
+                color: "text-cyan-600 dark:text-cyan-400"
+              },
+            ].map((feature, index) => (
+              <div key={index} className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <feature.icon className={`h-6 w-6 ${feature.color}`} />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">{feature.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{feature.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Zecoho vs OTAs - Detailed Comparison Table */}
+      <div className="py-16 px-4 md:px-6 bg-muted/30">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              Zecoho vs OTAs — Who Actually Saves You Money?
+            </h2>
+            <p className="text-muted-foreground">
+              A side-by-side comparison of what you get
+            </p>
+          </div>
+
+          {/* Comparison Table */}
+          <Card className="rounded-2xl border shadow-lg overflow-hidden mb-8">
+            <div className="overflow-x-auto">
+              <table className="w-full" data-testid="table-comparison">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-4 font-semibold">Feature</th>
+                    <th className="text-center p-4">
+                      <span className="font-bold text-lg text-primary">Zecoho</span>
+                    </th>
+                    <th className="text-center p-4">
+                      <span className="font-semibold text-muted-foreground">OTAs (MMT, GoIbibo, etc.)</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-medium">Commission</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-5 w-5" />
+                        0%
+                      </span>
+                    </td>
+                    <td className="p-4 text-center text-rose-500 font-medium">15–25%</td>
+                  </tr>
+                  <tr className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-medium">Convenience Fee</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-5 w-5" />
+                        ₹0
+                      </span>
+                    </td>
+                    <td className="p-4 text-center text-rose-500 font-medium">₹200–₹400</td>
+                  </tr>
+                  <tr className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-medium">Pricing Markup</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-5 w-5" />
+                        None
+                      </span>
+                    </td>
+                    <td className="p-4 text-center text-rose-500 font-medium">Yes (Dynamic Pricing)</td>
+                  </tr>
+                  <tr className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-medium">Direct Contact</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-5 w-5" />
+                        Yes
+                      </span>
+                    </td>
+                    <td className="p-4 text-center text-rose-500 font-medium">No</td>
+                  </tr>
+                  <tr className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-medium">Cancellation Clarity</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-5 w-5" />
+                        High
+                      </span>
+                    </td>
+                    <td className="p-4 text-center text-rose-500 font-medium">Low</td>
+                  </tr>
+                  <tr className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-medium">Hidden Charges</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-5 w-5" />
+                        None
+                      </span>
+                    </td>
+                    <td className="p-4 text-center text-rose-500 font-medium">Many Cases</td>
+                  </tr>
+                  <tr className="hover:bg-muted/20 transition-colors">
+                    <td className="p-4 font-medium">Token-Based Booking</td>
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                        <Check className="h-5 w-5" />
+                        Yes
+                      </span>
+                    </td>
+                    <td className="p-4 text-center text-rose-500 font-medium">No</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* CTA Button */}
+          <div className="text-center">
+            <Button 
+              size="lg" 
+              onClick={() => setLocation("/search")}
+              className="font-semibold group"
+              data-testid="button-book-direct-comparison"
+            >
+              Book Direct & Save More
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Stats Section */}
       <div className="py-16 px-4 md:px-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
         <div className="container mx-auto">
@@ -502,30 +594,23 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* List Your Property CTA Banner - Near Footer */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white py-6 px-4 md:px-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
-        </div>
-        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl">
-              <HomeIcon className="h-7 w-7" />
-            </div>
-            <div>
-              <h3 className="font-bold text-xl">Own a Property?</h3>
-              <p className="text-sm text-white/80">List your property and reach customers directly — zero commission for you too!</p>
-            </div>
+      {/* Owner CTA Section */}
+      <div className="py-16 px-4 md:px-6 bg-slate-900 text-white">
+        <div className="container mx-auto max-w-3xl text-center">
+          <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl inline-flex mb-6">
+            <HomeIcon className="h-8 w-8" />
           </div>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Own a Property?</h2>
+          <p className="text-lg text-white/80 mb-8">
+            List your property on Zecoho — pay 0% commission.
+          </p>
           <Button 
-            variant="secondary"
             size="lg"
             onClick={() => setLocation("/list-property")}
             data-testid="button-list-property-cta-footer"
-            className="whitespace-nowrap shadow-lg font-semibold group"
+            className="bg-white text-slate-900 hover:bg-white/90 shadow-lg font-semibold group"
           >
-            List Your Property FREE
+            List Property FREE
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
         </div>
@@ -538,35 +623,16 @@ export default function Landing() {
           <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
         </div>
         <div className="container mx-auto text-center relative z-10">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">Ready to Save on Your Next Trip?</h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of travelers who save 15-25% by booking directly with property owners
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center mb-6">
-            <Button 
-              size="lg" 
-              variant="secondary"
-              className="shadow-lg font-semibold group"
-              onClick={() => setLocation("/search")}
-              data-testid="button-cta-find-stay"
-            >
-              Find Your Stay
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 shadow-lg font-semibold group"
-              onClick={() => setLocation("/list-property")}
-              data-testid="button-cta-list-property"
-            >
-              List Your Property
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </div>
-          <p className="text-white/80 text-sm">
-            Thousands of smart travelers are already booking direct and saving big.
-          </p>
+          <h2 className="text-3xl md:text-5xl font-bold mb-8">Ready to Save on Your Next Booking?</h2>
+          <Button 
+            size="lg" 
+            className="bg-white text-rose-600 hover:bg-white/90 shadow-lg font-semibold group px-8"
+            onClick={() => setLocation("/search")}
+            data-testid="button-cta-find-lowest-rates"
+          >
+            Find Lowest Rates
+            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Button>
         </div>
       </div>
     </div>
