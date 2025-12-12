@@ -75,6 +75,12 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+
+// Helper to parse date string as local time (avoids timezone issues)
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 import type { LucideIcon } from "lucide-react";
 import { PropertyMap } from "@/components/PropertyMap";
 import type { Property, Amenity } from "@shared/schema";
@@ -1159,18 +1165,18 @@ export default function PropertyDetails() {
                           data-testid="input-checkin-booking"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {checkIn ? format(new Date(checkIn + "T00:00:00"), "PPP") : <span className="text-muted-foreground">Select date</span>}
+                          {checkIn ? format(parseLocalDate(checkIn), "PPP") : <span className="text-muted-foreground">Select date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={checkIn ? new Date(checkIn + "T00:00:00") : undefined}
+                          selected={checkIn ? parseLocalDate(checkIn) : undefined}
                           onSelect={(date) => {
                             // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
                             const dateStr = date ? format(date, "yyyy-MM-dd") : "";
                             setCheckIn(dateStr);
-                            if (checkOut && date && new Date(checkOut + "T00:00:00") <= date) {
+                            if (checkOut && date && parseLocalDate(checkOut) <= date) {
                               setCheckOut("");
                             }
                             // Close check-in and auto-open check-out using requestAnimationFrame to prevent race condition
@@ -1211,13 +1217,13 @@ export default function PropertyDetails() {
                           data-testid="input-checkout-booking"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {checkOut ? format(new Date(checkOut + "T00:00:00"), "PPP") : <span className="text-muted-foreground">Select date</span>}
+                          {checkOut ? format(parseLocalDate(checkOut), "PPP") : <span className="text-muted-foreground">Select date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={checkOut ? new Date(checkOut + "T00:00:00") : undefined}
+                          selected={checkOut ? parseLocalDate(checkOut) : undefined}
                           onSelect={(date) => {
                             // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
                             setCheckOut(date ? format(date, "yyyy-MM-dd") : "");
@@ -1228,7 +1234,7 @@ export default function PropertyDetails() {
                           disabled={(date) => {
                             const today = new Date(new Date().setHours(0, 0, 0, 0));
                             if (date <= today) return true;
-                            if (checkIn && date <= new Date(checkIn + "T00:00:00")) return true;
+                            if (checkIn && date <= parseLocalDate(checkIn)) return true;
                             return bookedDates.some((booked) => {
                               const bookedStart = new Date(booked.checkIn);
                               const bookedEnd = new Date(booked.checkOut);
