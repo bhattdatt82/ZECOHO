@@ -160,6 +160,24 @@ export default function PropertyDetails() {
     setGuests(adults + children);
   }, [adults, children]);
   
+  // Read URL query params to initialize booking form
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlCheckIn = searchParams.get("checkIn");
+      const urlCheckOut = searchParams.get("checkOut");
+      const urlAdults = searchParams.get("adults");
+      const urlChildren = searchParams.get("children");
+      const urlRooms = searchParams.get("rooms");
+      
+      if (urlCheckIn) setCheckIn(urlCheckIn);
+      if (urlCheckOut) setCheckOut(urlCheckOut);
+      if (urlAdults) setAdults(parseInt(urlAdults) || 2);
+      if (urlChildren) setChildren(parseInt(urlChildren) || 0);
+      if (urlRooms) setRooms(parseInt(urlRooms) || 1);
+    }
+  }, []);
+  
   const [markedHelpfulReviews, setMarkedHelpfulReviews] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined' && user?.id) {
       const stored = localStorage.getItem(getHelpfulStorageKey());

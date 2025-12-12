@@ -42,6 +42,9 @@ export default function Search() {
     checkIn: "",
     checkOut: "",
     guests: 2,
+    adults: 2,
+    children: 0,
+    rooms: 1,
   });
 
   // Parse URL query parameters on mount
@@ -51,6 +54,9 @@ export default function Search() {
     const checkIn = searchParams.get("checkIn") || "";
     const checkOut = searchParams.get("checkOut") || "";
     const guests = searchParams.get("guests");
+    const adults = searchParams.get("adults");
+    const children = searchParams.get("children");
+    const rooms = searchParams.get("rooms");
     
     setSearchDestination(destination);
     setInitialSearchValues({
@@ -58,6 +64,9 @@ export default function Search() {
       checkIn,
       checkOut,
       guests: guests ? parseInt(guests) : 2,
+      adults: adults ? parseInt(adults) : 2,
+      children: children ? parseInt(children) : 0,
+      rooms: rooms ? parseInt(rooms) : 1,
     });
   }, [location]);
 
@@ -225,6 +234,9 @@ export default function Search() {
                 initialCheckIn={initialSearchValues.checkIn}
                 initialCheckOut={initialSearchValues.checkOut}
                 initialGuests={initialSearchValues.guests}
+                initialAdults={initialSearchValues.adults}
+                initialChildren={initialSearchValues.children}
+                initialRooms={initialSearchValues.rooms}
               />
             </div>
             <Button
@@ -511,6 +523,14 @@ export default function Search() {
                     property={{
                       ...property,
                       isWishlisted: wishlistedPropertyIds.has(property.id),
+                    }}
+                    searchParams={{
+                      checkIn: initialSearchValues.checkIn,
+                      checkOut: initialSearchValues.checkOut,
+                      guests: initialSearchValues.guests,
+                      adults: initialSearchValues.adults,
+                      children: initialSearchValues.children,
+                      rooms: initialSearchValues.rooms,
                     }}
                   />
                 ))}

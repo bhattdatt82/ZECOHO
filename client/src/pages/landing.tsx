@@ -58,6 +58,9 @@ export default function Landing() {
     if (params.checkIn) searchParams.set("checkIn", params.checkIn);
     if (params.checkOut) searchParams.set("checkOut", params.checkOut);
     if (params.guests) searchParams.set("guests", params.guests.toString());
+    if (params.adults) searchParams.set("adults", params.adults.toString());
+    if (params.children !== undefined) searchParams.set("children", params.children.toString());
+    if (params.rooms) searchParams.set("rooms", params.rooms.toString());
     setLocation(`/search?${searchParams.toString()}`);
   };
 

@@ -14,6 +14,15 @@ interface OwnerContact {
   name: string | null;
 }
 
+interface SearchParams {
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+  adults?: number;
+  children?: number;
+  rooms?: number;
+}
+
 interface PropertyCardProps {
   property: Property & {
     images?: string[];
@@ -21,13 +30,30 @@ interface PropertyCardProps {
     ownerContact?: OwnerContact | null;
   };
   onWishlistToggle?: (propertyId: string) => void;
+  searchParams?: SearchParams;
 }
 
-export function PropertyCard({ property, onWishlistToggle }: PropertyCardProps) {
+export function PropertyCard({ property, onWishlistToggle, searchParams }: PropertyCardProps) {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const mainImage = property.images?.[0] || "/placeholder-property.jpg";
+  
+  // Build property URL with search params
+  const buildPropertyUrl = () => {
+    const params = new URLSearchParams();
+    if (searchParams?.checkIn) params.set("checkIn", searchParams.checkIn);
+    if (searchParams?.checkOut) params.set("checkOut", searchParams.checkOut);
+    if (searchParams?.guests) params.set("guests", searchParams.guests.toString());
+    if (searchParams?.adults) params.set("adults", searchParams.adults.toString());
+    if (searchParams?.children !== undefined) params.set("children", searchParams.children.toString());
+    if (searchParams?.rooms) params.set("rooms", searchParams.rooms.toString());
+    
+    const queryString = params.toString();
+    return `/properties/${property.id}${queryString ? `?${queryString}` : ""}`;
+  };
+  
+  const propertyUrl = buildPropertyUrl();
 
   const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -122,7 +148,7 @@ export function PropertyCard({ property, onWishlistToggle }: PropertyCardProps) 
   const hasOwnerPhone = Boolean(property.ownerContact?.phone);
 
   return (
-    <Link href={`/properties/${property.id}`}>
+    <Link href={propertyUrl}>
       <Card className="group overflow-visible border-0 shadow-md hover:shadow-xl cursor-pointer h-full transition-all duration-300 rounded-2xl">
         <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
           <img 
