@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, MapPin, Calendar as CalendarIcon, Users, Loader2, Building2 } from "lucide-react";
+import { Search, MapPin, Calendar as CalendarIcon, Users, Loader2, Building2, Minus, Plus, ChevronDown } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,9 @@ interface SearchBarProps {
     checkIn: string;
     checkOut: string;
     guests: number;
+    adults?: number;
+    children?: number;
+    rooms?: number;
   }) => void;
   compact?: boolean;
   showDates?: boolean;
@@ -33,6 +36,9 @@ interface SearchBarProps {
   initialCheckIn?: string;
   initialCheckOut?: string;
   initialGuests?: number;
+  initialAdults?: number;
+  initialChildren?: number;
+  initialRooms?: number;
   ctaText?: string;
 }
 
@@ -61,6 +67,9 @@ export function SearchBar({
   initialCheckIn = "",
   initialCheckOut = "",
   initialGuests = 2,
+  initialAdults = 2,
+  initialChildren = 0,
+  initialRooms = 1,
   ctaText = "Find Lowest Direct Prices →",
 }: SearchBarProps) {
   const { isAuthenticated } = useAuth();
@@ -73,6 +82,9 @@ export function SearchBar({
     initialCheckOut ? new Date(initialCheckOut) : undefined
   );
   const [guests, setGuests] = useState(initialGuests);
+  const [adults, setAdults] = useState(initialAdults);
+  const [children, setChildren] = useState(initialChildren);
+  const [rooms, setRooms] = useState(initialRooms);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [googleCityPredictions, setGoogleCityPredictions] = useState<GooglePlacePrediction[]>([]);
   const [googleHotelPredictions, setGoogleHotelPredictions] = useState<GooglePlacePrediction[]>([]);
@@ -82,9 +94,15 @@ export function SearchBar({
   const autocompleteServiceRef = useRef<any>(null);
   const guestsInputRef = useRef<HTMLInputElement>(null);
   
-  // Popover open states for custom calendar
+  // Popover open states for custom calendar and guests
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutOpen, setCheckOutOpen] = useState(false);
+  const [guestsOpen, setGuestsOpen] = useState(false);
+  
+  // Calculate total guests whenever adults/children change
+  useEffect(() => {
+    setGuests(adults + children);
+  }, [adults, children]);
   
   const debouncedDestination = useDebounce(destination.trim(), 300);
 
@@ -93,7 +111,10 @@ export function SearchBar({
     setCheckInDate(initialCheckIn ? new Date(initialCheckIn) : undefined);
     setCheckOutDate(initialCheckOut ? new Date(initialCheckOut) : undefined);
     setGuests(initialGuests);
-  }, [initialDestination, initialCheckIn, initialCheckOut, initialGuests]);
+    setAdults(initialAdults);
+    setChildren(initialChildren);
+    setRooms(initialRooms);
+  }, [initialDestination, initialCheckIn, initialCheckOut, initialGuests, initialAdults, initialChildren, initialRooms]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && !(window as any).google) {
@@ -272,7 +293,7 @@ export function SearchBar({
     const checkIn = checkInDate ? format(checkInDate, 'yyyy-MM-dd') : '';
     const checkOut = checkOutDate ? format(checkOutDate, 'yyyy-MM-dd') : '';
     
-    onSearch?.({ destination, checkIn, checkOut, guests });
+    onSearch?.({ destination, checkIn, checkOut, guests, adults, children, rooms });
     
     // Save search history if user is authenticated
     if (isAuthenticated && destination.trim()) {
@@ -462,19 +483,113 @@ export function SearchBar({
             {/* Subtle divider */}
             <div className="h-8 w-px bg-gray-200" />
             
-            <div className="flex-1 px-4 py-2 rounded-full hover:bg-gray-50 transition-colors">
-              <label className="text-xs font-semibold block mb-0.5 text-gray-700">Who</label>
-              <input
-                ref={guestsInputRef}
-                type="number"
-                min="1"
-                value={guests}
-                onChange={(e) => setGuests(Number(e.target.value))}
-                className="w-full bg-transparent focus:outline-none text-sm text-gray-900"
-                placeholder="Add guests"
-                data-testid="input-guests"
-              />
-            </div>
+            {/* Airbnb-style Guests Popover */}
+            <Popover open={guestsOpen} onOpenChange={setGuestsOpen}>
+              <PopoverTrigger asChild>
+                <div 
+                  className="flex-1 px-4 py-2 rounded-full cursor-pointer hover:bg-gray-50 transition-colors"
+                  data-testid="input-guests"
+                >
+                  <label className="text-xs font-semibold block mb-0.5 text-gray-700 cursor-pointer">Who</label>
+                  <div className="flex items-center gap-1">
+                    <span className={`text-sm ${guests > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {guests > 0 ? `${adults} Adult${adults !== 1 ? 's' : ''}, ${children} Child${children !== 1 ? 'ren' : ''}` : 'Add guests'}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-gray-500" />
+                  </div>
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-4" align="end">
+                <div className="space-y-4">
+                  {/* Adults */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900">Adults</div>
+                      <div className="text-xs text-gray-500">Ages 13 or above</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setAdults(Math.max(1, adults - 1))}
+                        disabled={adults <= 1}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        data-testid="button-adults-minus"
+                      >
+                        <Minus className="h-4 w-4 text-gray-600" />
+                      </button>
+                      <span className="w-6 text-center font-medium" data-testid="text-adults-count">{adults}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAdults(Math.min(10, adults + 1))}
+                        disabled={adults >= 10}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        data-testid="button-adults-plus"
+                      >
+                        <Plus className="h-4 w-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Children */}
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div>
+                      <div className="font-medium text-gray-900">Children</div>
+                      <div className="text-xs text-gray-500">Ages 2–12</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setChildren(Math.max(0, children - 1))}
+                        disabled={children <= 0}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        data-testid="button-children-minus"
+                      >
+                        <Minus className="h-4 w-4 text-gray-600" />
+                      </button>
+                      <span className="w-6 text-center font-medium" data-testid="text-children-count">{children}</span>
+                      <button
+                        type="button"
+                        onClick={() => setChildren(Math.min(6, children + 1))}
+                        disabled={children >= 6}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        data-testid="button-children-plus"
+                      >
+                        <Plus className="h-4 w-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Rooms */}
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div>
+                      <div className="font-medium text-gray-900">Rooms</div>
+                      <div className="text-xs text-gray-500">Number of rooms</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setRooms(Math.max(1, rooms - 1))}
+                        disabled={rooms <= 1}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        data-testid="button-rooms-minus"
+                      >
+                        <Minus className="h-4 w-4 text-gray-600" />
+                      </button>
+                      <span className="w-6 text-center font-medium" data-testid="text-rooms-count">{rooms}</span>
+                      <button
+                        type="button"
+                        onClick={() => setRooms(Math.min(5, rooms + 1))}
+                        disabled={rooms >= 5}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        data-testid="button-rooms-plus"
+                      >
+                        <Plus className="h-4 w-4 text-gray-600" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </>
         )}
         
