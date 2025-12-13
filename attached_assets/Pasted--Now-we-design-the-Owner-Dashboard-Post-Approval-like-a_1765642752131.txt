@@ -1,0 +1,304 @@
+
+Now we design the Owner Dashboard (Post-Approval) like a revenue cockpit, not a form graveyard.
+
+I’ll give you:
+
+Dashboard structure (what owner sees first)
+
+Exact sections + cards
+
+Permissions logic
+
+What NOT to build now
+
+Ready-to-copy spec for Replit
+
+This is MVP-ready, ruthless, and scalable.
+
+🧠 Owner Dashboard – Post Approval (Zecoho)
+Core Principle
+
+Owners don’t care about features. They care about:
+
+Are bookings coming?
+
+How much money am I making?
+
+What needs action right now?
+
+Everything else is secondary.
+
+1️⃣ Landing Screen (Owner Home)
+Page title
+
+“Owner Dashboard”
+Subtext: Manage your property & bookings
+
+🔥 Top KPI Strip (MOST IMPORTANT)
+
+Show 4 cards only (not more):
+
+[ Card 1 ]
+📊 Bookings
+
+Today
+
+This month
+
+[ Card 2 ]
+💰 Revenue
+
+₹ Today
+
+₹ This month
+
+[ Card 3 ]
+🏨 Property Status
+
+Live / Under Review / Suspended
+
+[ Card 4 ]
+⭐ Rating
+
+Avg rating
+
+No. of reviews
+
+👉 These must be above the fold.
+
+2️⃣ Property Quick Control Panel
+
+A single card with high-impact actions:
+
+Property Card
+
+Property Name
+
+City
+
+Price per night
+
+Status badge (🟢 Live / 🟡 Draft / 🔴 Action Required)
+
+Buttons (ONLY THESE)
+
+✏️ Edit Listing
+
+📸 Upload Photos
+
+💸 Change Price
+
+🔒 Pause Listing
+
+❌ Do NOT show:
+
+Full address
+
+Legal docs
+
+KYC here
+
+3️⃣ Booking Management (CORE MVP FEATURE)
+Booking List Table
+
+Columns:
+
+Guest Name
+
+Check-in → Check-out
+
+Guests
+
+Amount
+
+Booking Status
+
+Status badges
+
+🟢 Confirmed
+
+🟡 Pending Payment
+
+🔴 Cancelled
+
+🟣 Completed
+
+Actions per booking
+
+View details
+
+Message guest
+
+Mark as checked-in
+
+Mark as checked-out
+
+⚠️ No complex filters yet — just:
+
+Upcoming
+
+Ongoing
+
+Past
+
+4️⃣ Messages (Direct Communication USP)
+
+This is your OTA killer feature.
+
+Messages Panel
+
+Guest name
+
+Booking reference
+
+Last message preview
+
+Timestamp
+
+Features:
+
+Real-time chat
+
+File sharing (optional later)
+
+Auto system messages (check-in reminder, etc.)
+
+Add badge:
+
+“Direct guest communication – no middlemen”
+
+5️⃣ Earnings & Payouts (SIMPLE, NOT FINTECH)
+Earnings Card
+
+Total earnings (lifetime)
+
+This month
+
+Pending payout
+
+Payout Status
+
+Upcoming payout date
+
+Bank account: Verified / Pending
+
+❌ DO NOT build:
+
+Complex payout breakdowns
+
+GST invoices
+
+TDS reports (later phase)
+
+6️⃣ Reviews & Ratings
+
+Keep this light.
+
+Show:
+
+Average rating
+
+Last 3 reviews
+
+Reply button
+
+Add hint:
+
+“Replying improves visibility”
+
+7️⃣ Compliance & KYC Status (BACKGROUND ONLY)
+
+This should NOT dominate the dashboard.
+
+Small status widget
+
+✅ KYC Approved
+or
+
+⚠️ Action Required (Upload PAN)
+
+Click → opens KYC page
+
+8️⃣ Settings (MINIMAL)
+
+Under a ⚙️ icon:
+
+Profile
+
+Bank details
+
+Notification preferences
+
+Logout
+
+That’s it.
+
+9️⃣ Permission Logic (VERY IMPORTANT)
+Owner Status Types
+
+Owner – Limited
+
+Listing visible
+
+Can receive inquiries
+
+❌ Cannot accept payments
+
+Owner – Verified
+
+Full booking
+
+Payouts enabled
+
+Ranking boost
+
+Owner – Suspended
+
+Dashboard visible
+
+Booking disabled
+
+Red banner explaining why
+
+10️⃣ What NOT to Build Now (Save Time)
+
+❌ Multi-property analytics
+❌ Yearly reports
+❌ Discount engines
+❌ Channel manager
+❌ Tax reports
+
+These kill MVP velocity.
+
+11️⃣ Navigation Structure (LEFT SIDEBAR or TOP)
+
+Recommended (Top Nav for now):
+
+Dashboard
+
+Bookings
+
+Messages
+
+My Property
+
+Earnings
+
+Reviews
+
+Keep it flat.
+
+12️⃣ Replit-Ready Page Map
+/owner/dashboard
+/owner/bookings
+/owner/messages
+/owner/property
+/owner/earnings
+/owner/reviews
+/owner/settings
+
+
+Middleware:
+
+if role !== 'owner' → redirect
+if owner_status !== 'approved' → show limited dashboard
