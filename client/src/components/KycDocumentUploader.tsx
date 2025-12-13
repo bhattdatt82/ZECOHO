@@ -53,8 +53,8 @@ const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: "identityProof",
     label: "Owner Identity Proof",
     icon: IdCard,
-    description: "Submit any ONE valid government ID",
-    required: true,
+    description: "Submit any ONE valid government ID (can submit later)",
+    required: false,
     documentTypes: [
       { value: "passport", label: "Passport", description: "Valid Indian passport" },
       { value: "aadhaar", label: "Aadhaar Card", description: "UIDAI issued Aadhaar" },
@@ -66,7 +66,7 @@ const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: "businessLicense",
     label: "Business/Hotel License",
     icon: Building,
-    description: "Depending on local rules, submit applicable licenses",
+    description: "Submit if applicable - can be added later",
     required: false,
     documentTypes: [
       { value: "trade_license", label: "Trade License / Shop & Establishment", description: "Local body issued trade license" },
@@ -78,7 +78,7 @@ const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: "noc",
     label: "NOC (No Objection Certificate)",
     icon: Shield,
-    description: "If required by local authorities",
+    description: "If required by local authorities - can be added later",
     required: false,
     documentTypes: [
       { value: "owner_noc", label: "NOC from Property Owner", description: "If lister is manager or tenant" },
@@ -89,7 +89,7 @@ const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: "safetyCertificates",
     label: "Safety & Compliance Certificates",
     icon: Flame,
-    description: "Required if operating commercially",
+    description: "For commercial operations - can be added later",
     required: false,
     documentTypes: [
       { value: "fire_safety", label: "Fire Safety Certificate", description: "Fire dept NOC for commercial operation" },
@@ -118,7 +118,7 @@ export function KycDocumentUploader({ value, onChange, flaggedCategories }: KycD
   const [expandedCategories, setExpandedCategories] = useState<string[]>(
     flaggedCategories && flaggedCategories.length > 0 
       ? flaggedCategories 
-      : ["propertyOwnership", "identityProof"]
+      : ["propertyOwnership"]
   );
   const [selectedTypes, setSelectedTypes] = useState<Record<string, string>>({});
 
@@ -199,7 +199,7 @@ export function KycDocumentUploader({ value, onChange, flaggedCategories }: KycD
       case "pending":
         return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" />Required</Badge>;
       case "optional":
-        return <Badge variant="secondary">Optional</Badge>;
+        return <Badge variant="secondary" className="text-muted-foreground">Submit Later</Badge>;
     }
   };
 
@@ -211,18 +211,18 @@ export function KycDocumentUploader({ value, onChange, flaggedCategories }: KycD
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-lg font-semibold">KYC Documents</h3>
           <p className="text-sm text-muted-foreground">
-            Upload required documents for verification
+            Only Property Ownership proof is required now. Other documents can be submitted later.
           </p>
         </div>
         <Badge variant={isComplete() ? "default" : "secondary"}>
           {isComplete() ? (
             <><Check className="h-3 w-3 mr-1" />Ready for submission</>
           ) : (
-            <>Upload required documents</>
+            <>Upload property ownership proof</>
           )}
         </Badge>
       </div>
