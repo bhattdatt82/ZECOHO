@@ -48,6 +48,48 @@ const SECTION_LABELS: Record<KycSectionId, { label: string; icon: any }> = {
   safetyCertificates: { label: "Safety Certificate Documents", icon: Flame },
 };
 
+const PRICE_GUIDANCE: Record<string, { min: number; max: number; avg: number }> = {
+  hotel: { min: 800, max: 5000, avg: 2500 },
+  villa: { min: 5000, max: 25000, avg: 12000 },
+  apartment: { min: 1500, max: 8000, avg: 3500 },
+  resort: { min: 4000, max: 20000, avg: 10000 },
+  hostel: { min: 300, max: 1500, avg: 700 },
+  lodge: { min: 600, max: 3000, avg: 1500 },
+  cottage: { min: 2000, max: 10000, avg: 5000 },
+  farmhouse: { min: 3000, max: 15000, avg: 7000 },
+  homestay: { min: 1000, max: 5000, avg: 2500 },
+};
+
+function PriceGuidanceWidget({ propertyType, city }: { propertyType: string; city?: string }) {
+  const guidance = PRICE_GUIDANCE[propertyType];
+  if (!guidance) return null;
+  
+  const avgPosition = ((guidance.avg - guidance.min) / (guidance.max - guidance.min)) * 100;
+  const locationText = city ? `${propertyType}s in ${city}` : `${propertyType}s`;
+  
+  return (
+    <div className="mt-2 p-3 bg-muted/50 rounded-md border" data-testid="widget-price-guidance">
+      <p className="text-xs font-medium text-muted-foreground mb-1" data-testid="text-price-guidance-label">
+        Typical prices for {locationText}:
+      </p>
+      <div className="flex items-center gap-3 text-xs">
+        <span className="text-muted-foreground whitespace-nowrap">₹{guidance.min.toLocaleString()}</span>
+        <div className="flex-1 h-1.5 bg-muted rounded-full relative">
+          <div 
+            className="absolute w-2 h-2 bg-primary rounded-full -top-0.5"
+            style={{ left: `${avgPosition}%`, transform: 'translateX(-50%)' }}
+            title={`Average: ₹${guidance.avg.toLocaleString()}`}
+          />
+        </div>
+        <span className="text-muted-foreground whitespace-nowrap">₹{guidance.max.toLocaleString()}</span>
+      </div>
+      <p className="text-xs text-center text-muted-foreground mt-1" data-testid="text-price-guidance-avg">
+        Average: ₹{guidance.avg.toLocaleString()}/night
+      </p>
+    </div>
+  );
+}
+
 const combinedSchema = z.object({
   // KYC Personal Information
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -179,6 +221,7 @@ export default function ListPropertyWizard() {
   // Property state
   const [isPropertyPincodeLookup, setIsPropertyPincodeLookup] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [videos, setVideos] = useState<string[]>([]);
   const [categorizedImages, setCategorizedImages] = useState<CategorizedPropertyImages>(defaultCategorizedImages);
   const [propertyAddress, setPropertyAddress] = useState<AddressDetails>({ fullAddress: "" });
@@ -1706,7 +1749,8 @@ export default function ListPropertyWizard() {
                               data-testid="input-quick-price"
                             />
                           </FormControl>
-                          <p className="text-xs text-muted-foreground">Minimum ₹100 per night</p>
+                          <p className="text-xs text-muted-foreground" data-testid="text-price-helper">Minimum ₹100 per night</p>
+                          <PriceGuidanceWidget propertyType={form.watch("propertyType")} city={form.watch("propCity")} />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -2321,6 +2365,7 @@ export default function ListPropertyWizard() {
                           <FormControl>
                             <Input type="number" min="100" step="100" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} data-testid="input-price" />
                           </FormControl>
+                          <PriceGuidanceWidget propertyType={form.watch("propertyType")} city={form.watch("propCity")} />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -2345,30 +2390,83 @@ export default function ListPropertyWizard() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Amenities</CardTitle>
-                    <CardDescription>Select all amenities your property offers</CardDescription>
+                    <CardDescription>Select the essential amenities your property offers</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {amenities.map((amenity) => (
-                        <div key={amenity.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={amenity.id}
-                            checked={selectedAmenities.includes(amenity.id)}
-                            onCheckedChange={(checked) => {
-                              setSelectedAmenities(
-                                checked
-                                  ? [...selectedAmenities, amenity.id]
-                                  : selectedAmenities.filter((id) => id !== amenity.id)
-                              );
-                            }}
-                            data-testid={`checkbox-amenity-${amenity.name.toLowerCase().replace(/\s+/g, '-')}`}
-                          />
-                          <label htmlFor={amenity.id} className="text-sm font-medium cursor-pointer">
-                            {amenity.name}
-                          </label>
-                        </div>
-                      ))}
+                  <CardContent className="space-y-4">
+                    {/* Essential amenities */}
+                    <div>
+                      <p className="text-sm font-medium mb-3">Essential Amenities</p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {amenities.filter(a => a.category === "essential" || a.name === "Hot water").map((amenity) => (
+                          <div key={amenity.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={amenity.id}
+                              checked={selectedAmenities.includes(amenity.id)}
+                              onCheckedChange={(checked) => {
+                                setSelectedAmenities(
+                                  checked
+                                    ? [...selectedAmenities, amenity.id]
+                                    : selectedAmenities.filter((id) => id !== amenity.id)
+                                );
+                              }}
+                              data-testid={`checkbox-amenity-${amenity.name.toLowerCase().replace(/\s+/g, '-')}`}
+                            />
+                            <label htmlFor={amenity.id} className="text-sm font-medium cursor-pointer">
+                              {amenity.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                    
+                    {/* Show more toggle */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAllAmenities(!showAllAmenities)}
+                      className="w-full"
+                      data-testid="button-show-more-amenities"
+                    >
+                      {showAllAmenities ? "Show less" : "Show more (optional)"}
+                      <ArrowRight className={`ml-2 h-4 w-4 transition-transform ${showAllAmenities ? "rotate-90" : ""}`} />
+                    </Button>
+                    
+                    {/* Additional amenities */}
+                    {showAllAmenities && (
+                      <div className="space-y-4 pt-2 border-t">
+                        {["bathroom", "safety", "services", "outdoor", "family", "food", "entertainment", "accessibility", "work"].map(category => {
+                          const categoryAmenities = amenities.filter(a => a.category === category && a.name !== "Hot water");
+                          if (categoryAmenities.length === 0) return null;
+                          return (
+                            <div key={category}>
+                              <p className="text-sm font-medium mb-2 capitalize text-muted-foreground">{category}</p>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {categoryAmenities.map((amenity) => (
+                                  <div key={amenity.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={amenity.id}
+                                      checked={selectedAmenities.includes(amenity.id)}
+                                      onCheckedChange={(checked) => {
+                                        setSelectedAmenities(
+                                          checked
+                                            ? [...selectedAmenities, amenity.id]
+                                            : selectedAmenities.filter((id) => id !== amenity.id)
+                                        );
+                                      }}
+                                      data-testid={`checkbox-amenity-${amenity.name.toLowerCase().replace(/\s+/g, '-')}`}
+                                    />
+                                    <label htmlFor={amenity.id} className="text-sm cursor-pointer">
+                                      {amenity.name}
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
