@@ -986,6 +986,55 @@ export default function ListPropertyWizard() {
     kycResubmitMutation.mutate(data);
   };
 
+  // Show loading state while checking authentication - MUST BE FIRST
+  if (isAuthLoading || isLoadingKyc) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">List Your Property on Zecoho (Free)</CardTitle>
+            <p className="text-muted-foreground mt-2">
+              Login or create an account to continue
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-center text-muted-foreground">
+              Join our ZERO commission platform and start getting direct bookings today.
+            </p>
+            <Button 
+              className="w-full" 
+              onClick={() => setLocation("/login")}
+              data-testid="button-login-to-list"
+            >
+              Continue to Get Bookings
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => setLocation("/")}
+              data-testid="button-back-home"
+            >
+              Back to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Mode selection screen - show for new users who haven't selected a mode yet
   // Skip mode selection for: verified/pending KYC users, KYC resubmission
   if (listingMode === null && !canSkipKycSteps && !isKycResubmission) {
@@ -1471,55 +1520,6 @@ export default function ListPropertyWizard() {
             </form>
           </Form>
         </div>
-      </div>
-    );
-  }
-
-  // Show loading state while checking authentication
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30">
-        <Card className="w-full max-w-md mx-4">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">List Your Property on Zecoho (Free)</CardTitle>
-            <p className="text-muted-foreground mt-2">
-              Login or create an account to continue
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-center text-muted-foreground">
-              Join our ZERO commission platform and start getting direct bookings today.
-            </p>
-            <Button 
-              className="w-full" 
-              onClick={() => setLocation("/login")}
-              data-testid="button-login-to-list"
-            >
-              Continue to Get Bookings
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={() => setLocation("/")}
-              data-testid="button-back-home"
-            >
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     );
   }
