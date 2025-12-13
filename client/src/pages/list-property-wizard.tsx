@@ -31,7 +31,7 @@ import {
   defaultCategorizedImages 
 } from "@/components/PropertyImageUploader";
 import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/components/KycDocumentUploader";
-import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle, IdCard, Shield, Flame, Camera } from "lucide-react";
+import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle, IdCard, Shield, Flame, Camera, Zap, FileCheck } from "lucide-react";
 import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
 import type { KycSectionId, KycRejectionDetails } from "@shared/schema";
 import { useEffect, useMemo, useRef, useCallback } from "react";
@@ -96,6 +96,23 @@ const combinedSchema = z.object({
 
 type CombinedFormData = z.infer<typeof combinedSchema>;
 
+// Quick listing schema - simplified for Phase 1 (Soft onboarding)
+const quickListingSchema = z.object({
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  propertyTitle: z.string().min(5, "Property title must be at least 5 characters"),
+  propertyType: z.enum(["hotel", "villa", "apartment", "resort", "hostel", "lodge", "cottage", "farmhouse", "homestay"]),
+  propCity: z.string().min(2, "City is required"),
+  propState: z.string().optional(),
+  propDistrict: z.string().optional(),
+  pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
+});
+
+type QuickListingFormData = z.infer<typeof quickListingSchema>;
+type ListingMode = "quick" | "full";
+
 export default function ListPropertyWizard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -124,6 +141,14 @@ export default function ListPropertyWizard() {
   const firstStep = canSkipKycSteps ? 3 : 1;
   
   const [step, setStep] = useState(firstStep);
+  
+  // Listing mode: "quick" for Phase 1 (soft onboarding), "full" for full KYC flow
+  // null means mode selection screen should be shown
+  const [listingMode, setListingMode] = useState<ListingMode | null>(null);
+  
+  // Quick mode has only 2 steps: 1. Basic Info, 2. Property + Photos
+  const isQuickMode = listingMode === "quick";
+  const quickModeTotalSteps = 2;
   
   // Parse rejection details
   const rejectionDetails = useMemo(() => {
@@ -728,17 +753,114 @@ export default function ListPropertyWizard() {
     submitMutation.mutate(data);
   };
 
+  // Quick listing mutation - Phase 1 (soft onboarding, creates draft property)
+  const quickSubmitMutation = useMutation({
+    mutationFn: async (data: CombinedFormData) => {
+      // Validate minimum required images for quick listing
+      const allImages = getImagesArrayFromCategorized(categorizedImages);
+      if (allImages.length === 0) {
+        throw new Error("Please upload at least one property image");
+      }
+
+      // Submit as draft property
+      const response = await apiRequest("POST", "/api/properties/create-draft", {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        propertyTitle: data.propertyTitle,
+        propertyType: data.propertyType,
+        propCity: data.propCity,
+        propState: data.propState || "",
+        propDistrict: data.propDistrict || "",
+        pricePerNight: data.pricePerNight,
+        images: allImages,
+        categorizedImages: categorizedImages,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      clearWizardDraft();
+      toast({
+        title: "Property Draft Created!",
+        description: "Your property listing has been saved as a draft. Complete KYC verification to publish it.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties/my-properties"] });
+      setLocation("/owner/dashboard");
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Session Expired", description: "Please log in again.", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const onQuickSubmit = async () => {
+    const formData = form.getValues();
+    
+    // Validate using quick listing schema (not the full combined schema)
+    const quickData = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      propertyTitle: formData.propertyTitle,
+      propertyType: formData.propertyType,
+      propCity: formData.propCity,
+      propState: formData.propState,
+      propDistrict: formData.propDistrict,
+      pricePerNight: formData.pricePerNight,
+    };
+    
+    const result = quickListingSchema.safeParse(quickData);
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast({
+        title: "Please fill required fields",
+        description: firstError.message,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Check images
+    const allImages = getImagesArrayFromCategorized(categorizedImages);
+    if (allImages.length === 0) {
+      toast({
+        title: "Photos Required",
+        description: "Please upload at least one property photo",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    quickSubmitMutation.mutate(formData);
+  };
+
   const nextStep = async () => {
     let fieldsToValidate: (keyof CombinedFormData)[] = [];
     
-    if (step === 1) {
-      fieldsToValidate = ["firstName", "lastName", "email", "phone"];
-    } else if (step === 2) {
-      fieldsToValidate = ["businessName", "kycStreetAddress", "kycLocality", "kycCity", "kycDistrict", "kycState", "kycPincode", "panNumber"];
-    } else if (step === 3) {
-      fieldsToValidate = ["propertyTitle", "propertyType", "description", "propStreetAddress", "propLocality", "propCity", "propDistrict", "propState", "propPincode"];
-    } else if (step === 4) {
-      fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
+    // Quick mode validation
+    if (isQuickMode) {
+      if (step === 1) {
+        fieldsToValidate = ["firstName", "lastName", "email", "phone"];
+      }
+      // Step 2 in quick mode validates property + photos (handled in submit)
+    } else {
+      // Full mode validation
+      if (step === 1) {
+        fieldsToValidate = ["firstName", "lastName", "email", "phone"];
+      } else if (step === 2) {
+        fieldsToValidate = ["businessName", "kycStreetAddress", "kycLocality", "kycCity", "kycDistrict", "kycState", "kycPincode", "panNumber"];
+      } else if (step === 3) {
+        fieldsToValidate = ["propertyTitle", "propertyType", "description", "propStreetAddress", "propLocality", "propCity", "propDistrict", "propState", "propPincode"];
+      } else if (step === 4) {
+        fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
+      }
     }
     
     const isValid = await form.trigger(fieldsToValidate);
@@ -798,19 +920,131 @@ export default function ListPropertyWizard() {
     setStep(targetStep);
   };
 
-  const stepTitles = [
+  // Step titles for full mode
+  const fullModeStepTitles = [
     { title: "Personal Information", icon: User },
     { title: "Business & KYC Documents", icon: FileText },
     { title: "Property Details", icon: Home },
     { title: "Pricing & Amenities", icon: Building2 },
     { title: "Photos & Submit", icon: CheckCircle },
   ];
+  
+  // Step titles for quick mode
+  const quickModeStepTitles = [
+    { title: "Basic Information", icon: User },
+    { title: "Property & Photos", icon: Camera },
+  ];
+  
+  const stepTitles = isQuickMode ? quickModeStepTitles : fullModeStepTitles;
 
   // Handle KYC Resubmission mode - dedicated simple UI for rejected applications
   const handleKycResubmit = () => {
     const data = form.getValues();
     kycResubmitMutation.mutate(data);
   };
+
+  // Mode selection screen - show for new users who haven't selected a mode yet
+  // Skip mode selection for: verified/pending KYC users, KYC resubmission
+  if (listingMode === null && !canSkipKycSteps && !isKycResubmission) {
+    return (
+      <div className="min-h-screen bg-muted/30 pb-16">
+        <div className="container px-4 md:px-6 py-8 max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl font-bold mb-3">List Your Property</h1>
+            <p className="text-muted-foreground text-lg">Choose how you'd like to get started</p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Quick Listing Option */}
+            <Card 
+              className="hover-elevate cursor-pointer border-2 hover:border-primary transition-colors"
+              onClick={() => { setListingMode("quick"); setStep(1); }}
+              data-testid="card-quick-listing"
+            >
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <Zap className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Quick Start</CardTitle>
+                <CardDescription className="text-base">
+                  List your property in under 5 minutes
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Basic contact info only</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Property name, type, city & price</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Just 1 photo to get started</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  <span>Complete KYC later to go live</span>
+                </div>
+                <div className="pt-4">
+                  <Button className="w-full" data-testid="button-start-quick">
+                    <Zap className="h-4 w-4 mr-2" />
+                    Start Quick Listing
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Full Listing Option */}
+            <Card 
+              className="hover-elevate cursor-pointer border-2 hover:border-primary transition-colors"
+              onClick={() => { setListingMode("full"); setStep(1); }}
+              data-testid="card-full-listing"
+            >
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+                  <FileCheck className="h-8 w-8 text-foreground" />
+                </div>
+                <CardTitle className="text-xl">Complete Application</CardTitle>
+                <CardDescription className="text-base">
+                  Full verification for immediate publishing
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>KYC verification included</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Full property details & amenities</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span>Professional photo categories</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-primary font-medium">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>Go live immediately after approval</span>
+                </div>
+                <div className="pt-4">
+                  <Button variant="outline" className="w-full" data-testid="button-start-full">
+                    <FileCheck className="h-4 w-4 mr-2" />
+                    Start Full Application
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <p className="text-center text-sm text-muted-foreground mt-8">
+            Not sure? Start with Quick Listing — you can always complete verification later.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // If user has rejected KYC with targeted sections, show resubmission-only view
   if (isKycResubmission && hasTargetedRejection) {
@@ -850,7 +1084,7 @@ export default function ListPropertyWizard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {rejectionDetails?.sections.map((section) => {
+                {rejectionDetails?.sections?.map((section) => {
                   const sectionInfo = SECTION_LABELS[section.sectionId];
                   const Icon = sectionInfo?.icon || AlertTriangle;
                   return (
@@ -1378,8 +1612,133 @@ export default function ListPropertyWizard() {
               </Card>
             )}
 
-            {/* Step 2: Business & KYC Documents */}
-            {step === 2 && (
+            {/* Quick Mode Step 2: Property Basics + Photos */}
+            {isQuickMode && step === 2 && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Home className="h-5 w-5" />
+                      Property Basics
+                    </CardTitle>
+                    <CardDescription>
+                      Tell us about your property
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="propertyTitle"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Property Name *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Sunrise Beach Resort" {...field} data-testid="input-quick-property-title" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="propertyType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Property Type *</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-quick-property-type">
+                                <SelectValue placeholder="Select property type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="hotel">Hotel</SelectItem>
+                              <SelectItem value="villa">Villa</SelectItem>
+                              <SelectItem value="apartment">Apartment</SelectItem>
+                              <SelectItem value="resort">Resort</SelectItem>
+                              <SelectItem value="hostel">Hostel</SelectItem>
+                              <SelectItem value="lodge">Lodge</SelectItem>
+                              <SelectItem value="cottage">Cottage</SelectItem>
+                              <SelectItem value="farmhouse">Farmhouse</SelectItem>
+                              <SelectItem value="homestay">Homestay</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="propCity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City *</FormLabel>
+                          <FormControl>
+                            <CitySearchInput
+                              value={field.value}
+                              onChange={(city, state, district) => {
+                                form.setValue("propCity", city);
+                                if (state) form.setValue("propState", state);
+                                if (district) form.setValue("propDistrict", district);
+                              }}
+                              placeholder="Search for any city in India"
+                              data-testid="input-quick-city"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="pricePerNight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price per Night (₹) *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="1500" 
+                              {...field} 
+                              data-testid="input-quick-price"
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">Minimum ₹100 per night</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Camera className="h-5 w-5" />
+                      Property Photos
+                    </CardTitle>
+                    <CardDescription>
+                      Add at least one photo of your property
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PropertyImageUploader
+                      value={categorizedImages}
+                      onChange={setCategorizedImages}
+                    />
+                    {getTotalImageCount() === 0 && (
+                      <p className="text-sm text-destructive mt-2">Please upload at least one photo</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Step 2: Business & KYC Documents (Full Mode Only) */}
+            {!isQuickMode && step === 2 && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -2128,11 +2487,41 @@ export default function ListPropertyWizard() {
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>
+              ) : isQuickMode ? (
+                <Button type="button" variant="outline" onClick={() => setListingMode(null)} data-testid="button-change-mode">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Change Mode
+                </Button>
               ) : (
                 <div />
               )}
 
-              {step < totalSteps ? (
+              {/* Quick Mode Step 2: Submit Button */}
+              {isQuickMode && step === quickModeTotalSteps ? (
+                <Button
+                  type="button"
+                  onClick={onQuickSubmit}
+                  disabled={quickSubmitMutation.isPending || getTotalImageCount() === 0}
+                  data-testid="button-quick-submit"
+                >
+                  {quickSubmitMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating Draft...
+                    </>
+                  ) : getTotalImageCount() === 0 ? (
+                    <>
+                      <Camera className="h-4 w-4 mr-2" />
+                      Add Photos First
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Create Draft Listing
+                    </>
+                  )}
+                </Button>
+              ) : step < (isQuickMode ? quickModeTotalSteps : totalSteps) ? (
                 <Button type="button" onClick={nextStep} data-testid="button-next-step">
                   Next
                   <ArrowRight className="h-4 w-4 ml-2" />

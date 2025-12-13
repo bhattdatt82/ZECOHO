@@ -1004,6 +1004,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 1 Quick Listing - Create draft property without full KYC
+  // This allows users to get started quickly and complete KYC later
+  app.post('/api/properties/create-draft', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { 
+        firstName, lastName, email, phone,
+        propertyTitle, propCity, propState, propDistrict, propertyType, pricePerNight,
+        images, categorizedImages, description
+      } = req.body;
+      
+      // Validate required fields
+      if (!propertyTitle || propertyTitle.length < 5) {
+        return res.status(400).json({ message: "Property title must be at least 5 characters" });
+      }
+      if (!propCity) {
+        return res.status(400).json({ message: "City is required" });
+      }
+      if (!propertyType) {
+        return res.status(400).json({ message: "Property type is required" });
+      }
+      if (!pricePerNight || pricePerNight < 100) {
+        return res.status(400).json({ message: "Price must be at least ₹100" });
+      }
+      if (!images || !Array.isArray(images) || images.length === 0) {
+        return res.status(400).json({ message: "At least one property image is required" });
+      }
+      
+      // Update user info if provided
+      const currentUser = await storage.getUser(userId);
+      if (currentUser) {
+        const updateData: any = { ...currentUser };
+        if (firstName) updateData.firstName = firstName;
+        if (lastName) updateData.lastName = lastName;
+        if (phone) updateData.phone = phone;
+        // Don't update email - it's tied to auth
+        await storage.upsertUser(updateData);
+      }
+      
+      // Create property with draft status (limited visibility, no full KYC required)
+      const createdProperty = await storage.createProperty({
+        title: propertyTitle,
+        description: description || `Welcome to ${propertyTitle}`,
+        propertyType: propertyType,
+        destination: propCity,
+        propCity: propCity,
+        propState: propState || null,
+        propDistrict: propDistrict || null,
+        images: images,
+        categorizedImages: categorizedImages || null,
+        pricePerNight: String(pricePerNight),
+        maxGuests: 2,
+        bedrooms: 1,
+        beds: 1,
+        bathrooms: 1,
+        ownerId: userId,
+        status: "draft", // Draft status = limited visibility until KYC complete
+      });
+      
+      res.json({ 
+        message: "Draft listing created! Complete your KYC to go fully live.", 
+        propertyId: createdProperty.id,
+        status: "draft",
+        nextStep: "Complete KYC verification to publish your listing"
+      });
+    } catch (error) {
+      console.error("Error creating draft property:", error);
+      res.status(500).json({ message: "Failed to create draft listing" });
+    }
+  });
+
   // Get user's KYC application status
   app.get('/api/kyc/status', isAuthenticated, async (req: any, res) => {
     try {

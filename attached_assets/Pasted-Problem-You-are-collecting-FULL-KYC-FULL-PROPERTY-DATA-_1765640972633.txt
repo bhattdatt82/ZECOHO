@@ -1,0 +1,245 @@
+Problem
+
+You are collecting FULL KYC + FULL PROPERTY DATA before trust is established.
+
+This is dangerous early on.
+
+Fix (Very Important)
+
+Split onboarding into 2 phases:
+
+🔹 Phase 1: Soft Onboarding (10–12 fields only)
+
+Allow owners to submit with:
+
+Name
+
+Phone (OTP verified)
+
+Property name
+
+City
+
+Property type
+
+Approx price
+
+3–5 photos (mobile allowed)
+
+➡️ Status after this:
+“Draft Listing – Limited Visibility”
+
+🔹 Phase 2: Hard KYC (after interest or approval)
+
+Only then ask for:
+
+Ownership proof
+
+PAN / GST
+
+Identity documents
+
+Licenses
+
+Why this matters:
+
+Early owners want speed
+
+Full KYC upfront kills conversion
+
+Even Airbnb learned this the hard way
+
+4️⃣ KYC Section — GOOD, BUT OVERBUILT FOR MVP ⚠️
+What’s good
+
+Clear accepted documents
+
+Upload UI is solid
+
+“Ready for submission” indicator is good UX
+
+What to change now
+
+For MVP:
+
+Make PAN mandatory
+
+Make property ownership proof mandatory
+
+Everything else → optional + “submit later”
+
+Add this label clearly:
+
+You can start receiving inquiries before full KYC completion
+
+This keeps owners engaged.
+
+5️⃣ Property Details — STRONG but Needs Guardrails
+What’s good
+
+Address autofill via PIN ✔
+
+Clear fields ✔
+
+Description field ✔
+
+Add these guardrails
+
+You MUST add:
+
+Character counter for description
+
+Example text (owners don’t know what to write)
+
+Example helper text:
+
+“Mention nearby landmarks, room size, who this property is best for.”
+
+6️⃣ Pricing & Amenities — One Dangerous Mistake ⚠️
+Problem
+
+You are letting owners set price per night without context.
+
+This will cause:
+
+Overpricing
+
+Zero bookings
+
+Owners blaming Zecoho
+
+Fix (Simple & Powerful)
+
+Add a price guidance widget:
+
+“Similar properties in Ghaziabad charge ₹900–₹1,200”
+
+Even if this is hardcoded initially — do it.
+
+This alone improves booking conversion massively.
+
+7️⃣ Amenities Section — OVERKILL FOR MVP ❌
+
+You currently have:
+
+Ski-in / ski-out
+
+Lake access
+
+Crib
+
+Game console
+
+Printer
+
+High chair
+
+This is Airbnb-level, not early OTA MVP.
+
+Ruthless cut (DO THIS)
+
+For MVP, keep only:
+
+WiFi
+
+AC
+
+Parking
+
+TV
+
+Hot water
+
+Breakfast
+
+24/7 reception
+
+Room service
+
+Pet friendly
+
+Hide advanced amenities behind:
+
+“Show more (optional)”
+
+Less choice = faster completion.
+
+8️⃣ Photos Upload — THIS IS YOUR STRONGEST PART 🔥
+
+Honestly?
+This is very well thought out.
+
+What you nailed
+
+Category-based uploads ✔
+
+Required vs optional ✔
+
+Photo tips ✔
+
+Video optional ✔
+
+Review & submit explanation ✔
+
+One ruthless improvement
+
+Allow mobile camera upload directly (if not already).
+Most small hotel owners won’t transfer files.
+
+9️⃣ Admin, Owner, Customer Access — Your Architecture Idea is RIGHT
+
+Your idea:
+
+One app/site with role-based access
+
+✅ This is correct.
+
+How you should structure roles (KEEP THIS SIMPLE)
+
+User table
+
+user_id
+
+phone
+
+email
+
+role (admin / owner / customer)
+
+status (pending / verified / restricted)
+
+Permissions layer
+
+Owner (basic): can edit listing, respond to chats
+
+Owner (verified): can publish prices, receive payments
+
+Admin (review): approve KYC, suspend listing
+
+Admin (super): payouts, disputes, configuration
+
+Do NOT create separate apps yet.
+You’re thinking correctly.
+
+10️⃣ Final Ruthless Summary
+What you SHOULD NOT change
+
+Overall flow
+
+Step structure
+
+Visual cleanliness
+
+Owner dashboard direction
+
+What you MUST change before launch
+
+Split onboarding into soft + hard
+
+Reduce amenities list
+
+Delay full KYC requirement
+
+Add price guidance
+
+Change “Sign In Required” framing
