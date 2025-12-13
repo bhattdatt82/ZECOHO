@@ -1568,15 +1568,15 @@ export default function ListPropertyWizard() {
               );
             })}
           </div>
-          <div className="mt-4 flex gap-1" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={totalSteps}>
-            {[...Array(totalSteps)].map((_, i) => (
+          <div className="mt-4 flex gap-1" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={stepTitles.length}>
+            {stepTitles.map((s, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => goToStep(i + 1)}
                 className={`h-1.5 flex-1 rounded-full cursor-pointer transition-all hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary ${i < step ? "bg-primary" : "bg-muted"}`}
                 data-testid={`progress-bar-${i + 1}`}
-                aria-label={`Go to step ${i + 1}: ${stepTitles[i].title}`}
+                aria-label={`Go to step ${i + 1}: ${s.title}`}
               />
             ))}
           </div>
