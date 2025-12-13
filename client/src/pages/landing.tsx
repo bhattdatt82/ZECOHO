@@ -210,6 +210,17 @@ export default function Landing() {
               <span className="text-white/90 text-sm">Zero convenience fees</span>
             </div>
           </div>
+          
+          {/* Property Owner CTA */}
+          <div className="mt-4">
+            <span 
+              className="text-white/80 text-sm hover:text-white cursor-pointer transition-colors"
+              onClick={() => setLocation("/login?returnTo=/list-property")}
+              data-testid="link-owner-cta-hero"
+            >
+              Own a hotel or homestay? Get listed on Zecoho →
+            </span>
+          </div>
         </div>
         
         {/* Bottom Fade for Smooth Transition */}

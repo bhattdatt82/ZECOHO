@@ -313,7 +313,15 @@ export function Header() {
               </DropdownMenu>
             </>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Link href="/login?returnTo=/list-property">
+                <span 
+                  className="text-sm font-medium text-foreground/80 hover:text-foreground cursor-pointer hidden md:inline"
+                  data-testid="link-own-property"
+                >
+                  Own a Property
+                </span>
+              </Link>
               <Link href="/login">
                 <Button variant="outline" size="sm" data-testid="button-login">
                   Log in

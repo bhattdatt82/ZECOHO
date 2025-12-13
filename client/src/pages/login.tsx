@@ -20,6 +20,7 @@ export default function Login() {
   
   const urlParams = new URLSearchParams(search);
   const initialMethod = urlParams.get("method") === "otp" ? "otp" : "password";
+  const returnTo = urlParams.get("returnTo") || "/";
   
   const [step, setStep] = useState<LoginStep>("input");
   const [loginMethod, setLoginMethod] = useState<LoginMethod>(initialMethod);
@@ -73,7 +74,7 @@ export default function Login() {
           title: "Welcome back!",
           description: "You have successfully logged in.",
         });
-        setLocation("/");
+        setLocation(returnTo);
       }
     },
     onError: (error: any) => {
@@ -118,7 +119,7 @@ export default function Login() {
         title: "Welcome to ZECOHO!",
         description: "You have successfully logged in.",
       });
-      setLocation("/");
+      setLocation(returnTo);
     },
     onError: (error: any) => {
       toast({
@@ -142,7 +143,7 @@ export default function Login() {
         title: "Welcome to ZECOHO!",
         description: "Your email has been verified.",
       });
-      setLocation("/");
+      setLocation(returnTo);
     },
     onError: (error: any) => {
       toast({
