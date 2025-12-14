@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { users } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
@@ -3224,8 +3224,7 @@ Hi! I've just made a booking request for your property. Looking forward to heari
     // Validate session from database
     try {
       const sessionResult = await db.execute(
-        `SELECT sess FROM sessions WHERE sid = $1 AND expire > NOW()`,
-        [sessionId]
+        sql`SELECT sess FROM sessions WHERE sid = ${sessionId} AND expire > NOW()`
       );
       
       if (!sessionResult.rows || sessionResult.rows.length === 0) {
