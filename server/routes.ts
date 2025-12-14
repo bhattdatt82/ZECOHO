@@ -1331,7 +1331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send approval email notification (fire-and-forget)
       if (applicantUser.email) {
         // Get property name if exists
-        const properties = await storage.getPropertiesByOwner(application.userId);
+        const properties = await storage.getOwnerProperties(application.userId);
         const propertyName = properties.length > 0 ? properties[0].title : undefined;
         sendKycApprovedEmail(applicantUser.email, applicantUser.firstName || 'Property Owner', propertyName).catch(console.error);
       }
