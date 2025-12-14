@@ -9,7 +9,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
-import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail } from "./emailService";
+import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 
@@ -476,6 +476,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mark OTP as verified
       await storage.markOtpVerified(otpCode.id);
 
+      // Send password changed notification email
+      if (user.email) {
+        sendPasswordChangedEmail(user.email, user.firstName || '').catch(console.error);
+      }
+
       res.json({ 
         message: "Password reset successfully! You can now log in with your new password."
       });
@@ -608,6 +613,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const saltRounds = 10;
       const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
       await storage.updateUserPassword(user.id, newPasswordHash);
+
+      // Send password changed notification email
+      if (user.email) {
+        sendPasswordChangedEmail(user.email, user.firstName || '').catch(console.error);
+      }
 
       res.json({ 
         message: "Password changed successfully!"
@@ -1741,6 +1751,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedProperty = await storage.updateProperty(req.params.id, { status: "paused" });
+      
+      // Send email notification to owner
+      if (user.email) {
+        sendPropertyStatusEmail(user.email, user.firstName || '', property.title, 'paused').catch(console.error);
+      }
+      
       res.json(updatedProperty);
     } catch (error) {
       console.error("Error pausing property:", error);
@@ -1773,6 +1789,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedProperty = await storage.updateProperty(req.params.id, { status: "published" });
+      
+      // Send email notification to owner
+      if (user.email) {
+        sendPropertyStatusEmail(user.email, user.firstName || '', property.title, 'resumed').catch(console.error);
+      }
+      
       res.json(updatedProperty);
     } catch (error) {
       console.error("Error resuming property:", error);
@@ -1805,6 +1827,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedProperty = await storage.updateProperty(req.params.id, { status: "deactivated" });
+      
+      // Send email notification to owner
+      if (user.email) {
+        sendPropertyStatusEmail(user.email, user.firstName || '', property.title, 'deactivated').catch(console.error);
+      }
+      
       res.json(updatedProperty);
     } catch (error) {
       console.error("Error deactivating property:", error);
@@ -2036,6 +2064,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...validatedData,
         totalPrice: totalPrice.toString(),
       });
+      
+      // Send booking confirmation emails
+      const guest = await storage.getUser(userId);
+      const owner = await storage.getUser(property.ownerId);
+      const checkInFormatted = checkIn.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      const checkOutFormatted = checkOut.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      
+      // Email to guest
+      if (guest?.email) {
+        sendBookingConfirmationEmail(
+          guest.email, 
+          guest.firstName || '', 
+          property.title, 
+          checkInFormatted, 
+          checkOutFormatted, 
+          totalPrice.toString(), 
+          false
+        ).catch(console.error);
+      }
+      
+      // Email to owner
+      if (owner?.email) {
+        sendBookingConfirmationEmail(
+          owner.email, 
+          owner.firstName || '', 
+          property.title, 
+          checkInFormatted, 
+          checkOutFormatted, 
+          totalPrice.toString(), 
+          true
+        ).catch(console.error);
+      }
+      
       res.json(booking);
     } catch (error: any) {
       console.error("Error creating booking:", error);
@@ -3049,7 +3110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only owners can access messages" });
       }
 
-      const conversations = await storage.getOwnerConversations(userId);
+      const conversations = await storage.getConversationsByUser(userId);
       res.json(conversations);
     } catch (error) {
       console.error("Error fetching owner conversations:", error);

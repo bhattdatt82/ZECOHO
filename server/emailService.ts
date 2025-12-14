@@ -317,6 +317,271 @@ export async function sendKycRejectedEmail(email: string, firstName: string, rej
   }
 }
 
+// Account Change Notifications
+
+export async function sendPasswordChangedEmail(email: string, firstName: string): Promise<boolean> {
+  try {
+    console.log('Sending password changed notification to:', email);
+    const { client, fromEmail } = await getResendClient();
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      to: [email],
+      subject: 'Password Changed - ZECOHO Account',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+          <div style="max-width: 480px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">ZECOHO</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Your Journey, Our Passion</p>
+            </div>
+            
+            <div style="padding: 32px;">
+              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Password Changed</h2>
+              <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
+                Hi ${firstName || 'there'},
+              </p>
+              <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
+                Your ZECOHO account password was successfully changed. If you made this change, no further action is needed.
+              </p>
+              
+              <div style="background: #fef2f2; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #dc2626;">
+                <p style="color: #991b1b; margin: 0; font-weight: 500;">Didn't make this change?</p>
+                <p style="color: #dc2626; margin: 8px 0 0 0; font-size: 14px;">
+                  If you didn't change your password, your account may be compromised. Please reset your password immediately and contact our support team.
+                </p>
+              </div>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                ZECOHO - Zero Commission Hotel Booking<br>
+                Need help? Contact support@zecoho.com
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('Failed to send password changed email:', error);
+      return false;
+    }
+
+    console.log('Password changed email sent successfully:', data?.id);
+    return true;
+  } catch (error: any) {
+    console.error('Failed to send password changed email:', error?.message || error);
+    return false;
+  }
+}
+
+export async function sendPropertyStatusEmail(
+  email: string, 
+  firstName: string, 
+  propertyName: string, 
+  status: 'paused' | 'resumed' | 'deactivated'
+): Promise<boolean> {
+  try {
+    console.log(`Sending property ${status} notification to:`, email);
+    const { client, fromEmail } = await getResendClient();
+    
+    const statusConfig = {
+      paused: {
+        subject: `Property Paused - ${propertyName}`,
+        heading: 'Property Temporarily Paused',
+        message: `Your property "${propertyName}" has been paused and is no longer visible to travelers. You can resume it anytime from your owner dashboard.`,
+        color: '#f59e0b',
+        bgColor: '#fffbeb',
+        icon: '&#9208;'
+      },
+      resumed: {
+        subject: `Property Resumed - ${propertyName}`,
+        heading: 'Property is Back Online!',
+        message: `Great news! Your property "${propertyName}" is now live again and visible to travelers searching for accommodations.`,
+        color: '#10b981',
+        bgColor: '#ecfdf5',
+        icon: '&#10003;'
+      },
+      deactivated: {
+        subject: `Property Deactivated - ${propertyName}`,
+        heading: 'Property Deactivated',
+        message: `Your property "${propertyName}" has been deactivated. All existing bookings will be honored, but no new bookings can be made. Contact support if you wish to reactivate.`,
+        color: '#dc2626',
+        bgColor: '#fef2f2',
+        icon: '&#10060;'
+      }
+    };
+    
+    const config = statusConfig[status];
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      to: [email],
+      subject: config.subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+          <div style="max-width: 480px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">ZECOHO</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Your Journey, Our Passion</p>
+            </div>
+            
+            <div style="padding: 32px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <div style="width: 64px; height: 64px; background: ${config.bgColor}; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px; color: ${config.color};">${config.icon}</span>
+                </div>
+              </div>
+              
+              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">${config.heading}</h2>
+              <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
+                Hi ${firstName || 'Property Owner'},
+              </p>
+              <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
+                ${config.message}
+              </p>
+              
+              <div style="text-align: center;">
+                <a href="https://zecoho.replit.app/owner/dashboard" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                  View Owner Dashboard
+                </a>
+              </div>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                ZECOHO - Zero Commission Hotel Booking<br>
+                Enjoy ZERO commission on all bookings!
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error(`Failed to send property ${status} email:`, error);
+      return false;
+    }
+
+    console.log(`Property ${status} email sent successfully:`, data?.id);
+    return true;
+  } catch (error: any) {
+    console.error(`Failed to send property ${status} email:`, error?.message || error);
+    return false;
+  }
+}
+
+export async function sendBookingConfirmationEmail(
+  email: string, 
+  firstName: string, 
+  propertyName: string,
+  checkIn: string,
+  checkOut: string,
+  totalPrice: string,
+  isOwner: boolean = false
+): Promise<boolean> {
+  try {
+    console.log('Sending booking confirmation to:', email);
+    const { client, fromEmail } = await getResendClient();
+    
+    const subject = isOwner 
+      ? `New Booking Received - ${propertyName}` 
+      : `Booking Confirmed - ${propertyName}`;
+    const heading = isOwner ? 'New Booking!' : 'Booking Confirmed!';
+    const message = isOwner
+      ? `You have received a new booking for "${propertyName}". Please review the details below.`
+      : `Your booking at "${propertyName}" has been confirmed. Get ready for your stay!`;
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      to: [email],
+      subject: subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+          <div style="max-width: 480px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">ZECOHO</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Your Journey, Our Passion</p>
+            </div>
+            
+            <div style="padding: 32px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <div style="width: 64px; height: 64px; background: #dcfce7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px;">&#10003;</span>
+                </div>
+              </div>
+              
+              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">${heading}</h2>
+              <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
+                Hi ${firstName || 'there'},
+              </p>
+              <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
+                ${message}
+              </p>
+              
+              <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #1f2937; margin: 0 0 12px 0; font-weight: 600;">Booking Details:</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Property:</strong> ${propertyName}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in:</strong> ${checkIn}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out:</strong> ${checkOut}</p>
+                <p style="color: #1f2937; margin: 0; font-weight: 600; font-size: 18px;">Total: Rs. ${totalPrice}</p>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="https://zecoho.replit.app/${isOwner ? 'owner/dashboard' : 'bookings'}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                  ${isOwner ? 'View in Dashboard' : 'View Booking'}
+                </a>
+              </div>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                ZECOHO - Zero Commission Hotel Booking<br>
+                Questions? Contact support@zecoho.com
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('Failed to send booking confirmation email:', error);
+      return false;
+    }
+
+    console.log('Booking confirmation email sent successfully:', data?.id);
+    return true;
+  } catch (error: any) {
+    console.error('Failed to send booking confirmation email:', error?.message || error);
+    return false;
+  }
+}
+
 export async function sendPropertyLiveEmail(email: string, firstName: string, propertyName: string): Promise<boolean> {
   try {
     console.log('Sending property live notification to:', email);
