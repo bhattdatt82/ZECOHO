@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -32,6 +32,74 @@ export default function Messages() {
     return null;
   });
   const [messageInput, setMessageInput] = useState("");
+  const wsRef = useRef<WebSocket | null>(null);
+  const selectedConversationIdRef = useRef(selectedConversationId);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
+  // WebSocket connection for real-time messaging
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws?userId=${user.id}`;
+    
+    const connectWebSocket = () => {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === "new_message") {
+            // Always refresh conversations list to update unread counts
+            queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+            
+            // If we're viewing this conversation, refresh messages
+            if (data.conversationId === selectedConversationIdRef.current) {
+              queryClient.invalidateQueries({ 
+                queryKey: ["/api/conversations", selectedConversationIdRef.current, "messages"] 
+              });
+            }
+          }
+        } catch (e) {
+          console.error("WebSocket message parse error:", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket disconnected, reconnecting in 3s...");
+        // Reconnect after 3 seconds
+        setTimeout(() => {
+          if (wsRef.current === ws) {
+            connectWebSocket();
+          }
+        }, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+    };
+
+    connectWebSocket();
+
+    // Cleanup on unmount
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [user?.id]);
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<ConversationWithDetails[]>({
     queryKey: ["/api/conversations"],

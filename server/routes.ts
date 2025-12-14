@@ -12,6 +12,23 @@ import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
 import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import { WebSocketServer, WebSocket } from "ws";
+
+// WebSocket connections map: userId -> Set of WebSocket connections
+const userConnections = new Map<string, Set<WebSocket>>();
+
+// Function to broadcast message to a specific user
+export function broadcastToUser(userId: string, data: any) {
+  const connections = userConnections.get(userId);
+  if (connections) {
+    const message = JSON.stringify(data);
+    connections.forEach((ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(message);
+      }
+    });
+  }
+}
 
 // Helper function to check if a user has a specific role (checks both primary and additional roles)
 function userHasRole(user: any, role: string): boolean {
@@ -2339,6 +2356,18 @@ Hi! I've just made a booking request for your property. Looking forward to heari
       });
 
       const message = await storage.createMessage(validatedData);
+
+      // Broadcast new message to both conversation participants via WebSocket
+      const broadcastData = {
+        type: "new_message",
+        conversationId: req.params.id,
+        message: message,
+      };
+      
+      // Notify the other participant (not the sender, they already know)
+      const recipientId = userId === conversation.guestId ? conversation.ownerId : conversation.guestId;
+      broadcastToUser(recipientId, broadcastData);
+      
       res.json(message);
     } catch (error: any) {
       console.error("Error creating message:", error);
@@ -3149,5 +3178,92 @@ Hi! I've just made a booking request for your property. Looking forward to heari
   });
 
   const httpServer = createServer(app);
+
+  // WebSocket server for real-time messaging
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+
+  wss.on("connection", async (ws, req) => {
+    const url = new URL(req.url || "", `http://${req.headers.host}`);
+    const claimedUserId = url.searchParams.get("userId");
+
+    if (!claimedUserId) {
+      ws.close(1008, "User ID required");
+      return;
+    }
+
+    // Parse session cookie to validate the user
+    const cookies = req.headers.cookie || "";
+    const sessionMatch = cookies.match(/connect\.sid=s%3A([^.]+)/);
+    
+    if (!sessionMatch) {
+      ws.close(1008, "Authentication required");
+      return;
+    }
+
+    const sessionId = sessionMatch[1];
+    
+    // Validate session from database
+    try {
+      const sessionResult = await db.execute(
+        `SELECT sess FROM sessions WHERE sid = $1 AND expire > NOW()`,
+        [sessionId]
+      );
+      
+      if (!sessionResult.rows || sessionResult.rows.length === 0) {
+        ws.close(1008, "Invalid session");
+        return;
+      }
+
+      const sessionData = sessionResult.rows[0].sess as any;
+      const passportUser = sessionData?.passport?.user;
+      const authenticatedUserId = passportUser?.claims?.sub;
+
+      if (!authenticatedUserId || authenticatedUserId !== claimedUserId) {
+        ws.close(1008, "User ID mismatch");
+        return;
+      }
+
+      // Verified! Add connection to user's set
+      const userId = authenticatedUserId;
+      if (!userConnections.has(userId)) {
+        userConnections.set(userId, new Set());
+      }
+      userConnections.get(userId)!.add(ws);
+
+      console.log(`WebSocket connected for user: ${userId}`);
+
+      // Handle ping/pong for keepalive
+      ws.on("message", (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      });
+
+      // Remove connection on close
+      ws.on("close", () => {
+        const connections = userConnections.get(userId);
+        if (connections) {
+          connections.delete(ws);
+          if (connections.size === 0) {
+            userConnections.delete(userId);
+          }
+        }
+        console.log(`WebSocket disconnected for user: ${userId}`);
+      });
+
+      ws.on("error", (error) => {
+        console.error(`WebSocket error for user ${userId}:`, error);
+      });
+    } catch (error) {
+      console.error("WebSocket authentication error:", error);
+      ws.close(1008, "Authentication failed");
+    }
+  });
+
   return httpServer;
 }
