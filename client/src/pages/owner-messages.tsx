@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { OwnerLayout } from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,29 +12,21 @@ import { format } from "date-fns";
 import { MessageSquare, Send, Search, XCircle, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-interface Conversation {
-  id: number;
-  guestId: string;
-  guestName: string;
-  guestImage?: string;
-  propertyTitle: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  unreadCount: number;
-}
+import type { Conversation as BaseConversation, Message as BaseMessage, User, Property } from "@shared/schema";
 
-interface Message {
-  id: number;
-  conversationId: number;
-  senderId: string;
-  senderName: string;
-  content: string;
-  createdAt: string;
-  isOwner: boolean;
-}
+type ConversationWithDetails = BaseConversation & {
+  property: Property;
+  guest: User;
+  owner: User;
+  unreadCount: number;
+};
+
+type MessageWithSender = BaseMessage & {
+  sender: User;
+};
 
 export default function OwnerMessagesPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -76,7 +68,7 @@ export default function OwnerMessagesPage() {
             // If viewing this conversation, add message to display instantly
             if (data.conversationId && String(data.conversationId) === String(selectedConversationRef.current) && data.message) {
               queryClient.setQueryData(
-                ["/api/owner/conversations", selectedConversationRef.current, "messages"],
+                ["/api/conversations", selectedConversationRef.current, "messages"],
                 (old: Message[] = []) => {
                   if (old.some(m => String(m.id) === String(data.message.id))) return old;
                   return [...old, data.message];
@@ -126,27 +118,58 @@ export default function OwnerMessagesPage() {
     };
   }, [user?.id, isVerified]);
 
-  const { data: conversations, isLoading: loadingConversations } = useQuery<Conversation[]>({
+  const { data: conversations, isLoading: loadingConversations } = useQuery<ConversationWithDetails[]>({
     queryKey: ["/api/owner/conversations"],
     enabled: !authLoading && isVerified,
   });
 
-  const { data: messages, isLoading: loadingMessages } = useQuery<Message[]>({
-    queryKey: ["/api/owner/conversations", selectedConversation, "messages"],
+  const { data: messages, isLoading: loadingMessages } = useQuery<MessageWithSender[]>({
+    queryKey: ["/api/conversations", selectedConversation, "messages"],
     enabled: !!selectedConversation && !authLoading && isVerified,
   });
 
+  const sendMessageMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!selectedConversation) return;
+      return await apiRequest("POST", `/api/conversations/${selectedConversation}/messages`, { content });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversation, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"] });
+      setMessageText("");
+    },
+  });
+
+  const getGuestDisplayName = (guest: User | null) => {
+    if (!guest) return "Unknown";
+    if (guest.firstName && guest.lastName) {
+      return `${guest.firstName} ${guest.lastName}`;
+    }
+    return guest.email || "Unknown";
+  };
+
+  const getInitials = (user: User | null) => {
+    if (!user) return "?";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    return user.email?.[0]?.toUpperCase() || "?";
+  };
+
   const filteredConversations = conversations?.filter(
-    (conv) =>
-      conv.guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.propertyTitle.toLowerCase().includes(searchQuery.toLowerCase())
+    (conv) => {
+      const guestName = getGuestDisplayName(conv.guest).toLowerCase();
+      const propertyTitle = conv.property?.title?.toLowerCase() || "";
+      return guestName.includes(searchQuery.toLowerCase()) ||
+        propertyTitle.includes(searchQuery.toLowerCase());
+    }
   );
 
   const selectedConv = conversations?.find((c) => c.id === selectedConversation);
 
   const handleSendMessage = () => {
     if (!messageText.trim() || !selectedConversation) return;
-    setMessageText("");
+    sendMessageMutation.mutate(messageText.trim());
   };
 
   if (authLoading) {
@@ -271,14 +294,14 @@ export default function OwnerMessagesPage() {
                       >
                         <div className="flex items-start gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={conv.guestImage} alt={conv.guestName} />
+                            <AvatarImage src={conv.guest?.profileImageUrl || undefined} alt={getGuestDisplayName(conv.guest)} />
                             <AvatarFallback>
-                              {conv.guestName.split(" ").map((n) => n[0]).join("").toUpperCase()}
+                              {getInitials(conv.guest)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium truncate">{conv.guestName}</p>
+                              <p className="font-medium truncate">{getGuestDisplayName(conv.guest)}</p>
                               {conv.unreadCount > 0 && (
                                 <Badge variant="default" className="text-xs">
                                   {conv.unreadCount}
@@ -286,10 +309,7 @@ export default function OwnerMessagesPage() {
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
-                              {conv.propertyTitle}
-                            </p>
-                            <p className="text-sm text-muted-foreground truncate mt-1">
-                              {conv.lastMessage}
+                              {conv.property?.title}
                             </p>
                           </div>
                         </div>
@@ -312,14 +332,14 @@ export default function OwnerMessagesPage() {
                 <CardHeader className="pb-2 border-b">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={selectedConv.guestImage} alt={selectedConv.guestName} />
+                      <AvatarImage src={selectedConv.guest?.profileImageUrl || undefined} alt={getGuestDisplayName(selectedConv.guest)} />
                       <AvatarFallback>
-                        {selectedConv.guestName.split(" ").map((n) => n[0]).join("").toUpperCase()}
+                        {getInitials(selectedConv.guest)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <CardTitle className="text-base">{selectedConv.guestName}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{selectedConv.propertyTitle}</p>
+                      <CardTitle className="text-base">{getGuestDisplayName(selectedConv.guest)}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{selectedConv.property?.title}</p>
                     </div>
                   </div>
                 </CardHeader>
@@ -333,26 +353,29 @@ export default function OwnerMessagesPage() {
                       </div>
                     ) : messages && messages.length > 0 ? (
                       <div className="space-y-4">
-                        {messages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`flex ${msg.isOwner ? "justify-end" : "justify-start"}`}
-                          >
+                        {messages.map((msg) => {
+                          const isCurrentUser = msg.senderId === user?.id;
+                          return (
                             <div
-                              className={`max-w-[70%] rounded-lg p-3 ${
-                                msg.isOwner
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted"
-                              }`}
-                              data-testid={`message-${msg.id}`}
+                              key={msg.id}
+                              className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
                             >
-                              <p className="text-sm">{msg.content}</p>
-                              <p className="text-xs opacity-70 mt-1">
-                                {format(new Date(msg.createdAt), "HH:mm")}
-                              </p>
+                              <div
+                                className={`max-w-[70%] rounded-lg p-3 ${
+                                  isCurrentUser
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted"
+                                }`}
+                                data-testid={`message-${msg.id}`}
+                              >
+                                <p className="text-sm">{msg.content}</p>
+                                <p className="text-xs opacity-70 mt-1">
+                                  {msg.createdAt ? format(new Date(msg.createdAt), "HH:mm") : ""}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full">
@@ -369,9 +392,14 @@ export default function OwnerMessagesPage() {
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                      disabled={sendMessageMutation.isPending}
                       data-testid="message-input"
                     />
-                    <Button onClick={handleSendMessage} data-testid="send-message">
+                    <Button 
+                      onClick={handleSendMessage} 
+                      disabled={!messageText.trim() || sendMessageMutation.isPending}
+                      data-testid="send-message"
+                    >
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
