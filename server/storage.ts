@@ -606,12 +606,20 @@ export class DatabaseStorage implements IStorage {
 
   // Message operations
   async createMessage(messageData: InsertMessage): Promise<Message> {
+    console.log("[MESSAGE CREATE] Starting message creation:", JSON.stringify(messageData));
+    
     const [message] = await db.insert(messages).values(messageData).returning();
+    console.log("[MESSAGE CREATE] Message inserted with ID:", message.id);
 
     await db
       .update(conversations)
       .set({ lastMessageAt: new Date() })
       .where(eq(conversations.id, messageData.conversationId));
+    console.log("[MESSAGE CREATE] Conversation lastMessageAt updated");
+
+    // Verify the message was saved
+    const [verifyMessage] = await db.select().from(messages).where(eq(messages.id, message.id));
+    console.log("[MESSAGE CREATE] Verification - message exists:", !!verifyMessage);
 
     return message;
   }
