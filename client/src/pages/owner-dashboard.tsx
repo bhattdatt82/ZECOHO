@@ -232,8 +232,35 @@ export default function OwnerDashboard() {
                   <div className="text-2xl font-bold" data-testid="property-count">
                     {stats?.properties?.length || 0}
                   </div>
-                  <div className="mt-1">
-                    {getStatusBadge(stats?.propertyStatus || "none")}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {(() => {
+                      const statusCounts: Record<string, number> = {};
+                      stats?.properties?.forEach(p => {
+                        statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
+                      });
+                      const statusOrder = ["published", "paused", "pending", "draft", "deactivated"];
+                      return statusOrder
+                        .filter(status => statusCounts[status])
+                        .map(status => {
+                          const count = statusCounts[status];
+                          const config: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+                            published: { variant: "default", label: "Published" },
+                            draft: { variant: "secondary", label: "Draft" },
+                            pending: { variant: "outline", label: "Pending" },
+                            paused: { variant: "outline", label: "Paused" },
+                            deactivated: { variant: "destructive", label: "Deactivated" },
+                          };
+                          const { variant, label } = config[status] || { variant: "secondary", label: status };
+                          return (
+                            <Badge key={status} variant={variant} data-testid={`status-badge-${status}`}>
+                              {count} {label}
+                            </Badge>
+                          );
+                        });
+                    })()}
+                    {(!stats?.properties || stats.properties.length === 0) && (
+                      <Badge variant="secondary">No Property</Badge>
+                    )}
                   </div>
                 </>
               )}
