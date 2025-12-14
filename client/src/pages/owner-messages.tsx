@@ -160,6 +160,7 @@ export default function OwnerMessagesPage() {
       return await response.json() as MessageWithSender;
     },
     onSuccess: (newMessage) => {
+      console.log("[OWNER MESSAGE] Send success, newMessage:", newMessage);
       if (newMessage && selectedConversation) {
         queryClient.setQueryData(
           ["/api/conversations", selectedConversation, "messages"],
@@ -170,7 +171,6 @@ export default function OwnerMessagesPage() {
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"] });
-      queryClient.refetchQueries({ queryKey: ["/api/conversations", selectedConversation, "messages"] });
       setMessageText("");
       setPendingAttachments([]);
     },

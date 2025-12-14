@@ -271,6 +271,7 @@ export default function Messages() {
       return await response.json() as MessageWithSender;
     },
     onSuccess: (newMessage) => {
+      console.log("[MESSAGE] Send success, newMessage:", newMessage);
       if (newMessage && selectedConversationId) {
         queryClient.setQueryData(
           ["/api/conversations", selectedConversationId, "messages"],
@@ -281,7 +282,6 @@ export default function Messages() {
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-      queryClient.refetchQueries({ queryKey: ["/api/conversations", selectedConversationId, "messages"] });
       setMessageInput("");
       setPendingAttachments([]);
     },
