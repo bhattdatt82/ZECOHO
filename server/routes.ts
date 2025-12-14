@@ -1289,31 +1289,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { reviewNotes } = req.body;
+      const kycId = req.params.id;
+      
+      // First check if the application exists
+      const existingApplication = await storage.getKycApplication(kycId);
+      if (!existingApplication) {
+        return res.status(404).json({ message: "KYC application not found" });
+      }
+      
       const application = await storage.updateKycApplicationStatus(
-        req.params.id,
+        kycId,
         "verified",
         reviewNotes
       );
 
+      if (!application) {
+        return res.status(500).json({ message: "Failed to update KYC application status" });
+      }
+
       // Promote user to owner role when KYC is verified
-      if (application) {
-        const applicantUser = await storage.getUser(application.userId);
-        if (applicantUser) {
-          await storage.upsertUser({
-            ...applicantUser,
-            userRole: "owner",
-            kycStatus: "verified",
-            kycVerifiedAt: new Date(),
-          });
-          
-          // Send approval email notification (fire-and-forget)
-          if (applicantUser.email) {
-            // Get property name if exists
-            const properties = await storage.getPropertiesByOwner(application.userId);
-            const propertyName = properties.length > 0 ? properties[0].title : undefined;
-            sendKycApprovedEmail(applicantUser.email, applicantUser.firstName || 'Property Owner', propertyName).catch(console.error);
-          }
-        }
+      const applicantUser = await storage.getUser(application.userId);
+      if (!applicantUser) {
+        console.error("KYC verified but applicant user not found:", application.userId);
+        return res.status(500).json({ message: "Applicant user not found" });
+      }
+      
+      try {
+        await storage.upsertUser({
+          ...applicantUser,
+          userRole: "owner",
+          kycStatus: "verified",
+          kycVerifiedAt: new Date(),
+        });
+      } catch (userUpdateError) {
+        console.error("Error updating user role after KYC verification:", userUpdateError);
+        // Roll back KYC status if user update fails
+        await storage.updateKycApplicationStatus(kycId, "rejected", "System error - please retry verification");
+        return res.status(500).json({ message: "Failed to update user role" });
+      }
+      
+      // Send approval email notification (fire-and-forget)
+      if (applicantUser.email) {
+        // Get property name if exists
+        const properties = await storage.getPropertiesByOwner(application.userId);
+        const propertyName = properties.length > 0 ? properties[0].title : undefined;
+        sendKycApprovedEmail(applicantUser.email, applicantUser.firstName || 'Property Owner', propertyName).catch(console.error);
       }
 
       res.json(application);
