@@ -1,0 +1,215 @@
+WHAT YOU HAVE DONE RIGHT (SOLID FOUNDATION)
+
+You already have these correctly in place:
+
+✅ 1. Role transition (Customer → Owner)
+
+Same account becomes owner
+
+No duplicate signup (GOOD)
+
+Owner-specific flows are gated (GOOD)
+
+✅ 2. Owner onboarding flows
+
+Full Application (detailed, KYC-driven)
+
+Quick Listing (intent capture)
+
+Pre-approval dashboard
+
+Post-KYC under-review state
+
+Rejection handling (we fixed UX logic)
+
+✅ 3. Permission gating
+
+Booking disabled pre-approval
+
+Payments blocked pre-approval
+
+Dashboard modes vary by status
+
+This already puts you ahead of many early OTAs.
+
+🚨 WHAT IS STILL MISSING (IMPORTANT)
+
+Now the gaps — these are not cosmetic, they affect trust, clarity, and scalability.
+
+🔴 GAP 1: EXPLICIT “YOU ARE NOW AN OWNER” CONFIRMATION
+Problem
+
+Right now, after login / KYC submission:
+
+User implicitly becomes owner
+
+But you never explicitly confirm the role switch
+
+This causes confusion:
+
+“Am I a customer or owner now?”
+“Did something change?”
+
+Fix (VERY SIMPLE)
+
+On first owner entry, show a one-time confirmation screen / modal:
+
+Title:
+
+🎉 You’re now a Zecoho Property Owner
+
+Body:
+
+You can now list properties, manage bookings,
+and communicate directly with guests.
+
+
+Buttons:
+
+Go to Owner Dashboard
+
+Switch back to Customer View
+
+📌 Show this only once.
+
+🔴 GAP 2: ROLE SWITCHER (ABSOLUTELY REQUIRED)
+Problem
+
+Same user can be:
+
+Customer
+
+Owner
+
+But there is no visible role context.
+
+This is a big UX leak.
+
+Fix (Header-level)
+
+Near profile avatar add:
+
+[ Customer ▼ ]
+
+
+Dropdown:
+
+Customer Mode
+
+Owner Mode
+
+Rules:
+
+Customer Mode → homepage, bookings, wishlist
+
+Owner Mode → owner dashboard
+
+⚠️ Do NOT auto-switch silently. Always be explicit.
+
+🔴 GAP 3: OWNER EMAIL / NOTIFICATION TRIGGERS
+
+Right now flows exist, but communication is missing.
+
+You need minimum 4 system notifications:
+
+1️⃣ KYC Submitted
+2️⃣ KYC Approved
+3️⃣ KYC Rejected (with reason)
+4️⃣ Property Live
+
+Without this:
+
+Owners keep checking dashboard
+
+Support load increases
+
+Trust drops
+
+📌 Even simple email / in-app banner is enough for MVP.
+
+🔴 GAP 4: “OWNER CONTEXT” VISUAL INDICATOR
+Problem
+
+Your UI looks identical whether user is:
+
+Customer
+
+Owner (pre/post approval)
+
+That’s dangerous.
+
+Fix
+
+Add a small badge in header when in owner mode:
+
+Owner Dashboard
+
+
+or
+
+Property Owner
+
+
+This anchors mental context.
+
+🔴 GAP 5: NO HARD STOP FOR PARTIALLY COMPLETED QUICK LISTINGS
+
+Edge case you must handle:
+
+Owner starts Quick Listing
+Leaves halfway
+Logs in later
+
+What should happen?
+
+Required logic:
+
+Resume Quick Listing
+
+OR clearly say:
+
+“Your quick listing is incomplete”
+
+Add a resume CTA on dashboard.
+
+🟡 GAP 6 (SECONDARY): OWNER EXIT / DOWNGRADE PATH
+
+Not urgent for MVP, but note it:
+
+What if owner wants to stop listing?
+
+What if they want to pause property?
+
+What if they want to revert to customer-only?
+
+At least:
+
+“Pause Listing”
+
+“Deactivate Property”
+
+No deletion needed now.
+
+✅ WHAT YOU DO NOT NEED YET (GOOD NEWS)
+
+You do NOT need right now:
+
+❌ Multi-owner per property
+❌ Staff roles
+❌ Tax invoices
+❌ Channel manager
+❌ Advanced analytics
+❌ Auto approval
+
+So don’t overbuild.
+
+🧠 CURRENT STATE SUMMARY (HONEST)
+Area	Status
+Owner onboarding	✅ Strong
+KYC flow	✅ Fixed
+Pre-approval dashboard	✅ Good
+Rejection handling	✅ Good
+Role clarity	❌ Missing
+Owner confirmation	❌ Missing
+Notifications	❌ Missing
+Resume flows	⚠️ Partial

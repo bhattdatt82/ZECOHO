@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
 import { useLocation, Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { OwnerWelcomeModal } from "@/components/OwnerWelcomeModal";
 import {
   SidebarProvider,
   Sidebar,
@@ -65,6 +67,13 @@ const allowedPathsWhenRejected = ["/owner/kyc", "/owner/property", "/owner/setti
 export function OwnerLayout({ children }: OwnerLayoutProps) {
   const { user, isLoading, isOwner } = useAuth();
   const [location] = useLocation();
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  useEffect(() => {
+    if (user && isOwner && !(user as any).hasSeenOwnerModal) {
+      setShowWelcomeModal(true);
+    }
+  }, [user, isOwner]);
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -122,9 +131,14 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
   };
 
   return (
-    <SidebarProvider style={sidebarStyle}>
-      <div className="flex h-screen w-full">
-        <Sidebar>
+    <>
+      <OwnerWelcomeModal 
+        open={showWelcomeModal} 
+        onClose={() => setShowWelcomeModal(false)} 
+      />
+      <SidebarProvider style={sidebarStyle}>
+        <div className="flex h-screen w-full">
+          <Sidebar>
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
@@ -205,7 +219,8 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
             {children}
           </main>
         </SidebarInset>
-      </div>
-    </SidebarProvider>
+        </div>
+      </SidebarProvider>
+    </>
   );
 }

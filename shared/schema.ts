@@ -78,6 +78,8 @@ export const propertyStatusEnum = pgEnum("property_status", [
   "draft",
   "published",
   "pending",
+  "paused",
+  "deactivated",
 ]);
 
 // Booking status enum
@@ -121,6 +123,7 @@ export const users = pgTable("users", {
   kycStatus: kycStatusEnum("kyc_status").notNull().default("not_started"),
   kycVerifiedAt: timestamp("kyc_verified_at"),
   listingMode: listingModeEnum("listing_mode").notNull().default("not_selected"),
+  hasSeenOwnerModal: boolean("has_seen_owner_modal").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

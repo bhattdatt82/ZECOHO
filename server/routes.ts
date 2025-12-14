@@ -9,7 +9,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
-import { sendOtpEmail } from "./emailService";
+import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 
@@ -780,6 +780,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedData = insertKycApplicationSchema.parse(req.body);
           const updatedApplication = await storage.updateKycApplication(existingKyc.id, validatedData);
           
+          // Send email notification for resubmission (fire-and-forget)
+          const user = await storage.getUser(userId);
+          if (user?.email) {
+            sendKycSubmittedEmail(user.email, user.firstName || 'Property Owner').catch(console.error);
+          }
+          
           return res.json({ 
             message: "KYC application resubmitted successfully", 
             applicationId: updatedApplication?.id,
@@ -813,6 +819,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertKycApplicationSchema.parse(req.body);
       const application = await storage.createKycApplication(userId, validatedData);
+      
+      // Send email notification for new submission (fire-and-forget)
+      const user = await storage.getUser(userId);
+      if (user?.email) {
+        sendKycSubmittedEmail(user.email, user.firstName || 'Property Owner').catch(console.error);
+      }
       
       res.json({ 
         message: "KYC application submitted successfully", 
@@ -987,6 +999,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         throw innerError;
+      }
+      
+      // Send email notification for combined submission (fire-and-forget)
+      const user = await storage.getUser(userId);
+      if (user?.email) {
+        sendKycSubmittedEmail(user.email, user.firstName || 'Property Owner').catch(console.error);
       }
       
       res.json({ 
@@ -1221,6 +1239,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dismiss owner welcome modal endpoint
+  app.patch('/api/user/dismiss-owner-modal', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const updatedUser = await storage.upsertUser({
+        ...currentUser,
+        hasSeenOwnerModal: true,
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error dismissing owner modal:", error);
+      res.status(500).json({ message: "Failed to dismiss owner modal" });
+    }
+  });
+
   // Admin KYC routes
   app.get("/api/admin/kyc", isAuthenticated, async (req: any, res) => {
     try {
@@ -1265,6 +1305,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             kycStatus: "verified",
             kycVerifiedAt: new Date(),
           });
+          
+          // Send approval email notification (fire-and-forget)
+          if (applicantUser.email) {
+            // Get property name if exists
+            const properties = await storage.getPropertiesByOwner(application.userId);
+            const propertyName = properties.length > 0 ? properties[0].title : undefined;
+            sendKycApprovedEmail(applicantUser.email, applicantUser.firstName || 'Property Owner', propertyName).catch(console.error);
+          }
         }
       }
 
@@ -1291,6 +1339,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reviewNotes,
         rejectionDetails
       );
+
+      // Send rejection email notification (fire-and-forget)
+      if (application) {
+        const applicantUser = await storage.getUser(application.userId);
+        if (applicantUser?.email) {
+          // Extract rejection reasons from rejectionDetails
+          const rejectionReasons: string[] = [];
+          if (rejectionDetails) {
+            if (rejectionDetails.personalInfo) rejectionReasons.push(`Personal Information: ${rejectionDetails.personalInfo}`);
+            if (rejectionDetails.propertyInfo) rejectionReasons.push(`Property Information: ${rejectionDetails.propertyInfo}`);
+            if (rejectionDetails.documents) rejectionReasons.push(`Documents: ${rejectionDetails.documents}`);
+            if (rejectionDetails.general) rejectionReasons.push(rejectionDetails.general);
+          }
+          if (reviewNotes && rejectionReasons.length === 0) {
+            rejectionReasons.push(reviewNotes);
+          }
+          sendKycRejectedEmail(applicantUser.email, applicantUser.firstName || 'Property Owner', rejectionReasons).catch(console.error);
+        }
+      }
 
       res.json(application);
     } catch (error) {
@@ -1601,6 +1668,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching owner properties:", error);
       res.status(500).json({ message: "Failed to fetch properties" });
+    }
+  });
+
+  // Pause property listing (owner only)
+  app.patch("/api/properties/:id/pause", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can pause properties" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to pause this property" });
+      }
+
+      if (property.status !== "published") {
+        return res.status(400).json({ message: "Only published properties can be paused" });
+      }
+
+      const updatedProperty = await storage.updateProperty(req.params.id, { status: "paused" });
+      res.json(updatedProperty);
+    } catch (error) {
+      console.error("Error pausing property:", error);
+      res.status(500).json({ message: "Failed to pause property" });
+    }
+  });
+
+  // Resume paused property listing (owner only)
+  app.patch("/api/properties/:id/resume", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can resume properties" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to resume this property" });
+      }
+
+      if (property.status !== "paused") {
+        return res.status(400).json({ message: "Only paused properties can be resumed" });
+      }
+
+      const updatedProperty = await storage.updateProperty(req.params.id, { status: "published" });
+      res.json(updatedProperty);
+    } catch (error) {
+      console.error("Error resuming property:", error);
+      res.status(500).json({ message: "Failed to resume property" });
+    }
+  });
+
+  // Deactivate property listing (owner only)
+  app.patch("/api/properties/:id/deactivate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can deactivate properties" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to deactivate this property" });
+      }
+
+      if (property.status === "deactivated") {
+        return res.status(400).json({ message: "Property is already deactivated" });
+      }
+
+      const updatedProperty = await storage.updateProperty(req.params.id, { status: "deactivated" });
+      res.json(updatedProperty);
+    } catch (error) {
+      console.error("Error deactivating property:", error);
+      res.status(500).json({ message: "Failed to deactivate property" });
     }
   });
 
