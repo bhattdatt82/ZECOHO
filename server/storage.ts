@@ -105,7 +105,7 @@ export interface IStorage {
 
   // Message operations
   createMessage(message: InsertMessage): Promise<Message>;
-  getMessagesByConversation(conversationId: string, limit?: number): Promise<(Message & { sender: User })[]>;
+  getMessagesByConversation(conversationId: string): Promise<(Message & { sender: User })[]>;
   markMessagesAsRead(conversationId: string, userId: string): Promise<void>;
 
   // Review operations
@@ -624,7 +624,7 @@ export class DatabaseStorage implements IStorage {
     return message;
   }
 
-  async getMessagesByConversation(conversationId: string, limit: number = 500): Promise<(Message & { sender: User })[]> {
+  async getMessagesByConversation(conversationId: string): Promise<(Message & { sender: User })[]> {
     const results = await db
       .select({
         message: messages,
@@ -633,8 +633,7 @@ export class DatabaseStorage implements IStorage {
       .from(messages)
       .leftJoin(users, eq(messages.senderId, users.id))
       .where(eq(messages.conversationId, conversationId))
-      .orderBy(messages.createdAt)
-      .limit(limit);
+      .orderBy(messages.createdAt);
 
     return results.map(r => ({
       ...r.message,
