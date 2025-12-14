@@ -2454,7 +2454,7 @@ Hi! I've just made a booking request for your property. Looking forward to heari
       const { setObjectAclPolicy: setAcl } = await import("./objectAcl");
       await setAcl(objectFile, {
         visibility: "private",
-        ownerId: userId,
+        owner: userId,
         allowedUsers: [conversation.guestId, conversation.ownerId],
       });
       
