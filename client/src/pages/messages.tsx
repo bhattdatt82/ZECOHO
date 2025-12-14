@@ -24,7 +24,13 @@ type MessageWithSender = Message & {
 
 export default function Messages() {
   const { user } = useAuth();
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('conversationId');
+    }
+    return null;
+  });
   const [messageInput, setMessageInput] = useState("");
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<ConversationWithDetails[]>({

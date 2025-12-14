@@ -327,7 +327,7 @@ export default function PropertyDetails() {
       return await apiRequest("POST", "/api/conversations", { propertyId });
     },
     onSuccess: (conversation: any) => {
-      setLocation("/messages");
+      setLocation(`/messages?conversationId=${conversation.id}`);
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
     },
     onError: (error: Error) => {
