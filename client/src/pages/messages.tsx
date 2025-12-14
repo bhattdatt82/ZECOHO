@@ -106,8 +106,8 @@ export default function Messages() {
               });
             }
             
-            // Refresh conversations list to update unread counts
-            queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+            // Refresh conversations list to update unread counts (without auto-refetch to prevent message flicker)
+            queryClient.invalidateQueries({ queryKey: ["/api/conversations"], refetchType: 'none' });
           }
         } catch (e) {
           console.error("WebSocket message parse error:", e);
@@ -277,7 +277,7 @@ export default function Messages() {
           }
         );
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"], refetchType: 'none' });
       setMessageInput("");
       setPendingAttachments([]);
       setTimeout(() => messageInputRef.current?.focus(), 0);

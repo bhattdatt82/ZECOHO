@@ -624,7 +624,7 @@ export class DatabaseStorage implements IStorage {
     return message;
   }
 
-  async getMessagesByConversation(conversationId: string, limit: number = 50): Promise<(Message & { sender: User })[]> {
+  async getMessagesByConversation(conversationId: string, limit: number = 500): Promise<(Message & { sender: User })[]> {
     const results = await db
       .select({
         message: messages,

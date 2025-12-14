@@ -109,8 +109,8 @@ export default function OwnerMessagesPage() {
               });
             }
             
-            // Refresh conversations list to update unread counts
-            queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"] });
+            // Refresh conversations list to update unread counts (without auto-refetch to prevent message flicker)
+            queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"], refetchType: 'none' });
           }
         } catch (e) {
           console.error("WebSocket message parse error:", e);
@@ -171,7 +171,7 @@ export default function OwnerMessagesPage() {
           }
         );
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"], refetchType: 'none' });
       setMessageText("");
       setPendingAttachments([]);
       setTimeout(() => messageInputRef.current?.focus(), 0);
