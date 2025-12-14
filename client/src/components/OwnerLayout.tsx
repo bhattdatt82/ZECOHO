@@ -27,13 +27,15 @@ import {
   Settings,
   ArrowLeft,
   LogOut,
+  FileText,
+  HelpCircle,
 } from "lucide-react";
 
 interface OwnerLayoutProps {
   children: React.ReactNode;
 }
 
-const menuItems = [
+const fullMenuItems = [
   { title: "Dashboard", icon: LayoutDashboard, path: "/owner/dashboard" },
   { title: "Bookings", icon: CalendarCheck, path: "/owner/bookings" },
   { title: "Messages", icon: MessageSquare, path: "/owner/messages" },
@@ -41,6 +43,13 @@ const menuItems = [
   { title: "Earnings", icon: IndianRupee, path: "/owner/earnings" },
   { title: "Reviews", icon: Star, path: "/owner/reviews" },
   { title: "Settings", icon: Settings, path: "/owner/settings" },
+];
+
+const limitedMenuItems = [
+  { title: "Dashboard", icon: LayoutDashboard, path: "/owner/dashboard" },
+  { title: "My Property", icon: Building2, path: "/owner/property" },
+  { title: "Documents", icon: FileText, path: "/list-property" },
+  { title: "Support", icon: HelpCircle, path: "/owner/settings" },
 ];
 
 export function OwnerLayout({ children }: OwnerLayoutProps) {
@@ -66,6 +75,9 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
 
   const userInitials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "O";
 
+  const isPreApproval = user.kycStatus !== "verified";
+  const menuItems = isPreApproval ? limitedMenuItems : fullMenuItems;
+
   const handleLogout = () => {
     window.location.href = "/api/logout";
   };
@@ -85,7 +97,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                   {user.firstName} {user.lastName}
                 </span>
                 <Badge variant="secondary" className="w-fit text-xs" data-testid="owner-badge">
-                  {user.kycStatus === "verified" ? "Verified Owner" : "Owner"}
+                  {user.kycStatus === "verified" ? "Verified Owner" : "Pending Approval"}
                 </Badge>
               </div>
             </div>

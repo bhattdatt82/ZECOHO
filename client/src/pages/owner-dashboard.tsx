@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { OwnerLayout } from "@/components/OwnerLayout";
+import { PreApprovalDashboard } from "@/components/PreApprovalDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import {
   CalendarCheck,
   IndianRupee,
@@ -28,9 +30,20 @@ interface OwnerStats {
 }
 
 export default function OwnerDashboard() {
+  const { user } = useAuth();
   const { data: stats, isLoading } = useQuery<OwnerStats>({
     queryKey: ["/api/owner/stats"],
   });
+
+  const isPreApproval = user && user.kycStatus !== "verified";
+
+  if (isPreApproval) {
+    return (
+      <OwnerLayout>
+        <PreApprovalDashboard user={user} />
+      </OwnerLayout>
+    );
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

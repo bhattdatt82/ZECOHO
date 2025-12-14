@@ -1,0 +1,202 @@
+OWNER DASHBOARD — FIRST SCREEN (PRE-APPROVAL)
+URL
+/owner/dashboard
+
+
+Triggered when:
+
+user logged in
+
+role = owner
+
+status = pending / under_review / kyc_incomplete
+
+1️⃣ TOP BANNER — STATUS FIRST (VERY IMPORTANT)
+
+This must be the first thing they see.
+
+Banner (full width, soft yellow or blue)
+⏳ Your property is under review
+Our team is verifying your details. This usually takes 24–48 hours.
+
+
+If something is missing:
+
+⚠️ Action required to go live
+Please complete the highlighted steps below.
+
+
+👉 This kills anxiety. Owners hate silence.
+
+2️⃣ PROGRESS CHECKLIST — THE CORE OF THIS SCREEN
+Title
+
+Get Your Property Live (3 steps left)
+
+Checklist (card style, stacked vertically)
+
+Each item has:
+
+Status icon
+
+Short explanation
+
+CTA button
+
+✅ Step 1: Property Details
+✔ Property details submitted
+
+
+Button: View
+
+⚠️ Step 2: KYC Documents
+
+(Example states)
+
+If incomplete:
+
+⚠️ Upload required documents
+PAN and property ownership proof required to go live.
+
+
+Button: Upload Documents
+
+If submitted:
+
+⏳ Documents under review
+
+⚠️ Step 3: Bank Details
+⚠️ Add bank details for payouts
+You’ll receive payments once bookings start.
+
+
+Button: Add Bank Details
+
+🔥 This checklist replaces 10 tooltips, emails, and support tickets.
+
+3️⃣ PROPERTY CARD — LIMITED MODE (NO ACTION LIES)
+Card content
+Property Name
+City
+Status: Under Review
+
+Disabled actions (greyed out)
+
+Change Price 🔒
+
+View Bookings 🔒
+
+Go Live 🔒
+
+Enabled actions
+
+Edit Property
+
+Upload Photos
+
+⚠️ IMPORTANT:
+Disabled buttons must show tooltip:
+
+“Available after approval”
+
+This avoids rage clicks.
+
+4️⃣ “WHAT HAPPENS NEXT” EXPLAINER (SHORT, HUMAN)
+
+A simple info card:
+
+Title
+
+What happens next?
+
+Text (keep this exact tone)
+• Our team reviews your details (24–48 hrs)
+• Once approved, your property goes live
+• You’ll start receiving booking requests
+• Payments are released after guest check-in
+
+
+This sets expectations and reduces WhatsApp spam.
+
+5️⃣ SUPPORT & ESCALATION (MUST EXIST)
+
+At the bottom or side:
+
+Need help?
+📞 Call / WhatsApp Support
+📩 Raise a ticket
+
+
+Why?
+
+Pre-approval owners are nervous
+
+This prevents drop-offs + abuse on social media
+
+6️⃣ WHAT MUST NOT APPEAR ON THIS SCREEN ❌
+
+Do NOT show:
+
+Earnings
+
+Bookings
+
+Analytics
+
+Ratings
+
+Reviews
+
+Promotional tools
+
+Even placeholders are bad.
+Fake dashboards destroy trust.
+
+7️⃣ PERMISSION LOGIC (IMPLEMENT THIS EXACTLY)
+if (owner.status === 'pending' || owner.status === 'under_review') {
+  showPreApprovalDashboard();
+  disable([
+    'pricing',
+    'bookings',
+    'payouts',
+    'visibility'
+  ]);
+}
+
+8️⃣ NAVIGATION — LIMITED MENU
+Sidebar / Top nav (pre-approval)
+
+Show ONLY:
+
+Dashboard
+
+My Property
+
+Documents / KYC
+
+Support
+
+Logout
+
+Hide:
+
+Bookings
+
+Earnings
+
+Reviews
+
+Messages (optional)
+
+9️⃣ COPY THAT YOU SHOULD USE (DON’T OVERWRITE)
+
+Use plain, reassuring language.
+Avoid “compliance”, “verification”, “KYC” jargon in headlines.
+
+Say:
+
+“Get live”
+
+“Start receiving bookings”
+
+“We’re reviewing”
