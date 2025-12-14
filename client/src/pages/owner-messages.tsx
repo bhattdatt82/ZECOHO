@@ -8,14 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { MessageSquare, Send, Search, XCircle, AlertTriangle } from "lucide-react";
+import { MessageSquare, Send, Search, XCircle, AlertTriangle, Paperclip, X, Image, FileText, Film, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-import type { Conversation as BaseConversation, Message as BaseMessage, User, Property } from "@shared/schema";
+import type { Conversation as BaseConversation, Message as BaseMessage, User, Property, MessageAttachment } from "@shared/schema";
+
+type PendingAttachment = {
+  file: File;
+  preview: string;
+  uploading: boolean;
+  accessPath?: string;
+  uploadToken?: string;
+};
 
 type ConversationWithDetails = BaseConversation & {
   property: Property;
@@ -34,6 +43,10 @@ export default function OwnerMessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const selectedConversationRef = useRef(selectedConversation);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -138,9 +151,12 @@ export default function OwnerMessagesPage() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ content, attachments }: { content: string; attachments: MessageAttachment[] }) => {
       if (!selectedConversation) throw new Error("No conversation selected");
-      const response = await apiRequest("POST", `/api/conversations/${selectedConversation}/messages`, { content });
+      const response = await apiRequest("POST", `/api/conversations/${selectedConversation}/messages`, { 
+        content: content || (attachments.length > 0 ? "Sent attachment(s)" : ""),
+        attachments: attachments.length > 0 ? attachments : undefined,
+      });
       return await response.json() as MessageWithSender;
     },
     onSuccess: (newMessage) => {
@@ -156,6 +172,7 @@ export default function OwnerMessagesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"] });
       queryClient.refetchQueries({ queryKey: ["/api/conversations", selectedConversation, "messages"] });
       setMessageText("");
+      setPendingAttachments([]);
     },
     onError: (error) => {
       console.error("Failed to send message:", error);
@@ -202,11 +219,93 @@ export default function OwnerMessagesPage() {
     }
   }, [messages]);
 
+  // Handle file selection
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const maxSize = 25 * 1024 * 1024;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    
+    for (const file of Array.from(files)) {
+      if (file.size > maxSize) {
+        toast({ title: "File too large", description: `${file.name} exceeds 25MB limit`, variant: "destructive" });
+        continue;
+      }
+      
+      if (!allowedTypes.some(type => file.type.startsWith(type.split('/')[0]) || file.type === type)) {
+        toast({ title: "Unsupported file type", description: `${file.name} is not supported`, variant: "destructive" });
+        continue;
+      }
+
+      const preview = file.type.startsWith('image/') || file.type.startsWith('video/') ? URL.createObjectURL(file) : '';
+      setPendingAttachments(prev => [...prev, { file, preview, uploading: false }]);
+    }
+    
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setPendingAttachments(prev => {
+      const updated = [...prev];
+      if (updated[index].preview) URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
+  };
+
+  const uploadAttachment = async (attachment: PendingAttachment): Promise<MessageAttachment | null> => {
+    try {
+      const uploadResponse = await apiRequest("POST", "/api/messages/upload", {});
+      const { uploadURL, accessPath, uploadToken } = await uploadResponse.json();
+      const uploadResult = await fetch(uploadURL, { method: "PUT", body: attachment.file, headers: { "Content-Type": attachment.file.type } });
+      if (!uploadResult.ok) throw new Error("Upload failed");
+      await apiRequest("POST", "/api/messages/upload/finalize", { accessPath, uploadToken, conversationId: selectedConversation });
+      return { id: crypto.randomUUID(), fileName: attachment.file.name, fileType: attachment.file.type, fileSize: attachment.file.size, url: accessPath };
+    } catch (error) { console.error("Error uploading:", error); return null; }
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return <Image className="h-4 w-4" />;
+    if (fileType.startsWith('video/')) return <Film className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   const selectedConv = conversations?.find((c) => c.id === selectedConversation);
 
-  const handleSendMessage = () => {
-    if (!messageText.trim() || !selectedConversation) return;
-    sendMessageMutation.mutate(messageText.trim());
+  const handleSendMessage = async () => {
+    if ((!messageText.trim() && pendingAttachments.length === 0) || !selectedConversation) return;
+    
+    setIsSending(true);
+    
+    try {
+      const uploadedAttachments: MessageAttachment[] = [];
+      for (const attachment of pendingAttachments) {
+        const result = await uploadAttachment(attachment);
+        if (result) {
+          uploadedAttachments.push(result);
+        }
+      }
+      
+      sendMessageMutation.mutate({ 
+        content: messageText.trim(), 
+        attachments: uploadedAttachments 
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to send message",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   if (authLoading) {
@@ -405,7 +504,46 @@ export default function OwnerMessagesPage() {
                                 }`}
                                 data-testid={`message-${msg.id}`}
                               >
-                                <p className="text-sm">{msg.content}</p>
+                                {msg.attachments && msg.attachments.length > 0 && (
+                                  <div className="space-y-2 mb-2">
+                                    {msg.attachments.map((att: MessageAttachment) => (
+                                      <div key={att.id} className="rounded-md overflow-hidden">
+                                        {att.fileType.startsWith('image/') ? (
+                                          <img 
+                                            src={att.url} 
+                                            alt={att.fileName}
+                                            className="max-w-full max-h-48 rounded cursor-pointer hover:opacity-90"
+                                            onClick={() => setPreviewImage(att.url)}
+                                            data-testid={`attachment-image-${att.id}`}
+                                          />
+                                        ) : att.fileType.startsWith('video/') ? (
+                                          <video 
+                                            src={att.url} 
+                                            controls 
+                                            className="max-w-full max-h-48 rounded"
+                                            data-testid={`attachment-video-${att.id}`}
+                                          />
+                                        ) : (
+                                          <a 
+                                            href={att.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className={`flex items-center gap-2 p-2 rounded border ${isCurrentUser ? 'border-primary-foreground/20 hover:bg-primary-foreground/10' : 'border-border hover:bg-muted'}`}
+                                            data-testid={`attachment-file-${att.id}`}
+                                          >
+                                            {getFileIcon(att.fileType)}
+                                            <span className="text-sm truncate flex-1">{att.fileName}</span>
+                                            <span className="text-xs opacity-70">{formatFileSize(att.fileSize)}</span>
+                                            <Download className="h-4 w-4" />
+                                          </a>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {msg.content && msg.content !== "Sent attachment(s)" && (
+                                  <p className="text-sm">{msg.content}</p>
+                                )}
                                 <p className="text-xs opacity-70 mt-1">
                                   {msg.createdAt ? format(new Date(msg.createdAt), "HH:mm") : ""}
                                 </p>
@@ -424,18 +562,67 @@ export default function OwnerMessagesPage() {
                   </ScrollArea>
                 </CardContent>
                 <div className="p-4 border-t">
+                  {pendingAttachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {pendingAttachments.map((att, index) => (
+                        <div key={index} className="relative group">
+                          {att.file.type.startsWith('image/') ? (
+                            <img src={att.preview} alt={att.file.name} className="h-16 w-16 object-cover rounded border" />
+                          ) : att.file.type.startsWith('video/') ? (
+                            <div className="h-16 w-16 bg-muted rounded border flex items-center justify-center">
+                              <Film className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          ) : (
+                            <div className="h-16 w-16 bg-muted rounded border flex items-center justify-center">
+                              <FileText className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => removeAttachment(index)}
+                            data-testid={`button-remove-attachment-${index}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <p className="text-xs text-muted-foreground truncate w-16 mt-1">{att.file.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      multiple
+                      accept="image/*,video/*,.pdf,.doc,.docx"
+                      className="hidden"
+                      data-testid="input-file-attachment"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isSending}
+                      data-testid="button-attach-file"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
                     <Input
                       placeholder="Type a message..."
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                      disabled={sendMessageMutation.isPending}
+                      onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                      disabled={isSending}
                       data-testid="message-input"
                     />
                     <Button 
                       onClick={handleSendMessage} 
-                      disabled={!messageText.trim() || sendMessageMutation.isPending}
+                      disabled={(!messageText.trim() && pendingAttachments.length === 0) || isSending}
                       data-testid="send-message"
                     >
                       <Send className="h-4 w-4" />
@@ -454,6 +641,14 @@ export default function OwnerMessagesPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-4xl p-0">
+          {previewImage && (
+            <img src={previewImage} alt="Preview" className="w-full h-auto" />
+          )}
+        </DialogContent>
+      </Dialog>
     </OwnerLayout>
   );
 }
