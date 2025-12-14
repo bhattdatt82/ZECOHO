@@ -45,11 +45,12 @@ export default function OwnerMessagesPage() {
 
   const { data: conversations, isLoading: loadingConversations } = useQuery<Conversation[]>({
     queryKey: ["/api/owner/conversations"],
+    enabled: !authLoading && isVerified,
   });
 
   const { data: messages, isLoading: loadingMessages } = useQuery<Message[]>({
     queryKey: ["/api/owner/conversations", selectedConversation, "messages"],
-    enabled: !!selectedConversation,
+    enabled: !!selectedConversation && !authLoading && isVerified,
   });
 
   const filteredConversations = conversations?.filter(
