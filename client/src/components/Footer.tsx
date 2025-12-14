@@ -3,11 +3,11 @@ import { SiInstagram, SiYoutube, SiFacebook, SiLinkedin, SiX } from "react-icons
 
 export function Footer() {
   return (
-    <footer className="border-t bg-background py-8 mt-auto">
+    <footer className="border-t bg-background py-4 mt-auto">
       <div className="container px-4 md:px-6">
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
           {/* Main footer content */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail className="h-4 w-4" />
               <span>
@@ -78,7 +78,7 @@ export function Footer() {
           </div>
           
           {/* Copyright */}
-          <div className="text-center text-sm text-muted-foreground border-t pt-4">
+          <div className="text-center text-sm text-muted-foreground border-t pt-2">
             © {new Date().getFullYear()} ZECOHO. All rights reserved.
           </div>
         </div>
