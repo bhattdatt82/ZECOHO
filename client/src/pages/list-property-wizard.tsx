@@ -413,11 +413,15 @@ export default function ListPropertyWizard() {
       form.setValue("bathrooms", draftProperty.bathrooms || 1);
       form.setValue("policies", draftProperty.policies || "");
       
-      // Pre-fill user info
+      // Pre-fill user info including phone from user record
       if (user) {
         form.setValue("firstName", user.firstName || "");
         form.setValue("lastName", user.lastName || "");
         form.setValue("email", user.email || "");
+        // Pre-fill phone from user record (captured during quick listing)
+        if ((user as any).phone) {
+          form.setValue("phone", (user as any).phone);
+        }
       }
       
       // Pre-fill images from draft property
@@ -438,10 +442,50 @@ export default function ListPropertyWizard() {
       
       toast({
         title: "Continuing your listing",
-        description: "Your previously saved property information has been loaded. Complete the KYC verification to publish.",
+        description: "Your previously saved information has been loaded. You can edit any details or add more documents.",
       });
     }
   }, [isCompleteMode, draftProperty, form, user, toast]);
+
+  // Separate effect to pre-fill KYC data when available (handles race condition with draft property)
+  const hasLoadedKycForCompleteMode = useRef(false);
+  useEffect(() => {
+    // Only run for complete mode when KYC data is available and hasn't been loaded yet
+    if (!isCompleteMode || !existingKycApplication || hasLoadedKycForCompleteMode.current) return;
+    // Don't run for rejected KYC (that's handled separately)
+    if (existingKycApplication.status === "rejected") return;
+    
+    hasLoadedKycForCompleteMode.current = true;
+    
+    // Pre-fill business info from existing KYC application
+    if (existingKycApplication.businessName) form.setValue("businessName", existingKycApplication.businessName);
+    if (existingKycApplication.flatNo) form.setValue("kycFlatNo", existingKycApplication.flatNo);
+    if (existingKycApplication.houseNo) form.setValue("kycHouseNo", existingKycApplication.houseNo);
+    if (existingKycApplication.streetAddress) form.setValue("kycStreetAddress", existingKycApplication.streetAddress);
+    if (existingKycApplication.landmark) form.setValue("kycLandmark", existingKycApplication.landmark);
+    if (existingKycApplication.locality) form.setValue("kycLocality", existingKycApplication.locality);
+    if (existingKycApplication.city) form.setValue("kycCity", existingKycApplication.city);
+    if (existingKycApplication.district) form.setValue("kycDistrict", existingKycApplication.district);
+    if (existingKycApplication.state) form.setValue("kycState", existingKycApplication.state);
+    if (existingKycApplication.pincode) form.setValue("kycPincode", existingKycApplication.pincode);
+    if (existingKycApplication.gstNumber) form.setValue("gstNumber", existingKycApplication.gstNumber);
+    if (existingKycApplication.panNumber) form.setValue("panNumber", existingKycApplication.panNumber);
+    if (existingKycApplication.phone) form.setValue("phone", existingKycApplication.phone);
+    
+    // Pre-fill documents from existing KYC application
+    const existingDocs = {
+      propertyOwnership: (existingKycApplication.propertyOwnershipDocs as any[]) || [],
+      identityProof: (existingKycApplication.identityProofDocs as any[]) || [],
+      businessLicense: (existingKycApplication.businessLicenseDocs as any[]) || [],
+      noc: (existingKycApplication.nocDocs as any[]) || [],
+      safetyCertificates: (existingKycApplication.safetyCertificateDocs as any[]) || [],
+    };
+    // Only set documents if there are any
+    const hasExistingDocs = Object.values(existingDocs).some(arr => arr.length > 0);
+    if (hasExistingDocs) {
+      setKycDocuments(existingDocs);
+    }
+  }, [isCompleteMode, existingKycApplication, form]);
 
   // Helper function to clear wizard draft from localStorage
   const clearWizardDraft = useCallback(() => {
@@ -1677,7 +1721,9 @@ export default function ListPropertyWizard() {
                     Personal Information
                   </CardTitle>
                   <CardDescription>
-                    Tell us about yourself as the property owner
+                    {isCompleteMode 
+                      ? "Your details are pre-filled from your previous submission. You can edit any information below."
+                      : "Tell us about yourself as the property owner"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1875,7 +1921,9 @@ export default function ListPropertyWizard() {
                       Business Information
                     </CardTitle>
                     <CardDescription>
-                      Your business details for verification
+                      {isCompleteMode && existingKycApplication
+                        ? "Your business details are pre-filled. You can edit any information or add more documents below."
+                        : "Your business details for verification"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
