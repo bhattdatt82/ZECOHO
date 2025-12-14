@@ -153,7 +153,7 @@ const quickListingSchema = z.object({
 });
 
 type QuickListingFormData = z.infer<typeof quickListingSchema>;
-type ListingMode = "quick" | "full";
+type ListingMode = "quick" | "full" | "complete";
 
 export default function ListPropertyWizard() {
   const [, setLocation] = useLocation();
@@ -184,25 +184,41 @@ export default function ListPropertyWizard() {
   
   const [step, setStep] = useState(firstStep);
   
-  // Listing mode: "quick" for Phase 1 (soft onboarding), "full" for full KYC flow
+  // Listing mode: "quick" for Phase 1 (soft onboarding), "full" for full KYC flow, "complete" for completing draft listing
   // null means mode selection screen should be shown
   // Check URL params for mode (from choose-listing-mode redirect)
   const getInitialMode = (): ListingMode | null => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const modeParam = params.get("mode");
-      if (modeParam === "quick" || modeParam === "full") {
-        return modeParam;
+      if (modeParam === "quick" || modeParam === "full" || modeParam === "complete") {
+        return modeParam as ListingMode;
       }
     }
     return null;
   };
+  const getPropertyIdFromUrl = (): string | null => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("propertyId");
+    }
+    return null;
+  };
   const [listingMode, setListingMode] = useState<ListingMode | null>(getInitialMode);
+  const [existingPropertyId] = useState<string | null>(getPropertyIdFromUrl);
   
   // Quick mode has only 2 steps: 1. Basic Info, 2. Property + Photos
   const isQuickMode = listingMode === "quick";
+  const isCompleteMode = listingMode === "complete";
   const quickModeTotalSteps = 2;
   
+  // Fetch draft property when in "complete" mode (continuing from quick listing)
+  const { data: draftProperty, isLoading: isLoadingDraft } = useQuery<any>({
+    queryKey: ["/api/owner/draft-property"],
+    enabled: isCompleteMode && !!user,
+    retry: false,
+  });
+
   // Parse rejection details
   const rejectionDetails = useMemo(() => {
     if (existingKycApplication?.rejectionDetails) {
@@ -369,6 +385,63 @@ export default function ListPropertyWizard() {
       });
     }
   }, [isKycResubmission, existingKycApplication, form]);
+
+  // Pre-fill form with draft property data when in "complete" mode
+  const hasLoadedDraftProperty = useRef(false);
+  useEffect(() => {
+    if (isCompleteMode && draftProperty && !hasLoadedDraftProperty.current) {
+      hasLoadedDraftProperty.current = true;
+      
+      // Pre-fill property data from draft
+      form.setValue("propertyTitle", draftProperty.title || "");
+      form.setValue("propertyType", draftProperty.propertyType || "hotel");
+      form.setValue("description", draftProperty.description || "");
+      form.setValue("destination", draftProperty.destination || draftProperty.propCity || "");
+      form.setValue("propCity", draftProperty.propCity || "");
+      form.setValue("propState", draftProperty.propState || "");
+      form.setValue("propDistrict", draftProperty.propDistrict || "");
+      form.setValue("propStreetAddress", draftProperty.propStreetAddress || "");
+      form.setValue("propLocality", draftProperty.propLocality || "");
+      form.setValue("propPincode", draftProperty.propPincode || "");
+      form.setValue("propFlatNo", draftProperty.propFlatNo || "");
+      form.setValue("propHouseNo", draftProperty.propHouseNo || "");
+      form.setValue("propLandmark", draftProperty.propLandmark || "");
+      form.setValue("pricePerNight", Number(draftProperty.pricePerNight) || 1000);
+      form.setValue("maxGuests", draftProperty.maxGuests || 2);
+      form.setValue("bedrooms", draftProperty.bedrooms || 1);
+      form.setValue("beds", draftProperty.beds || 1);
+      form.setValue("bathrooms", draftProperty.bathrooms || 1);
+      form.setValue("policies", draftProperty.policies || "");
+      
+      // Pre-fill user info
+      if (user) {
+        form.setValue("firstName", user.firstName || "");
+        form.setValue("lastName", user.lastName || "");
+        form.setValue("email", user.email || "");
+      }
+      
+      // Pre-fill images from draft property
+      if (draftProperty.categorizedImages) {
+        setCategorizedImages(draftProperty.categorizedImages);
+      } else if (draftProperty.images && Array.isArray(draftProperty.images) && draftProperty.images.length > 0) {
+        // Convert flat images array to categorized format
+        setCategorizedImages({
+          ...defaultCategorizedImages,
+          exterior: draftProperty.images.map((url: string) => ({ url, caption: "" })),
+        });
+      }
+      
+      // Pre-fill amenities if available
+      if (draftProperty.amenityIds && Array.isArray(draftProperty.amenityIds)) {
+        setSelectedAmenities(draftProperty.amenityIds.map(String));
+      }
+      
+      toast({
+        title: "Continuing your listing",
+        description: "Your previously saved property information has been loaded. Complete the KYC verification to publish.",
+      });
+    }
+  }, [isCompleteMode, draftProperty, form, user, toast]);
 
   // Helper function to clear wizard draft from localStorage
   const clearWizardDraft = useCallback(() => {

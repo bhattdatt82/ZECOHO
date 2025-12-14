@@ -1,10 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
+import { type Property } from "@shared/schema";
 import {
   Zap,
   Shield,
@@ -17,11 +20,28 @@ import {
   IndianRupee,
   Eye,
   XCircle,
+  Loader2,
 } from "lucide-react";
 
 export default function ChooseListingMode() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
+
+  // Check if user already has a draft property
+  const { data: draftProperty, isLoading: isLoadingDraft } = useQuery<Property>({
+    queryKey: ["/api/owner/draft-property"],
+    enabled: !!user,
+    retry: false,
+  });
+
+  // If user has a draft property, redirect to complete KYC flow
+  useEffect(() => {
+    if (!isLoadingDraft && draftProperty) {
+      // User already has a draft property - skip mode selection and go to Complete KYC
+      navigate(`/list-property?mode=complete&propertyId=${draftProperty.id}`);
+    }
+  }, [isLoadingDraft, draftProperty, navigate]);
 
   const selectModeMutation = useMutation({
     mutationFn: async (mode: "quick" | "full") => {
@@ -65,6 +85,31 @@ export default function ChooseListingMode() {
     { icon: Eye, text: "Full visibility in search results" },
     { icon: Building2, text: "Complete property management" },
   ];
+
+  // Show loading state while checking for draft property
+  if (isAuthLoading || isLoadingDraft) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="loading-state">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user has a draft property, this will redirect (handled by useEffect above)
+  // Show a loading state while redirecting
+  if (draftProperty) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="redirecting-state">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Continuing your listing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

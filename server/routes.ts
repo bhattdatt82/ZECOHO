@@ -1671,6 +1671,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get owner's draft property (for continuing listing flow)
+  app.get("/api/owner/draft-property", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get owner's properties with draft status
+      const properties = await storage.getProperties({ ownerId: userId });
+      const draftProperty = properties.find((p: any) => p.status === "draft");
+      
+      if (!draftProperty) {
+        return res.status(404).json({ message: "No draft property found" });
+      }
+
+      res.json(draftProperty);
+    } catch (error) {
+      console.error("Error fetching draft property:", error);
+      res.status(500).json({ message: "Failed to fetch draft property" });
+    }
+  });
+
   // Pause property listing (owner only)
   app.patch("/api/properties/:id/pause", isAuthenticated, async (req: any, res) => {
     try {
