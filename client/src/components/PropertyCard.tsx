@@ -95,11 +95,12 @@ export function PropertyCard({ property, onWishlistToggle, searchParams }: Prope
 
   const chatMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", "/api/conversations", { propertyId: property.id });
+      const response = await apiRequest("POST", "/api/conversations", { propertyId: property.id });
+      return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (conversation: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-      setLocation("/messages");
+      setLocation(`/messages?conversationId=${conversation.id}`);
     },
     onError: (error: Error) => {
       toast({

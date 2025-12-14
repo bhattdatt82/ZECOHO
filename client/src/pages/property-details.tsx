@@ -324,7 +324,8 @@ export default function PropertyDetails() {
   const contactOwnerMutation = useMutation({
     mutationFn: async () => {
       if (!propertyId) throw new Error("Property ID not found");
-      return await apiRequest("POST", "/api/conversations", { propertyId });
+      const response = await apiRequest("POST", "/api/conversations", { propertyId });
+      return await response.json();
     },
     onSuccess: (conversation: any) => {
       setLocation(`/messages?conversationId=${conversation.id}`);
