@@ -135,7 +135,7 @@ export default function Messages() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      if (!selectedConversationId) return null;
+      if (!selectedConversationId) throw new Error("No conversation selected");
       const response = await apiRequest("POST", `/api/conversations/${selectedConversationId}/messages`, { content });
       return await response.json() as MessageWithSender;
     },
@@ -150,7 +150,16 @@ export default function Messages() {
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      queryClient.refetchQueries({ queryKey: ["/api/conversations", selectedConversationId, "messages"] });
       setMessageInput("");
+    },
+    onError: (error) => {
+      console.error("Failed to send message:", error);
+      toast({
+        title: "Failed to send message",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
     },
   });
 

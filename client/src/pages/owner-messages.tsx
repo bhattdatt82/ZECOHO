@@ -131,7 +131,7 @@ export default function OwnerMessagesPage() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      if (!selectedConversation) return null;
+      if (!selectedConversation) throw new Error("No conversation selected");
       const response = await apiRequest("POST", `/api/conversations/${selectedConversation}/messages`, { content });
       return await response.json() as MessageWithSender;
     },
@@ -146,7 +146,16 @@ export default function OwnerMessagesPage() {
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/owner/conversations"] });
+      queryClient.refetchQueries({ queryKey: ["/api/conversations", selectedConversation, "messages"] });
       setMessageText("");
+    },
+    onError: (error) => {
+      console.error("Failed to send message:", error);
+      toast({
+        title: "Failed to send message",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
     },
   });
 
