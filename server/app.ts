@@ -114,11 +114,15 @@ export default async function runApp(
     }, () => {
       log(`serving on port ${port}`);
       
-      // Seed essential data in the background
-      // Both functions check if data exists before inserting, so this is safe to run always
-      // Fire-and-forget seeding - don't await, don't chain .catch()
-      seedAmenities();
-      seedDestinations();
+      // Only run seeding in development - production data should already be seeded
+      // This prevents deployment timeouts from expensive seeding operations
+      if (process.env.NODE_ENV !== 'production') {
+        // Seed essential data in the background
+        // Both functions check if data exists before inserting, so this is safe to run always
+        // Fire-and-forget seeding - don't await, don't chain .catch()
+        seedAmenities();
+        seedDestinations();
+      }
     });
   });
 }
