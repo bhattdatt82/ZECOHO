@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link, Redirect } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import type { Property } from "@shared/schema";
 import { OwnerWelcomeModal } from "@/components/OwnerWelcomeModal";
 import { KycPromptModal, useKycPromptModal } from "@/components/KycPromptModal";
 import {
@@ -77,6 +79,15 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
   const [location, setLocation] = useLocation();
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const { showModal: showKycPrompt, setShowModal: setShowKycPrompt } = useKycPromptModal(isOwner, user?.kycStatus);
+
+  // Fetch owner's properties to get the property ID for navigation
+  const { data: ownerProperties = [] } = useQuery<Property[]>({
+    queryKey: ["/api/owner/properties"],
+    enabled: !!user && isOwner,
+  });
+  
+  // Get the first property ID (owners typically have one property)
+  const ownerPropertyId = ownerProperties.length > 0 ? ownerProperties[0].id : null;
 
   useEffect(() => {
     if (user && isOwner && !(user as any).hasSeenOwnerModal) {
@@ -170,14 +181,20 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setLocation("/list-property?mode=complete");
+                      const url = ownerPropertyId 
+                        ? `/list-property?mode=complete&propertyId=${ownerPropertyId}`
+                        : "/list-property?mode=complete";
+                      setLocation(url);
                     }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setLocation("/list-property?mode=complete");
+                        const url = ownerPropertyId 
+                          ? `/list-property?mode=complete&propertyId=${ownerPropertyId}`
+                          : "/list-property?mode=complete";
+                        setLocation(url);
                       }
                     }}
                   >
