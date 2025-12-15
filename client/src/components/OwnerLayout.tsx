@@ -156,7 +156,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                   {user.firstName} {user.lastName}
                 </span>
                 {isRejected ? (
-                  <Link href="/owner/kyc">
+                  <Link href="/list-property?mode=complete">
                     <Badge 
                       variant="destructive" 
                       className="w-fit text-xs cursor-pointer hover:bg-red-700 dark:hover:bg-red-800" 
