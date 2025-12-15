@@ -194,7 +194,7 @@ export function PreApprovalDashboard({ user }: PreApprovalDashboardProps) {
         </div>
       )}
 
-      {isQuickListing && (
+      {isQuickListing && !isRejected && (
         <Card className="border-primary/50 bg-gradient-to-r from-primary/5 to-primary/10" data-testid="upgrade-cta-card">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -291,6 +291,10 @@ export function PreApprovalDashboard({ user }: PreApprovalDashboardProps) {
                     View
                   </Button>
                 </Link>
+              ) : isRejected ? (
+                <Button size="sm" disabled className="opacity-50" data-testid="btn-add-property-disabled">
+                  Add Property
+                </Button>
               ) : (
                 <Link href="/list-property">
                   <Button size="sm" data-testid="btn-add-property">
@@ -341,6 +345,12 @@ export function PreApprovalDashboard({ user }: PreApprovalDashboardProps) {
                 <Badge variant="default" className="bg-green-600">Verified</Badge>
               ) : kycStepStatus === "reviewing" ? (
                 <Badge variant="secondary">Under Review</Badge>
+              ) : isRejected ? (
+                <Link href="/owner/kyc">
+                  <Button size="sm" variant="destructive" data-testid="btn-fix-kyc-step">
+                    Fix Issues
+                  </Button>
+                </Link>
               ) : (
                 <Link href="/list-property">
                   <Button size="sm" variant={kycStepStatus === "action_required" ? "default" : "outline"} data-testid="btn-upload-documents">

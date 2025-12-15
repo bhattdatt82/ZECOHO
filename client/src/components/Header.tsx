@@ -183,7 +183,9 @@ export function Header() {
                         <Building className="h-4 w-4" />
                         Owner Portal
                       </p>
-                      <p className="text-xs text-muted-foreground">Manage your property business</p>
+                      <p className="text-xs text-muted-foreground">
+                        {hasRejectedKyc ? "Fix KYC to unlock features" : "Manage your property business"}
+                      </p>
                     </div>
                     <DropdownMenuSeparator />
                     <Link href="/owner/dashboard">
@@ -192,42 +194,53 @@ export function Header() {
                         Dashboard
                       </DropdownMenuItem>
                     </Link>
-                    <Link href="/owner/bookings">
-                      <DropdownMenuItem data-testid="link-owner-bookings">
-                        <CalendarCheck className="h-4 w-4 mr-2" />
-                        Bookings
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/owner/messages">
-                      <DropdownMenuItem data-testid="link-owner-messages">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Messages
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/owner/property">
-                      <DropdownMenuItem data-testid="link-owner-property">
-                        <Building className="h-4 w-4 mr-2" />
-                        My Properties
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/owner/earnings">
-                      <DropdownMenuItem data-testid="link-owner-earnings">
-                        <IndianRupee className="h-4 w-4 mr-2" />
-                        Earnings
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/owner/reviews">
-                      <DropdownMenuItem data-testid="link-owner-reviews">
-                        <Star className="h-4 w-4 mr-2" />
-                        Reviews
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/owner/settings">
-                      <DropdownMenuItem data-testid="link-owner-settings">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Settings
-                      </DropdownMenuItem>
-                    </Link>
+                    {hasRejectedKyc ? (
+                      <Link href="/owner/kyc">
+                        <DropdownMenuItem data-testid="link-owner-kyc">
+                          <FileText className="h-4 w-4 mr-2" />
+                          KYC Review
+                        </DropdownMenuItem>
+                      </Link>
+                    ) : (
+                      <>
+                        <Link href="/owner/bookings">
+                          <DropdownMenuItem data-testid="link-owner-bookings">
+                            <CalendarCheck className="h-4 w-4 mr-2" />
+                            Bookings
+                          </DropdownMenuItem>
+                        </Link>
+                        <Link href="/owner/messages">
+                          <DropdownMenuItem data-testid="link-owner-messages">
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            Messages
+                          </DropdownMenuItem>
+                        </Link>
+                        <Link href="/owner/property">
+                          <DropdownMenuItem data-testid="link-owner-property">
+                            <Building className="h-4 w-4 mr-2" />
+                            My Properties
+                          </DropdownMenuItem>
+                        </Link>
+                        <Link href="/owner/earnings">
+                          <DropdownMenuItem data-testid="link-owner-earnings">
+                            <IndianRupee className="h-4 w-4 mr-2" />
+                            Earnings
+                          </DropdownMenuItem>
+                        </Link>
+                        <Link href="/owner/reviews">
+                          <DropdownMenuItem data-testid="link-owner-reviews">
+                            <Star className="h-4 w-4 mr-2" />
+                            Reviews
+                          </DropdownMenuItem>
+                        </Link>
+                        <Link href="/owner/settings">
+                          <DropdownMenuItem data-testid="link-owner-settings">
+                            <Settings className="h-4 w-4 mr-2" />
+                            Settings
+                          </DropdownMenuItem>
+                        </Link>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
