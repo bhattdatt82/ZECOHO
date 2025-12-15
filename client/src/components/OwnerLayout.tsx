@@ -60,12 +60,13 @@ const limitedMenuItems = [
 ];
 
 const rejectedMenuItems = [
+  { title: "Dashboard", icon: LayoutDashboard, path: "/owner/dashboard" },
   { title: "KYC Review", icon: AlertTriangle, path: "/owner/kyc" },
   { title: "My Property", icon: Building2, path: "/owner/property" },
   { title: "Support", icon: HelpCircle, path: "/owner/settings" },
 ];
 
-const allowedPathsWhenRejected = ["/owner/kyc", "/owner/property", "/owner/settings", "/list-property"];
+const allowedPathsWhenRejected = ["/owner/dashboard", "/owner/kyc", "/owner/property", "/owner/settings", "/list-property"];
 
 function isPathAllowedForRejected(currentPath: string): boolean {
   return allowedPathsWhenRejected.some(path => 
@@ -94,8 +95,10 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     }
   }, [user, isOwner, isRejected]);
 
+  // Only redirect rejected users when on disallowed paths
+  // Use the same allowedPathsWhenRejected list for consistency
   useEffect(() => {
-    if (isRejected && location !== "/owner/kyc" && !location.startsWith("/owner/kyc?") && !location.startsWith("/owner/kyc/")) {
+    if (isRejected && !isPathAllowedForRejected(location)) {
       setLocation("/owner/kyc");
     }
   }, [isRejected, location, setLocation]);

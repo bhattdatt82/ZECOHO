@@ -4,6 +4,7 @@ import { useAuth } from "./useAuth";
 
 // Routes allowed for authenticated users with rejected KYC
 // Includes essential routes for navigation and fixing KYC
+// Keep in sync with allowedPathsWhenRejected in OwnerLayout.tsx
 const ALLOWED_ROUTES_FOR_REJECTED = [
   "/",
   "/owner/dashboard",
@@ -14,6 +15,9 @@ const ALLOWED_ROUTES_FOR_REJECTED = [
   "/login",
   "/register",
   "/api/logout",
+  "/search",
+  "/properties",
+  "/destinations",
 ];
 
 export function useKycGuard() {
