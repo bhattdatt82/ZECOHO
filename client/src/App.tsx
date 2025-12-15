@@ -1,6 +1,7 @@
 // Referenced from blueprint:javascript_log_in_with_replit
 import { useEffect } from "react";
 import { Switch, Route, Redirect, useLocation } from "wouter";
+// Note: useEffect is still used by ScrollToTop component
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -106,14 +107,6 @@ function Router() {
 function KycGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { shouldBlockAccess, hasRejectedKyc } = useKycGuard();
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    // Only redirect after auth resolves, user is authenticated, and has rejected KYC on blocked route
-    if (!authLoading && isAuthenticated && shouldBlockAccess) {
-      setLocation("/owner/dashboard?state=kyc_rejected");
-    }
-  }, [authLoading, isAuthenticated, shouldBlockAccess, setLocation]);
 
   // While loading auth, render children normally (allows Landing/Login to render)
   if (authLoading) return <>{children}</>;
@@ -124,16 +117,9 @@ function KycGuard({ children }: { children: React.ReactNode }) {
   // If authenticated but not rejected KYC, render children
   if (!hasRejectedKyc) return <>{children}</>;
   
-  // If blocked, show a redirecting message (useEffect will handle the redirect)
+  // If blocked, use wouter Redirect component for immediate redirect
   if (shouldBlockAccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Redirecting...</p>
-        </div>
-      </div>
-    );
+    return <Redirect to="/owner/dashboard?state=kyc_rejected" />;
   }
 
   return <>{children}</>;
