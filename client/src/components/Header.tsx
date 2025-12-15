@@ -33,7 +33,7 @@ type ConversationWithUnread = Conversation & { unreadCount: number };
 
 export function Header() {
   const { user, isAuthenticated, isAdmin, isOwner } = useAuth();
-  const { hasRejectedKyc } = useKycGuard();
+  const { hasRejectedKyc, isKycNotStarted, isKycPending, isKycVerified } = useKycGuard();
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
@@ -330,6 +330,19 @@ export function Header() {
                     <XCircle className="h-4 w-4 md:mr-2" />
                     <span className="hidden md:inline">Fix KYC</span>
                     <span className="md:hidden">Fix KYC</span>
+                  </Button>
+                </Link>
+              ) : isOwner && !isKycVerified ? (
+                <Link href="/owner/kyc">
+                  <Button 
+                    size="sm"
+                    variant="secondary"
+                    className="font-semibold text-sm"
+                    data-testid="button-complete-kyc"
+                  >
+                    <FileText className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Complete KYC</span>
+                    <span className="md:hidden">KYC</span>
                   </Button>
                 </Link>
               ) : (

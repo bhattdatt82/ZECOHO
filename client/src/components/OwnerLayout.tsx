@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { OwnerWelcomeModal } from "@/components/OwnerWelcomeModal";
+import { KycPromptModal, useKycPromptModal } from "@/components/KycPromptModal";
 import {
   SidebarProvider,
   Sidebar,
@@ -68,6 +69,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
   const { user, isLoading, isOwner } = useAuth();
   const [location] = useLocation();
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const { showModal: showKycPrompt, setShowModal: setShowKycPrompt } = useKycPromptModal(isOwner, user?.kycStatus);
 
   useEffect(() => {
     if (user && isOwner && !(user as any).hasSeenOwnerModal) {
@@ -135,6 +137,10 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
       <OwnerWelcomeModal 
         open={showWelcomeModal} 
         onClose={() => setShowWelcomeModal(false)} 
+      />
+      <KycPromptModal
+        open={showKycPrompt && !showWelcomeModal}
+        onClose={() => setShowKycPrompt(false)}
       />
       <SidebarProvider style={sidebarStyle}>
         <div className="flex h-screen w-full">
