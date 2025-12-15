@@ -65,6 +65,13 @@ const rejectedMenuItems = [
 
 const allowedPathsWhenRejected = ["/owner/kyc", "/owner/property", "/owner/settings", "/list-property"];
 
+// Helper to check if a path is allowed for rejected users (handles query strings)
+function isPathAllowedForRejected(currentPath: string): boolean {
+  return allowedPathsWhenRejected.some(path => 
+    currentPath === path || currentPath.startsWith(path + "?") || currentPath.startsWith(path + "/")
+  );
+}
+
 export function OwnerLayout({ children }: OwnerLayoutProps) {
   const { user, isLoading, isOwner } = useAuth();
   const [location] = useLocation();
@@ -113,7 +120,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     ? limitedMenuItems 
     : fullMenuItems;
 
-  if (isRejected && !allowedPathsWhenRejected.includes(location)) {
+  if (isRejected && !isPathAllowedForRejected(location)) {
     return <Redirect to="/owner/kyc" />;
   }
 
