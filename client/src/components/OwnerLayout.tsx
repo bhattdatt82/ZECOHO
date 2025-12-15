@@ -74,7 +74,7 @@ function isPathAllowedForRejected(currentPath: string): boolean {
 
 export function OwnerLayout({ children }: OwnerLayoutProps) {
   const { user, isLoading, isOwner } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const { showModal: showKycPrompt, setShowModal: setShowKycPrompt } = useKycPromptModal(isOwner, user?.kycStatus);
 
@@ -163,16 +163,27 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                   {user.firstName} {user.lastName}
                 </span>
                 {isRejected ? (
-                  <Link href="/list-property?mode=complete">
-                    <Badge 
-                      variant="destructive" 
-                      className="w-fit text-xs cursor-pointer hover:bg-red-700 dark:hover:bg-red-800" 
-                      data-testid="owner-badge-rejected"
-                    >
-                      <XCircle className="h-3 w-3 mr-1" />
-                      KYC Rejected - Fix Now
-                    </Badge>
-                  </Link>
+                  <Badge 
+                    variant="destructive" 
+                    className="w-fit text-xs cursor-pointer hover:bg-red-700 dark:hover:bg-red-800 relative z-50" 
+                    data-testid="owner-badge-rejected"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setLocation("/list-property?mode=complete");
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setLocation("/list-property?mode=complete");
+                      }
+                    }}
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    KYC Rejected - Fix Now
+                  </Badge>
                 ) : (
                   <Badge variant={getBadgeVariant()} className="w-fit text-xs" data-testid="owner-badge">
                     {getBadgeContent()}
