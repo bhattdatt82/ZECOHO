@@ -2,11 +2,18 @@ import { useMemo } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "./useAuth";
 
-// ONLY these routes are allowed for authenticated users with rejected KYC
-// Rejected owners must fix their KYC - they cannot access customer features
+// Routes allowed for authenticated users with rejected KYC
+// Includes essential routes for navigation and fixing KYC
 const ALLOWED_ROUTES_FOR_REJECTED = [
+  "/",
   "/owner/dashboard",
   "/owner/kyc",
+  "/owner/property",
+  "/owner/settings",
+  "/list-property",
+  "/login",
+  "/register",
+  "/api/logout",
 ];
 
 export function useKycGuard() {
