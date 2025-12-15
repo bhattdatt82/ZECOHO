@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, Link, Redirect } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import type { Property } from "@shared/schema";
@@ -66,14 +66,6 @@ const rejectedMenuItems = [
   { title: "Support", icon: HelpCircle, path: "/owner/settings" },
 ];
 
-const allowedPathsWhenRejected = ["/owner/dashboard", "/owner/kyc", "/owner/property", "/owner/settings", "/list-property"];
-
-function isPathAllowedForRejected(currentPath: string): boolean {
-  return allowedPathsWhenRejected.some(path => 
-    currentPath === path || currentPath.startsWith(path + "?") || currentPath.startsWith(path + "/")
-  );
-}
-
 export function OwnerLayout({ children }: OwnerLayoutProps) {
   const { user, isLoading, isOwner } = useAuth();
   const [location, setLocation] = useLocation();
@@ -95,13 +87,8 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     }
   }, [user, isOwner, isRejected]);
 
-  // Only redirect rejected users when on disallowed paths
-  // Use the same allowedPathsWhenRejected list for consistency
-  useEffect(() => {
-    if (isRejected && !isPathAllowedForRejected(location)) {
-      setLocation("/owner/kyc");
-    }
-  }, [isRejected, location, setLocation]);
+  // NOTE: KYC redirects are now handled by centralized KycRouteGuard in App.tsx
+  // No inline redirects here - navigation guards run AFTER route change
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -117,13 +104,12 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
   }
 
   if (!user || !isOwner) {
-    return <Redirect to="/" />;
+    // Not an owner - let centralized guard handle redirect
+    return null;
   }
 
   const listingMode = (user as any).listingMode;
-  if (listingMode === "not_selected" && location !== "/owner/choose-mode") {
-    return <Redirect to="/owner/choose-mode" />;
-  }
+  // NOTE: Listing mode redirect handled by centralized guard
 
   const userInitials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "O";
 
@@ -137,9 +123,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     ? limitedMenuItems 
     : fullMenuItems;
 
-  if (isRejected && !isPathAllowedForRejected(location)) {
-    return <Redirect to="/owner/kyc" />;
-  }
+  // NOTE: KYC rejection redirect handled by centralized KycRouteGuard
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
