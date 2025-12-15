@@ -124,8 +124,17 @@ function KycGuard({ children }: { children: React.ReactNode }) {
   // If authenticated but not rejected KYC, render children
   if (!hasRejectedKyc) return <>{children}</>;
   
-  // If blocked, don't render children - prevent queries from firing
-  if (shouldBlockAccess) return null;
+  // If blocked, show a redirecting message (useEffect will handle the redirect)
+  if (shouldBlockAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }
