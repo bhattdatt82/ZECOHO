@@ -155,9 +155,22 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                 <span className="font-semibold text-sm truncate" data-testid="owner-name">
                   {user.firstName} {user.lastName}
                 </span>
-                <Badge variant={getBadgeVariant()} className="w-fit text-xs" data-testid="owner-badge">
-                  {getBadgeContent()}
-                </Badge>
+                {isRejected ? (
+                  <Link href="/owner/kyc">
+                    <Badge 
+                      variant="destructive" 
+                      className="w-fit text-xs cursor-pointer hover:bg-red-700 dark:hover:bg-red-800" 
+                      data-testid="owner-badge-rejected"
+                    >
+                      <XCircle className="h-3 w-3 mr-1" />
+                      KYC Rejected - Fix Now
+                    </Badge>
+                  </Link>
+                ) : (
+                  <Badge variant={getBadgeVariant()} className="w-fit text-xs" data-testid="owner-badge">
+                    {getBadgeContent()}
+                  </Badge>
+                )}
               </div>
             </div>
           </SidebarHeader>
