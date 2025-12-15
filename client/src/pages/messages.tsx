@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useKycGuard } from "@/hooks/useKycGuard";
+import { RestrictedAccess } from "@/components/RestrictedAccess";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,8 +35,14 @@ type MessageWithSender = Message & {
 };
 
 export default function Messages() {
-  const { user } = useAuth();
+  const { user, isOwner } = useAuth();
   const { toast } = useToast();
+  const { shouldBlockAccess } = useKycGuard();
+
+  // Block access for rejected owners
+  if (isOwner && shouldBlockAccess) {
+    return <RestrictedAccess description="Your KYC has been rejected. Please fix your KYC to access messages." />;
+  }
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);

@@ -17,10 +17,18 @@ import {
 import { SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
 import type { Property, Amenity } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
+import { useKycGuard } from "@/hooks/useKycGuard";
+import { RestrictedAccess } from "@/components/RestrictedAccess";
 
 export default function Search() {
-  const { user } = useAuth();
+  const { user, isOwner } = useAuth();
   const [location] = useLocation();
+  const { shouldBlockAccess } = useKycGuard();
+
+  // Block access for rejected owners
+  if (isOwner && shouldBlockAccess) {
+    return <RestrictedAccess description="Your KYC has been rejected. Please fix your KYC to access search." />;
+  }
   
   // Filter states
   const [selectedType, setSelectedType] = useState<string>(""); // No default - show all property types

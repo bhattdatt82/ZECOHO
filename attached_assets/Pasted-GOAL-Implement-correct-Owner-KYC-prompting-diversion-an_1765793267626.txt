@@ -1,0 +1,214 @@
+GOAL:
+Implement correct Owner KYC prompting, diversion, and enforcement logic for ZECOHO.
+Ensure owners always know what to do next, with hard diversion only when required.
+
+DO NOT redesign homepage UI.
+DO NOT change existing forms.
+ONLY adjust routing, guards, banners, and prompts.
+
+--------------------------------------------------
+1. USER ROLES & STATES
+--------------------------------------------------
+
+User fields:
+- role: "CUSTOMER" | "OWNER"
+- owner_kyc_status:
+    - NOT_STARTED
+    - INCOMPLETE
+    - SUBMITTED
+    - APPROVED
+    - REJECTED
+
+--------------------------------------------------
+2. OWNER MODE ENTRY
+--------------------------------------------------
+
+When a user switches to Owner Mode or becomes OWNER for the first time:
+
+- Set role = OWNER
+- Redirect to /owner/dashboard
+- If first-time owner entry, show a one-time confirmation modal:
+
+Title:
+"You’re now a Zecoho Property Owner"
+
+Body:
+"You can list properties, complete verification,
+and manage bookings from your owner dashboard."
+
+Buttons:
+[ Go to Owner Dashboard ]
+[ Switch to Customer Mode ]
+
+Show this modal only once per user.
+
+--------------------------------------------------
+3. KYC DIVERSION RULES (CRITICAL)
+--------------------------------------------------
+
+A) HARD DIVERSION — KYC REJECTED
+
+If:
+owner_kyc_status === "REJECTED"
+
+Then:
+- Immediately redirect user to /owner/kyc?state=rejected
+- Block access to ALL other routes, including:
+  / (homepage)
+  /search
+  /messages
+  /owner/bookings
+
+Allowed routes ONLY:
+- /owner/dashboard
+- /owner/kyc
+- /support (optional)
+
+--------------------------------------------------
+B) SOFT DIVERSION — KYC NOT STARTED / INCOMPLETE
+--------------------------------------------------
+
+If:
+owner_kyc_status === "NOT_STARTED" OR "INCOMPLETE"
+
+Then:
+- Do NOT auto-redirect on login
+- Allow browsing and dashboard access
+- BUT redirect user to /owner/kyc when they attempt any owner-restricted action:
+    - Publish property
+    - Set pricing
+    - Accept bookings
+    - Go live
+    - Switch out of Owner Mode
+
+--------------------------------------------------
+C) NO DIVERSION — KYC SUBMITTED
+--------------------------------------------------
+
+If:
+owner_kyc_status === "SUBMITTED"
+
+Then:
+- Allow owner dashboard access in read-only mode
+- Do NOT redirect automatically
+- Disable bookings, pricing, payments
+
+--------------------------------------------------
+D) FULL ACCESS — KYC APPROVED
+--------------------------------------------------
+
+If:
+owner_kyc_status === "APPROVED"
+
+Then:
+- Remove all KYC prompts, banners, and restrictions
+- Enable full owner dashboard functionality
+
+--------------------------------------------------
+4. OWNER KYC PROMPTS
+--------------------------------------------------
+
+A) Initial KYC Prompt Modal
+
+Condition:
+owner_kyc_status === "NOT_STARTED" OR "INCOMPLETE"
+
+Show full-screen modal (once per session until started):
+
+Title:
+"Complete Verification to Go Live"
+
+Body:
+"To activate your property and receive bookings,
+we need to verify your identity and property ownership.
+This takes about 5–10 minutes."
+
+Primary CTA:
+"Start KYC" → /owner/kyc
+
+Secondary:
+"I’ll do this later"
+
+--------------------------------------------------
+B) Persistent Dashboard Banner
+--------------------------------------------------
+
+On /owner/dashboard show a sticky banner based on status:
+
+NOT_STARTED / INCOMPLETE:
+"⚠️ Verification Required — Complete KYC to activate your property."
+CTA → /owner/kyc
+
+SUBMITTED:
+"⏳ Verification Under Review — This usually takes 24–72 hours."
+
+REJECTED:
+"❌ Verification Failed — Action Required."
+CTA → /owner/kyc
+
+Banner must remain visible until APPROVED.
+
+--------------------------------------------------
+5. OWNER DASHBOARD BEHAVIOR
+--------------------------------------------------
+
+Route: /owner/dashboard
+
+If owner_kyc_status === "REJECTED":
+- Show blocking alert card with:
+  - Rejection reason(s) from backend
+  - CTA: "Fix & Re-submit KYC"
+
+If owner_kyc_status === "SUBMITTED":
+- Show status card
+- Property visible in preview mode
+- Disable bookings, pricing, messaging with guests
+
+--------------------------------------------------
+6. HEADER RULES
+--------------------------------------------------
+
+Add role switcher near profile avatar:
+
+Label:
+[ Customer ▼ ] or [ Owner ▼ ]
+
+Options:
+- Customer Mode → homepage
+- Owner Mode → /owner/dashboard
+
+Header CTA rules:
+If owner_kyc_status !== "APPROVED":
+- Hide "List Your Property FREE"
+- Show instead:
+  - "Complete KYC" (NOT_STARTED / INCOMPLETE)
+  - "Fix KYC" (REJECTED)
+
+--------------------------------------------------
+7. NOTIFICATIONS (MINIMUM)
+--------------------------------------------------
+
+Trigger in-app + email notifications for:
+1) KYC Submitted
+2) KYC Approved
+3) KYC Rejected (with reason)
+4) Property Live
+
+--------------------------------------------------
+8. OUT OF SCOPE (DO NOT BUILD)
+--------------------------------------------------
+
+- Staff roles
+- Analytics dashboards
+- Channel manager
+- Auto approval
+- Invoices
+
+--------------------------------------------------
+SUCCESS CRITERIA:
+--------------------------------------------------
+
+- Rejected owners are always forced to KYC fix screen
+- Incomplete KYC owners are guided, not trapped
+- No owner ever sees a dead-end screen
+- Owner dashboard is the single source of truth

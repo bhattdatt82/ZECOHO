@@ -33,7 +33,7 @@ type ConversationWithUnread = Conversation & { unreadCount: number };
 
 export function Header() {
   const { user, isAuthenticated, isAdmin, isOwner } = useAuth();
-  const { isKycRejected } = useKycGuard();
+  const { hasRejectedKyc } = useKycGuard();
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
@@ -306,7 +306,7 @@ export function Header() {
                 </div>
               )}
 
-              {isOwner && isKycRejected ? (
+              {hasRejectedKyc ? (
                 <Link href="/owner/kyc">
                   <Button 
                     size="sm"

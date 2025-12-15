@@ -6,6 +6,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useKycGuard } from "@/hooks/useKycGuard";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -100,6 +101,35 @@ function Router() {
   );
 }
 
+// KycGuard - prevents rendering blocked content for rejected KYC users
+// Only blocks after auth resolves AND user has rejected KYC on non-whitelisted route
+function KycGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { shouldBlockAccess, hasRejectedKyc } = useKycGuard();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    // Only redirect after auth resolves, user is authenticated, and has rejected KYC on blocked route
+    if (!authLoading && isAuthenticated && shouldBlockAccess) {
+      setLocation("/owner/dashboard?state=kyc_rejected");
+    }
+  }, [authLoading, isAuthenticated, shouldBlockAccess, setLocation]);
+
+  // While loading auth, render children normally (allows Landing/Login to render)
+  if (authLoading) return <>{children}</>;
+  
+  // If not authenticated, render children normally (public routes work)
+  if (!isAuthenticated) return <>{children}</>;
+  
+  // If authenticated but not rejected KYC, render children
+  if (!hasRejectedKyc) return <>{children}</>;
+  
+  // If blocked, don't render children - prevent queries from firing
+  if (shouldBlockAccess) return null;
+
+  return <>{children}</>;
+}
+
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
@@ -111,7 +141,9 @@ function AppContent() {
       <ScrollToTop />
       {showHeader && <Header />}
       <div className="flex-1">
-        <Router />
+        <KycGuard>
+          <Router />
+        </KycGuard>
       </div>
       <Footer />
       <Toaster />
