@@ -3,6 +3,10 @@ import { OwnerLayout } from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useKycGuard } from "@/hooks/useKycGuard";
+import { Link } from "wouter";
 import {
   IndianRupee,
   TrendingUp,
@@ -10,6 +14,7 @@ import {
   Percent,
   ArrowUpRight,
   ArrowDownRight,
+  XCircle,
 } from "lucide-react";
 
 interface EarningsStats {
@@ -24,9 +29,29 @@ interface EarningsStats {
 }
 
 export default function OwnerEarnings() {
+  const { isKycRejected } = useKycGuard();
   const { data: stats, isLoading } = useQuery<EarningsStats>({
     queryKey: ["/api/owner/stats"],
   });
+
+  if (isKycRejected) {
+    return (
+      <OwnerLayout>
+        <Alert variant="destructive" className="mb-6" data-testid="kyc-rejected-block">
+          <XCircle className="h-5 w-5" />
+          <AlertTitle>Access Restricted</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <span>Your KYC has been rejected. Please fix your KYC to view earnings.</span>
+            <Link href="/owner/kyc">
+              <Button variant="destructive" size="sm" data-testid="btn-fix-kyc">
+                Fix KYC & Resubmit
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      </OwnerLayout>
+    );
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {

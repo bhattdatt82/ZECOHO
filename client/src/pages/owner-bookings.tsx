@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useKycGuard } from "@/hooks/useKycGuard";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import {
@@ -17,6 +19,7 @@ import {
   X,
   Clock,
   MessageSquare,
+  XCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -38,6 +41,26 @@ interface Booking {
 export default function OwnerBookings() {
   const [activeTab, setActiveTab] = useState("all");
   const { toast } = useToast();
+  const { isKycRejected } = useKycGuard();
+
+  if (isKycRejected) {
+    return (
+      <OwnerLayout>
+        <Alert variant="destructive" className="mb-6" data-testid="kyc-rejected-block">
+          <XCircle className="h-5 w-5" />
+          <AlertTitle>Access Restricted</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <span>Your KYC has been rejected. Please fix your KYC to access bookings.</span>
+            <Link href="/owner/kyc">
+              <Button variant="destructive" size="sm" data-testid="btn-fix-kyc">
+                Fix KYC & Resubmit
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      </OwnerLayout>
+    );
+  }
 
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/owner/bookings", activeTab],

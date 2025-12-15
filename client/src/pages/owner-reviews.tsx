@@ -7,10 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useKycGuard } from "@/hooks/useKycGuard";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
-import { Star, MessageSquare, Send } from "lucide-react";
+import { Link } from "wouter";
+import { Star, MessageSquare, Send, XCircle } from "lucide-react";
 
 interface Review {
   id: number;
@@ -27,8 +30,28 @@ interface Review {
 
 export default function OwnerReviews() {
   const { toast } = useToast();
+  const { isKycRejected } = useKycGuard();
   const [respondingTo, setRespondingTo] = useState<number | null>(null);
   const [responseText, setResponseText] = useState("");
+
+  if (isKycRejected) {
+    return (
+      <OwnerLayout>
+        <Alert variant="destructive" className="mb-6" data-testid="kyc-rejected-block">
+          <XCircle className="h-5 w-5" />
+          <AlertTitle>Access Restricted</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <span>Your KYC has been rejected. Please fix your KYC to view reviews.</span>
+            <Link href="/owner/kyc">
+              <Button variant="destructive" size="sm" data-testid="btn-fix-kyc">
+                Fix KYC & Resubmit
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      </OwnerLayout>
+    );
+  }
 
   const { data: reviews, isLoading } = useQuery<Review[]>({
     queryKey: ["/api/owner/reviews"],
