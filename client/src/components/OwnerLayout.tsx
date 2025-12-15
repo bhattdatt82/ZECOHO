@@ -174,33 +174,20 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                   {user.firstName} {user.lastName}
                 </span>
                 {isRejected ? (
-                  <Badge 
-                    variant="destructive" 
-                    className="w-fit text-xs cursor-pointer hover:bg-red-700 dark:hover:bg-red-800 relative z-50" 
+                  <button
+                    type="button"
                     data-testid="owner-badge-rejected"
+                    className="inline-flex items-center rounded-md border border-transparent bg-destructive px-2.5 py-0.5 text-xs font-semibold text-destructive-foreground shadow-xs cursor-pointer hover:bg-red-700 dark:hover:bg-red-800 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 relative z-[9999] pointer-events-auto"
+                    style={{ pointerEvents: 'auto' }}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const url = ownerPropertyId 
-                        ? `/list-property?mode=complete&propertyId=${ownerPropertyId}`
-                        : "/list-property?mode=complete";
-                      setLocation(url);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        const url = ownerPropertyId 
-                          ? `/list-property?mode=complete&propertyId=${ownerPropertyId}`
-                          : "/list-property?mode=complete";
-                        setLocation(url);
-                      }
+                      setLocation("/owner/kyc");
                     }}
                   >
                     <XCircle className="h-3 w-3 mr-1" />
                     KYC Rejected - Fix Now
-                  </Badge>
+                  </button>
                 ) : (
                   <Badge variant={getBadgeVariant()} className="w-fit text-xs" data-testid="owner-badge">
                     {getBadgeContent()}
