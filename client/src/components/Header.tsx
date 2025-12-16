@@ -70,6 +70,10 @@ export function Header() {
 
   const totalUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
 
+  // Check if KYC is rejected - from either user.kycStatus OR kycApplication.status
+  // This handles cases where user.kycStatus wasn't synced with the application status
+  const isKycRejected = hasRejectedKyc || kycApplication?.status === "rejected";
+
   // All users go to the same List Property flow
   const getListPropertyLink = () => {
     return "/list-property";
@@ -165,7 +169,7 @@ export function Header() {
               )}
 
               {/* Show Owner Portal for owners OR users who have engaged with KYC (pending/rejected) */}
-              {(isOwner || hasRejectedKyc || isKycPending) && (
+              {(isOwner || isKycRejected || isKycPending) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
@@ -185,7 +189,7 @@ export function Header() {
                         Owner Portal
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {hasRejectedKyc ? "Fix KYC to unlock features" : "Manage your property business"}
+                        {isKycRejected ? "Fix KYC to unlock features" : "Manage your property business"}
                       </p>
                     </div>
                     <DropdownMenuSeparator />
@@ -195,7 +199,7 @@ export function Header() {
                         Dashboard
                       </Link>
                     </DropdownMenuItem>
-                    {hasRejectedKyc ? (
+                    {isKycRejected ? (
                       <DropdownMenuItem asChild data-testid="link-owner-kyc">
                         <Link href="/owner/kyc">
                           <FileText className="h-4 w-4 mr-2" />
@@ -320,7 +324,7 @@ export function Header() {
                 </div>
               )}
 
-              {hasRejectedKyc ? (
+              {isKycRejected ? (
                 <Link href="/owner/kyc">
                   <Button 
                     size="sm"

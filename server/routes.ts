@@ -1455,9 +1455,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rejectionDetails
       );
 
-      // Send rejection email notification (fire-and-forget)
+      // Update user's kycStatus to rejected so the UI reflects the rejection
       if (application) {
         const applicantUser = await storage.getUser(application.userId);
+        if (applicantUser) {
+          await storage.upsertUser({
+            ...applicantUser,
+            kycStatus: "rejected",
+          });
+        }
+        
+        // Send rejection email notification (fire-and-forget)
         if (applicantUser?.email) {
           // Extract rejection reasons from rejectionDetails
           const rejectionReasons: string[] = [];
