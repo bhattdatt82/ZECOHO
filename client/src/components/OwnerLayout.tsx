@@ -140,19 +140,8 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     return "secondary";
   };
 
-  const handleHeaderClick = (e: React.MouseEvent) => {
-    if (isRejected) {
-      e.preventDefault();
-      e.stopPropagation();
-      setLocation("/owner/kyc");
-    }
-  };
-
-  const handleBannerClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLocation("/owner/kyc");
-  };
+  // NOTE: All KYC redirects handled by centralized KycRouteGuard
+  // No inline setLocation calls for KYC - just simple Links
 
   return (
     <>
@@ -171,10 +160,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
       <SidebarProvider style={sidebarStyle}>
         <div className="flex h-screen w-full">
           <Sidebar>
-          <SidebarHeader 
-            className={`p-4 ${isRejected ? 'cursor-pointer' : ''}`}
-            onClick={handleHeaderClick}
-          >
+          <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "Owner"} />
@@ -247,10 +233,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
         </Sidebar>
 
         <SidebarInset className="flex flex-col">
-          <header 
-            className={`flex h-14 items-center gap-4 border-b px-4 lg:px-6 ${isRejected ? 'cursor-pointer' : ''}`}
-            onClick={handleHeaderClick}
-          >
+          <header className="flex h-14 items-center gap-4 border-b px-4 lg:px-6">
             <SidebarTrigger data-testid="sidebar-toggle" />
             <div className="flex-1">
               <h1 className="text-lg font-semibold" data-testid="page-title">
@@ -260,16 +243,15 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
           </header>
           
           {isRejected && (
-            <button
-              type="button"
-              onClick={handleBannerClick}
-              className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 flex items-center justify-center gap-2 font-semibold transition-colors relative z-[10000]"
-              style={{ pointerEvents: 'auto' }}
-              data-testid="kyc-rejection-banner"
-            >
-              <XCircle className="h-5 w-5" />
-              KYC Rejected — Click here to fix verification
-            </button>
+            <Link href="/owner/kyc">
+              <div
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 flex items-center justify-center gap-2 font-semibold transition-colors cursor-pointer"
+                data-testid="kyc-rejection-banner"
+              >
+                <XCircle className="h-5 w-5" />
+                KYC Rejected — Click here to fix verification
+              </div>
+            </Link>
           )}
           
           <main className="flex-1 overflow-auto p-4 lg:p-6">

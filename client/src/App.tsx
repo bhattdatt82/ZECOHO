@@ -1,13 +1,13 @@
 // Referenced from blueprint:javascript_log_in_with_replit
 import { useEffect } from "react";
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 // Note: useEffect is still used by ScrollToTop component
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { useKycGuard } from "@/hooks/useKycGuard";
+import { KycRouteGuard } from "@/lib/KycRouteGuard";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -102,28 +102,8 @@ function Router() {
   );
 }
 
-// KycGuard - prevents rendering blocked content for rejected KYC users
-// Only blocks after auth resolves AND user has rejected KYC on non-whitelisted route
-function KycGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { shouldBlockAccess, hasRejectedKyc } = useKycGuard();
-
-  // While loading auth, render children normally (allows Landing/Login to render)
-  if (authLoading) return <>{children}</>;
-  
-  // If not authenticated, render children normally (public routes work)
-  if (!isAuthenticated) return <>{children}</>;
-  
-  // If authenticated but not rejected KYC, render children
-  if (!hasRejectedKyc) return <>{children}</>;
-  
-  // If blocked, use wouter Redirect component for immediate redirect
-  if (shouldBlockAccess) {
-    return <Redirect to="/owner/dashboard?state=kyc_rejected" />;
-  }
-
-  return <>{children}</>;
-}
+// KYC route guard is now centralized in KycRouteGuard component
+// All KYC-based redirects happen AFTER navigation, not during render
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -132,17 +112,17 @@ function AppContent() {
   const showHeader = location !== "/" || (isAuthenticated && !isLoading);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <ScrollToTop />
-      {showHeader && <Header />}
-      <div className="flex-1">
-        <KycGuard>
+    <KycRouteGuard>
+      <div className="flex flex-col min-h-screen">
+        <ScrollToTop />
+        {showHeader && <Header />}
+        <div className="flex-1">
           <Router />
-        </KycGuard>
+        </div>
+        <Footer />
+        <Toaster />
       </div>
-      <Footer />
-      <Toaster />
-    </div>
+    </KycRouteGuard>
   );
 }
 
