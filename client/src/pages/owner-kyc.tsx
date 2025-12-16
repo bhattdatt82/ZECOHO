@@ -29,6 +29,7 @@ interface KycStatusResponse {
   applicationId?: string;
   userId?: string;
   rejectionDetails?: KycRejectionDetails;
+  reviewNotes?: string;  // Fallback if rejectionDetails is empty
 }
 
 const sectionConfig: Record<KycSectionId, { label: string; icon: typeof User }> = {
@@ -121,6 +122,12 @@ export default function OwnerKyc() {
                       </li>
                     ))}
                   </ul>
+                ) : kycStatus?.reviewNotes ? (
+                  <div className="text-sm">
+                    <p className="text-red-700 dark:text-red-300">
+                      {kycStatus.reviewNotes}
+                    </p>
+                  </div>
                 ) : (
                   <p className="text-muted-foreground">
                     Please contact support for clarification on the rejection reason.

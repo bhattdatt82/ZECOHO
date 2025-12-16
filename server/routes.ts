@@ -1146,13 +1146,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/kyc/status', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       const application = await storage.getUserKycApplication(userId);
       
       if (!application) {
-        return res.status(404).json({ message: "No KYC application found" });
+        // Return user's kycStatus even if no application exists
+        return res.json({ 
+          status: user?.kycStatus || "not_started",
+          hasActiveApplication: false,
+          userId: userId,
+          rejectionDetails: null
+        });
       }
       
-      res.json(application);
+      // Build rejectionDetails from existing data
+      // If rejectionDetails is empty but reviewNotes exists, create a fallback structure
+      let rejectionDetails = application.rejectionDetails as { sections?: Array<{ sectionId: string; message: string }>; isRevocation?: boolean } | null;
+      
+      if (application.status === "rejected" && 
+          (!rejectionDetails || !rejectionDetails.sections || rejectionDetails.sections.length === 0)) {
+        // Create fallback rejectionDetails from reviewNotes
+        if (application.reviewNotes) {
+          rejectionDetails = {
+            sections: [{
+              sectionId: "personal" as const,
+              message: application.reviewNotes
+            }],
+            isRevocation: false
+          };
+        } else {
+          // Generic rejection message if no notes provided
+          rejectionDetails = {
+            sections: [{
+              sectionId: "personal" as const,
+              message: "Your KYC application was rejected. Please contact support for more details."
+            }],
+            isRevocation: false
+          };
+        }
+      }
+      
+      // Return full application with additional status info and enhanced rejectionDetails
+      res.json({
+        ...application,
+        rejectionDetails,
+        hasActiveApplication: true,
+        userId: userId
+      });
     } catch (error) {
       console.error("Error fetching KYC status:", error);
       res.status(500).json({ message: "Failed to fetch KYC status" });
@@ -2107,7 +2147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send booking confirmation emails
       const guest = await storage.getUser(userId);
-      const owner = await storage.getUser(property.ownerId);
+      // owner already fetched above for KYC check
       const checkInFormatted = checkIn.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
       const checkOutFormatted = checkOut.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
       
@@ -2347,8 +2387,7 @@ Hi! I've just made a booking request for your property. Looking forward to heari
         return res.status(403).json({ message: "Not authorized to view this conversation" });
       }
 
-      const limit = req.query.limit ? Number(req.query.limit) : 50;
-      const messages = await storage.getMessagesByConversation(req.params.id, limit);
+      const messages = await storage.getMessagesByConversation(req.params.id);
       
       await storage.markMessagesAsRead(req.params.id, userId);
       
