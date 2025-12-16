@@ -296,7 +296,7 @@ export function Header() {
                 </>
               )}
 
-              <Link href={isOwner ? "/owner/messages" : "/messages"}>
+              <Link href={(isOwner || isKycRejected || isKycPending) ? "/owner/messages" : "/messages"}>
                 <Button 
                   variant={location === "/messages" || location === "/owner/messages" ? "secondary" : "ghost"}
                   size="sm"
