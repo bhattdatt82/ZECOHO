@@ -132,6 +132,7 @@ export const users = pgTable("users", {
 // Properties table
 export const properties = pgTable("properties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyCode: varchar("property_code", { length: 20 }).unique(),
   ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
@@ -225,6 +226,7 @@ export const userPreferences = pgTable("user_preferences", {
 // Bookings table
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingCode: varchar("booking_code", { length: 20 }).unique(),
   propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
   guestId: varchar("guest_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   checkIn: timestamp("check_in").notNull(),
@@ -544,6 +546,7 @@ export type InsertKycApplication = typeof kycApplications.$inferInsert;
 // Insert schemas
 export const insertPropertySchema = createInsertSchema(properties).omit({
   id: true,
+  propertyCode: true,
   ownerId: true,
   createdAt: true,
   updatedAt: true,
@@ -572,6 +575,7 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).o
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,
+  bookingCode: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
