@@ -2219,11 +2219,34 @@ Total Amount: Rs. ${totalPrice}
 
 Hi! I've just made a booking request for your property. Looking forward to hearing from you!`;
         
-        await storage.createMessage({
+        const message = await storage.createMessage({
           conversationId: conversation.id,
           senderId: userId,
           content: bookingMessage,
         });
+        
+        // Broadcast the message to both guest and owner for real-time updates
+        const messageWithSender = {
+          ...message,
+          sender: {
+            id: userId,
+            firstName: guest?.firstName || null,
+            lastName: guest?.lastName || null,
+            profileImageUrl: guest?.profileImageUrl || null,
+          },
+        };
+        
+        const broadcastData = {
+          type: "new_message",
+          conversationId: conversation.id,
+          message: messageWithSender,
+        };
+        
+        // Notify the owner (recipient)
+        broadcastToUser(property.ownerId, broadcastData);
+        
+        // Also broadcast to guest (sender) so they see the booking in their chat
+        broadcastToUser(userId, broadcastData);
       } catch (msgError) {
         console.error('Failed to send booking message to owner:', msgError);
         // Don't fail the booking if message fails
