@@ -46,7 +46,21 @@ import {
   type InsertOtpCode,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc } from "drizzle-orm";
+import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc, count } from "drizzle-orm";
+
+// Helper function to generate unique property code (PROP-XXXXXX)
+async function generatePropertyCode(): Promise<string> {
+  const [result] = await db.select({ count: count() }).from(properties);
+  const nextNum = (result?.count || 0) + 1;
+  return `PROP-${String(nextNum).padStart(6, '0')}`;
+}
+
+// Helper function to generate unique booking code (BKG-XXXXXX)
+async function generateBookingCode(): Promise<string> {
+  const [result] = await db.select({ count: count() }).from(bookings);
+  const nextNum = (result?.count || 0) + 1;
+  return `BKG-${String(nextNum).padStart(6, '0')}`;
+}
 
 // Interface for storage operations
 export interface IStorage {
@@ -267,9 +281,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProperty(propertyData: InsertProperty): Promise<Property> {
+    const propertyCode = await generatePropertyCode();
     const [property] = await db
       .insert(properties)
-      .values(propertyData)
+      .values({ ...propertyData, propertyCode })
       .returning();
     return property;
   }
@@ -396,7 +411,8 @@ export class DatabaseStorage implements IStorage {
 
   // Booking operations
   async createBooking(bookingData: InsertBooking): Promise<Booking> {
-    const [booking] = await db.insert(bookings).values(bookingData).returning();
+    const bookingCode = await generateBookingCode();
+    const [booking] = await db.insert(bookings).values({ ...bookingData, bookingCode }).returning();
     return booking;
   }
 
