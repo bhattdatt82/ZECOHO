@@ -3335,6 +3335,31 @@ Hi! I've just made a booking request for your property. Looking forward to heari
     }
   });
 
+  // Get owner's conversation count (available regardless of KYC status for notification)
+  app.get("/api/owner/conversations/count", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can access this endpoint" });
+      }
+
+      const conversations = await storage.getConversationsByUser(userId);
+      const totalConversations = conversations.length;
+      const unreadCount = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+      
+      res.json({ 
+        totalConversations, 
+        unreadCount,
+        hasEnquiries: totalConversations > 0 
+      });
+    } catch (error) {
+      console.error("Error fetching owner conversation count:", error);
+      res.status(500).json({ message: "Failed to fetch conversation count" });
+    }
+  });
+
   // Get owner's conversations/messages
   app.get("/api/owner/conversations", isAuthenticated, async (req: any, res) => {
     try {
@@ -3343,6 +3368,14 @@ Hi! I've just made a booking request for your property. Looking forward to heari
       
       if (!user || !userHasRole(user, "owner")) {
         return res.status(403).json({ message: "Only owners can access messages" });
+      }
+      
+      // Check KYC status - only verified owners can view full conversations
+      if (user.kycStatus !== "verified") {
+        return res.status(403).json({ 
+          message: "KYC verification required to access messages",
+          kycStatus: user.kycStatus 
+        });
       }
 
       const conversations = await storage.getConversationsByUser(userId);

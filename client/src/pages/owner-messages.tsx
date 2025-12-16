@@ -55,6 +55,17 @@ export default function OwnerMessagesPage() {
 
   const isRejected = user?.kycStatus === "rejected";
   const isVerified = user?.kycStatus === "verified";
+  const isPending = user?.kycStatus === "pending";
+
+  // Fetch conversation count for non-verified users (to show notification)
+  const { data: conversationCount } = useQuery<{
+    totalConversations: number;
+    unreadCount: number;
+    hasEnquiries: boolean;
+  }>({
+    queryKey: ["/api/owner/conversations/count"],
+    enabled: !authLoading && !!user && !isVerified,
+  });
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -352,6 +363,16 @@ export default function OwnerMessagesPage() {
                   <p className="text-muted-foreground text-sm">
                     Your KYC verification was rejected. You cannot access messages until your KYC is approved.
                   </p>
+                  {conversationCount?.hasEnquiries && (
+                    <div className="mt-3 p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                      <p className="text-sm text-amber-800 dark:text-amber-200">
+                        <strong>{conversationCount.totalConversations}</strong> enquir{conversationCount.totalConversations === 1 ? 'y' : 'ies'} waiting
+                        {conversationCount.unreadCount > 0 && (
+                          <> ({conversationCount.unreadCount} unread)</>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full">
                   <Link href="/owner/kyc" className="flex-1">
@@ -380,11 +401,33 @@ export default function OwnerMessagesPage() {
                   <MessageSquare className="h-8 w-8 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Messaging Coming Soon</h3>
+                  <h3 className="font-semibold text-lg">
+                    {isPending ? "KYC Under Review" : "Messaging Coming Soon"}
+                  </h3>
                   <p className="text-muted-foreground text-sm">
-                    Complete your KYC verification to access guest messages and start communicating with potential guests.
+                    {isPending 
+                      ? "Your KYC verification is being reviewed. You'll be able to access messages once approved."
+                      : "Complete your KYC verification to access guest messages and start communicating with potential guests."
+                    }
                   </p>
+                  {conversationCount?.hasEnquiries && (
+                    <div className="mt-3 p-3 rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                      <p className="text-sm text-green-800 dark:text-green-200">
+                        <strong>{conversationCount.totalConversations}</strong> enquir{conversationCount.totalConversations === 1 ? 'y' : 'ies'} waiting for you!
+                        {conversationCount.unreadCount > 0 && (
+                          <> ({conversationCount.unreadCount} unread)</>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
+                {!isPending && (
+                  <Link href="/owner/choose-mode" className="w-full">
+                    <Button className="w-full" data-testid="btn-complete-kyc">
+                      Complete KYC Verification
+                    </Button>
+                  </Link>
+                )}
               </div>
             </CardContent>
           </Card>
