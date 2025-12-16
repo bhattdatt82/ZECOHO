@@ -7,6 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useKycGuard } from "@/hooks/useKycGuard";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -24,22 +33,34 @@ import {
 import { Link } from "wouter";
 
 interface Booking {
-  id: number;
-  propertyId: number;
-  propertyTitle: string;
-  guestId: string;
-  guestName: string;
-  guestEmail: string;
+  id: string;
+  propertyId: string;
   checkIn: string;
   checkOut: string;
   guests: number;
   totalPrice: string;
-  status: "pending" | "confirmed" | "ongoing" | "completed" | "cancelled";
+  status: "pending" | "confirmed" | "rejected" | "cancelled" | "completed";
+  ownerResponseMessage?: string;
+  respondedAt?: string;
   createdAt: string;
+  property?: {
+    id: string;
+    title: string;
+    images: string[];
+  };
+  guest?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
 }
 
 export default function OwnerBookings() {
   const [activeTab, setActiveTab] = useState("all");
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const { toast } = useToast();
   const { isKycRejected } = useKycGuard();
 
@@ -67,15 +88,23 @@ export default function OwnerBookings() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return apiRequest("PATCH", `/api/owner/bookings/${id}/status`, { status });
+    mutationFn: async ({ id, status, responseMessage }: { id: string; status: string; responseMessage?: string }) => {
+      return apiRequest("PATCH", `/api/owner/bookings/${id}/status`, { status, responseMessage });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
+      const message = variables.status === "confirmed" 
+        ? "Booking confirmed! The guest has been notified."
+        : variables.status === "rejected"
+        ? "Booking declined. The guest has been notified."
+        : "Booking status updated.";
       toast({
-        title: "Booking Updated",
-        description: "The booking status has been updated successfully.",
+        title: variables.status === "confirmed" ? "Booking Confirmed" : "Booking Updated",
+        description: message,
       });
+      setRejectDialogOpen(false);
+      setSelectedBooking(null);
+      setRejectionReason("");
     },
     onError: () => {
       toast({
@@ -85,6 +114,21 @@ export default function OwnerBookings() {
       });
     },
   });
+
+  const handleReject = () => {
+    if (!selectedBooking) return;
+    updateStatusMutation.mutate({
+      id: selectedBooking.id,
+      status: "rejected",
+      responseMessage: rejectionReason.trim() || undefined,
+    });
+  };
+
+  const openRejectDialog = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setRejectionReason("");
+    setRejectDialogOpen(true);
+  };
 
   const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat("en-IN", {
@@ -97,10 +141,10 @@ export default function OwnerBookings() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-      pending: { variant: "outline", label: "Pending" },
+      pending: { variant: "outline", label: "Pending Review" },
       confirmed: { variant: "default", label: "Confirmed" },
-      ongoing: { variant: "secondary", label: "Ongoing" },
-      completed: { variant: "default", label: "Completed" },
+      rejected: { variant: "destructive", label: "Declined" },
+      completed: { variant: "secondary", label: "Completed" },
       cancelled: { variant: "destructive", label: "Cancelled" },
     };
     const config = statusConfig[status] || { variant: "secondary", label: status };
@@ -110,8 +154,7 @@ export default function OwnerBookings() {
   const filteredBookings = bookings?.filter((booking) => {
     if (activeTab === "all") return true;
     if (activeTab === "upcoming") return booking.status === "confirmed";
-    if (activeTab === "ongoing") return booking.status === "ongoing";
-    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled";
+    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected";
     if (activeTab === "pending") return booking.status === "pending";
     return true;
   });
@@ -121,9 +164,10 @@ export default function OwnerBookings() {
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div>
-            <CardTitle className="text-base">{booking.propertyTitle}</CardTitle>
+            <CardTitle className="text-base">{booking.property?.title || "Property"}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Booked by {booking.guestName}
+              Booked by {booking.guest?.name || "Guest"}
+              {booking.guest?.email && ` (${booking.guest.email})`}
             </p>
           </div>
           {getStatusBadge(booking.status)}
@@ -161,6 +205,13 @@ export default function OwnerBookings() {
           </div>
         </div>
 
+        {booking.ownerResponseMessage && booking.status === "rejected" && (
+          <div className="text-sm p-3 bg-muted rounded-md">
+            <p className="text-muted-foreground font-medium">Decline reason:</p>
+            <p>{booking.ownerResponseMessage}</p>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 flex-wrap">
           {booking.status === "pending" && (
             <>
@@ -171,12 +222,12 @@ export default function OwnerBookings() {
                 data-testid={`confirm-booking-${booking.id}`}
               >
                 <Check className="h-4 w-4 mr-1" />
-                Confirm
+                Accept Booking
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => updateStatusMutation.mutate({ id: booking.id, status: "cancelled" })}
+                onClick={() => openRejectDialog(booking)}
                 disabled={updateStatusMutation.isPending}
                 data-testid={`decline-booking-${booking.id}`}
               >
@@ -185,7 +236,7 @@ export default function OwnerBookings() {
               </Button>
             </>
           )}
-          {booking.status === "ongoing" && (
+          {booking.status === "confirmed" && (
             <Button
               size="sm"
               onClick={() => updateStatusMutation.mutate({ id: booking.id, status: "completed" })}
@@ -211,11 +262,10 @@ export default function OwnerBookings() {
     <OwnerLayout>
       <div className="space-y-6" data-testid="owner-bookings">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5" data-testid="booking-tabs">
+          <TabsList className="grid w-full grid-cols-4" data-testid="booking-tabs">
             <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
             <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
-            <TabsTrigger value="upcoming" data-testid="tab-upcoming">Upcoming</TabsTrigger>
-            <TabsTrigger value="ongoing" data-testid="tab-ongoing">Ongoing</TabsTrigger>
+            <TabsTrigger value="upcoming" data-testid="tab-upcoming">Confirmed</TabsTrigger>
             <TabsTrigger value="past" data-testid="tab-past">Past</TabsTrigger>
           </TabsList>
 
@@ -240,6 +290,39 @@ export default function OwnerBookings() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline Booking Request</DialogTitle>
+            <DialogDescription>
+              Let the guest know why you're declining their booking request. This helps them understand and find a better match.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="e.g., Property is not available for those dates, or we're fully booked..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="min-h-[100px]"
+              data-testid="input-rejection-reason"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)} data-testid="btn-cancel-reject">
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleReject}
+              disabled={updateStatusMutation.isPending}
+              data-testid="btn-confirm-reject"
+            >
+              {updateStatusMutation.isPending ? "Declining..." : "Decline Booking"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </OwnerLayout>
   );
 }

@@ -3314,8 +3314,8 @@ Hi! I've just made a booking request for your property. Looking forward to heari
         return res.status(403).json({ message: "Only owners can update bookings" });
       }
 
-      const { status } = req.body;
-      if (!["confirmed", "cancelled", "completed"].includes(status)) {
+      const { status, responseMessage } = req.body;
+      if (!["confirmed", "rejected", "cancelled", "completed"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
@@ -3330,7 +3330,44 @@ Hi! I've just made a booking request for your property. Looking forward to heari
         return res.status(403).json({ message: "Not authorized to update this booking" });
       }
 
-      const updated = await storage.updateBookingStatus(req.params.id, status);
+      // Only allow status change from pending state (for confirmed/rejected)
+      if (booking.status !== "pending" && (status === "confirmed" || status === "rejected")) {
+        return res.status(400).json({ message: "Can only accept/reject pending bookings" });
+      }
+
+      const updated = await storage.updateBookingStatus(req.params.id, status, responseMessage);
+      
+      // Get guest info for notification
+      const guest = await storage.getUser(booking.guestId);
+      
+      // Broadcast status update via WebSocket if available
+      if (wss && guest) {
+        const statusMessage = status === "confirmed" 
+          ? `Your booking for ${property.title} has been confirmed!`
+          : status === "rejected"
+          ? `Your booking request for ${property.title} was declined. ${responseMessage ? `Reason: ${responseMessage}` : ''}`
+          : `Your booking status for ${property.title} has been updated to ${status}.`;
+          
+        const notification = {
+          type: "booking_status_update",
+          bookingId: booking.id,
+          status,
+          message: statusMessage,
+          propertyTitle: property.title,
+          responseMessage: responseMessage || null,
+        };
+        
+        wss.clients.forEach((client: WebSocket) => {
+          if (client.readyState === WebSocket.OPEN) {
+            // Send to guest
+            client.send(JSON.stringify({
+              ...notification,
+              recipientId: guest.id,
+            }));
+          }
+        });
+      }
+      
       res.json(updated);
     } catch (error) {
       console.error("Error updating booking status:", error);
