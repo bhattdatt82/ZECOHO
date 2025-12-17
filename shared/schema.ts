@@ -91,6 +91,13 @@ export const bookingStatusEnum = pgEnum("booking_status", [
   "completed",    // Stay completed
 ]);
 
+// Availability override type enum - for property date range blocks
+export const availabilityOverrideTypeEnum = pgEnum("availability_override_type", [
+  "hold",         // Temporary hold - owner not accepting bookings for this period
+  "sold_out",     // Sold out - all rooms booked externally or maintenance
+  "maintenance",  // Property under maintenance
+]);
+
 // KYC status enum
 export const kycStatusEnum = pgEnum("kyc_status", [
   "not_started",
@@ -249,6 +256,21 @@ export const bookings = pgTable("bookings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Availability overrides table - for date-range holds/sold-out/maintenance
+export const availabilityOverrides = pgTable("availability_overrides", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  overrideType: availabilityOverrideTypeEnum("override_type").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  reason: text("reason"),
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_property_dates").on(table.propertyId, table.startDate, table.endDate),
+]);
+
 // Conversations table
 export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -405,6 +427,18 @@ export const propertiesRelations = relations(properties, ({ one, many }) => ({
   bookings: many(bookings),
   conversations: many(conversations),
   reviews: many(reviews),
+  availabilityOverrides: many(availabilityOverrides),
+}));
+
+export const availabilityOverridesRelations = relations(availabilityOverrides, ({ one }) => ({
+  property: one(properties, {
+    fields: [availabilityOverrides.propertyId],
+    references: [properties.id],
+  }),
+  createdByUser: one(users, {
+    fields: [availabilityOverrides.createdBy],
+    references: [users.id],
+  }),
 }));
 
 export const roomsRelations = relations(rooms, ({ one }) => ({
@@ -540,6 +574,9 @@ export type InsertUserPreferences = typeof userPreferences.$inferInsert;
 export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = typeof bookings.$inferInsert;
 
+export type AvailabilityOverride = typeof availabilityOverrides.$inferSelect;
+export type InsertAvailabilityOverride = typeof availabilityOverrides.$inferInsert;
+
 export type Conversation = typeof conversations.$inferSelect;
 export type InsertConversation = typeof conversations.$inferInsert;
 
@@ -591,6 +628,16 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
   checkIn: z.coerce.date(),
   checkOut: z.coerce.date(),
   totalPrice: z.string().or(z.number().transform(v => v.toString())),
+});
+
+export const insertAvailabilityOverrideSchema = createInsertSchema(availabilityOverrides).omit({
+  id: true,
+  createdBy: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
 });
 
 export const insertConversationSchema = createInsertSchema(conversations).omit({
