@@ -55,6 +55,11 @@ The application uses **PostgreSQL** via Neon's serverless driver. **Drizzle ORM*
     - In-app notification banners: Owner dashboard shows contextual banners for property live (green), paused (amber), and draft (blue with resume CTA) states.
     - Property controls: Owners can pause, resume, or deactivate listings via dropdown menu on each property card. Property status enum includes "paused" and "deactivated" values.
     - API endpoints: PATCH /api/properties/:id/pause, /resume, /deactivate for managing property visibility.
+-   **Availability Override System**: Owners can manage property availability through the `/owner/properties/:id/manage` page with three block types (hold, sold_out, maintenance), optional room count specification, and custom reasons. 
+    - **Room Availability Tracking**: Owners can specify the number of available rooms during a blocked period (useful for partial holds during events). If left empty, the entire property is blocked.
+    - **Booking Validation**: Frontend booking form checks both booked dates AND blocked dates before allowing booking. When dates are unavailable, specific error messages show the block type (hold/sold-out/maintenance) and the owner's reason.
+    - **Schema**: `availability_overrides` table with fields: id, propertyId, overrideType enum, startDate, endDate, reason, availableRooms, createdBy, timestamps.
+    - **API endpoints**: GET/POST /api/properties/:id/availability-overrides, DELETE /api/properties/:id/availability-overrides/:overrideId.
 
 ## External Dependencies
 
