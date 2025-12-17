@@ -15,6 +15,7 @@ import {
   searchHistory,
   kycApplications,
   otpCodes,
+  availabilityOverrides,
   type User,
   type UpsertUser,
   type Property,
@@ -44,6 +45,8 @@ import {
   type KycApplicationFormData,
   type OtpCode,
   type InsertOtpCode,
+  type AvailabilityOverride,
+  type InsertAvailabilityOverride,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc, count } from "drizzle-orm";
@@ -173,6 +176,12 @@ export interface IStorage {
   getOwnerProperties(userId: string): Promise<Property[]>;
   getBookingsForProperties(propertyIds: string[]): Promise<Booking[]>;
   getReviewsForProperties(propertyIds: string[]): Promise<(Review & { guest: User })[]>;
+
+  // Availability Override operations
+  getAvailabilityOverrides(propertyId: string): Promise<AvailabilityOverride[]>;
+  createAvailabilityOverride(override: InsertAvailabilityOverride): Promise<AvailabilityOverride>;
+  deleteAvailabilityOverride(id: string): Promise<void>;
+  getPropertyBlockedDates(propertyId: string, startDate: Date, endDate: Date): Promise<{ startDate: Date; endDate: Date; type: string }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1131,6 +1140,49 @@ export class DatabaseStorage implements IStorage {
     return results.map(r => ({
       ...r.review,
       guest: r.guest as User,
+    }));
+  }
+
+  // Availability Override operations
+  async getAvailabilityOverrides(propertyId: string): Promise<AvailabilityOverride[]> {
+    return await db
+      .select()
+      .from(availabilityOverrides)
+      .where(eq(availabilityOverrides.propertyId, propertyId))
+      .orderBy(desc(availabilityOverrides.startDate));
+  }
+
+  async createAvailabilityOverride(override: InsertAvailabilityOverride): Promise<AvailabilityOverride> {
+    const [created] = await db
+      .insert(availabilityOverrides)
+      .values(override)
+      .returning();
+    return created;
+  }
+
+  async deleteAvailabilityOverride(id: string): Promise<void> {
+    await db.delete(availabilityOverrides).where(eq(availabilityOverrides.id, id));
+  }
+
+  async getPropertyBlockedDates(propertyId: string, checkIn: Date, checkOut: Date): Promise<{ startDate: Date; endDate: Date; type: string }[]> {
+    // Overlap with exclusive end date semantics:
+    // Override blocks [startDate, endDate), booking occupies [checkIn, checkOut)
+    // Overlap exists when: overrideStart < checkOut AND overrideEnd > checkIn
+    const overrides = await db
+      .select()
+      .from(availabilityOverrides)
+      .where(
+        and(
+          eq(availabilityOverrides.propertyId, propertyId),
+          lt(availabilityOverrides.startDate, checkOut),
+          gt(availabilityOverrides.endDate, checkIn)
+        )
+      );
+    
+    return overrides.map(o => ({
+      startDate: o.startDate,
+      endDate: o.endDate,
+      type: o.overrideType,
     }));
   }
 }

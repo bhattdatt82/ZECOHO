@@ -284,6 +284,22 @@ export default function PropertyDetails() {
     retry: 1,
   });
 
+  const { data: blockedDates = [] } = useQuery<{ startDate: Date; endDate: Date; type: string }[]>({
+    queryKey: ["/api/properties", propertyId, "availability-overrides"],
+    queryFn: async () => {
+      if (!propertyId) return [];
+      const response = await fetch(`/api/properties/${propertyId}/availability-overrides`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.map((d: any) => ({
+        startDate: new Date(d.startDate),
+        endDate: new Date(d.endDate),
+        type: d.overrideType,
+      }));
+    },
+    enabled: !!propertyId,
+  });
+
   const isWishlisted = wishlists.some((w: any) => w.propertyId === propertyId);
 
   const wishlistMutation = useMutation({
@@ -1268,15 +1284,26 @@ export default function PropertyDetails() {
                           disabled={(date) => {
                             const today = new Date(new Date().setHours(0, 0, 0, 0));
                             if (date < today) return true;
-                            return bookedDates.some((booked) => {
+                            const currentDate = new Date(date);
+                            currentDate.setHours(0, 0, 0, 0);
+                            
+                            const isBooked = bookedDates.some((booked) => {
                               const bookedStart = new Date(booked.checkIn);
                               const bookedEnd = new Date(booked.checkOut);
                               bookedStart.setHours(0, 0, 0, 0);
                               bookedEnd.setHours(0, 0, 0, 0);
-                              const currentDate = new Date(date);
-                              currentDate.setHours(0, 0, 0, 0);
                               return currentDate >= bookedStart && currentDate < bookedEnd;
                             });
+                            if (isBooked) return true;
+
+                            const isBlocked = blockedDates.some((blocked) => {
+                              const blockStart = new Date(blocked.startDate);
+                              const blockEnd = new Date(blocked.endDate);
+                              blockStart.setHours(0, 0, 0, 0);
+                              blockEnd.setHours(0, 0, 0, 0);
+                              return currentDate >= blockStart && currentDate < blockEnd;
+                            });
+                            return isBlocked;
                           }}
                           initialFocus
                         />
@@ -1311,15 +1338,26 @@ export default function PropertyDetails() {
                             const today = new Date(new Date().setHours(0, 0, 0, 0));
                             if (date <= today) return true;
                             if (checkIn && date <= parseLocalDate(checkIn)) return true;
-                            return bookedDates.some((booked) => {
+                            const currentDate = new Date(date);
+                            currentDate.setHours(0, 0, 0, 0);
+                            
+                            const isBooked = bookedDates.some((booked) => {
                               const bookedStart = new Date(booked.checkIn);
                               const bookedEnd = new Date(booked.checkOut);
                               bookedStart.setHours(0, 0, 0, 0);
                               bookedEnd.setHours(0, 0, 0, 0);
-                              const currentDate = new Date(date);
-                              currentDate.setHours(0, 0, 0, 0);
                               return currentDate >= bookedStart && currentDate < bookedEnd;
                             });
+                            if (isBooked) return true;
+
+                            const isBlocked = blockedDates.some((blocked) => {
+                              const blockStart = new Date(blocked.startDate);
+                              const blockEnd = new Date(blocked.endDate);
+                              blockStart.setHours(0, 0, 0, 0);
+                              blockEnd.setHours(0, 0, 0, 0);
+                              return currentDate >= blockStart && currentDate < blockEnd;
+                            });
+                            return isBlocked;
                           }}
                           initialFocus
                         />

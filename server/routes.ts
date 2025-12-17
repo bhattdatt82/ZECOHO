@@ -1945,6 +1945,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Availability Overrides routes (owner only)
+  // Get all availability overrides for a property
+  app.get("/api/properties/:id/availability-overrides", async (req, res) => {
+    try {
+      const overrides = await storage.getAvailabilityOverrides(req.params.id);
+      res.json(overrides);
+    } catch (error) {
+      console.error("Error fetching availability overrides:", error);
+      res.status(500).json({ message: "Failed to fetch availability overrides" });
+    }
+  });
+
+  // Create a new availability override
+  app.post("/api/properties/:id/availability-overrides", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can create availability overrides" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to modify this property" });
+      }
+
+      const { overrideType, startDate, endDate, reason } = req.body;
+
+      if (!overrideType || !startDate || !endDate) {
+        return res.status(400).json({ message: "Override type, start date, and end date are required" });
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (start >= end) {
+        return res.status(400).json({ message: "End date must be after start date" });
+      }
+
+      const override = await storage.createAvailabilityOverride({
+        propertyId: req.params.id,
+        overrideType,
+        startDate: start,
+        endDate: end,
+        reason: reason || null,
+        createdBy: userId,
+      });
+      
+      res.json(override);
+    } catch (error: any) {
+      console.error("Error creating availability override:", error);
+      res.status(500).json({ message: "Failed to create availability override" });
+    }
+  });
+
+  // Delete an availability override
+  app.delete("/api/properties/:id/availability-overrides/:overrideId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can delete availability overrides" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to modify this property" });
+      }
+
+      await storage.deleteAvailabilityOverride(req.params.overrideId);
+      
+      res.json({ message: "Availability override deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting availability override:", error);
+      res.status(500).json({ message: "Failed to delete availability override" });
+    }
+  });
+
   // Rooms routes
   app.get("/api/properties/:id/rooms", async (req, res) => {
     try {
@@ -2168,6 +2258,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           message: "Selected dates are not available. Please choose different dates." 
         });
+      }
+
+      // Check for availability overrides (holds, sold-out, maintenance)
+      const blockedDates = await storage.getPropertyBlockedDates(
+        validatedData.propertyId,
+        checkIn,
+        checkOut
+      );
+
+      if (blockedDates.length > 0) {
+        const blockType = blockedDates[0].type;
+        let message = "Selected dates are unavailable. Please choose different dates.";
+        if (blockType === "maintenance") {
+          message = "This property is under maintenance during the selected dates.";
+        } else if (blockType === "sold_out") {
+          message = "This property is fully booked during the selected dates.";
+        } else if (blockType === "hold") {
+          message = "This property is temporarily not accepting bookings for the selected dates.";
+        }
+        return res.status(400).json({ message });
       }
 
       // Calculate total price server-side (don't trust client)

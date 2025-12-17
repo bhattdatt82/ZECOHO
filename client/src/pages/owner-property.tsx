@@ -213,9 +213,9 @@ export default function OwnerProperty() {
                       </Button>
                     </Link>
                     <Link href={`/owner/properties/${property.id}/edit`}>
-                      <Button size="sm" variant="outline" data-testid={`edit-property-${property.id}`}>
+                      <Button size="sm" variant="outline" data-testid={`manage-property-${property.id}`}>
                         <Edit className="h-4 w-4 mr-1" />
-                        Edit
+                        Manage
                       </Button>
                     </Link>
                   </div>

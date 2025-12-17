@@ -48,6 +48,7 @@ import OwnerBookings from "@/pages/owner-bookings";
 import MyBookings from "@/pages/my-bookings";
 import OwnerMessagesPage from "@/pages/owner-messages";
 import OwnerProperty from "@/pages/owner-property";
+import OwnerPropertyManage from "@/pages/owner-property-manage";
 import OwnerEarnings from "@/pages/owner-earnings";
 import OwnerReviews from "@/pages/owner-reviews";
 import OwnerSettings from "@/pages/owner-settings";
@@ -71,7 +72,7 @@ function Router() {
           <Route path="/my-bookings" component={MyBookings} />
           <Route path="/owner/properties" component={OwnerProperties} />
           <Route path="/owner/properties/new" component={AddProperty} />
-          <Route path="/owner/properties/:id/edit" component={AddProperty} />
+          <Route path="/owner/properties/:id/edit" component={OwnerPropertyManage} />
           <Route path="/admin/destinations" component={AdminDestinations} />
           <Route path="/admin/properties" component={AdminProperties} />
           <Route path="/admin/kyc" component={AdminKYC} />
