@@ -155,6 +155,14 @@ export const properties = pgTable("properties", {
   videos: text("videos").array().notNull().default(sql`ARRAY[]::text[]`),
   pricePerNight: decimal("price_per_night", { precision: 10, scale: 2 }).notNull(),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
+  // Occupancy-based pricing
+  singleOccupancyPrice: decimal("single_occupancy_price", { precision: 10, scale: 2 }),
+  doubleOccupancyPrice: decimal("double_occupancy_price", { precision: 10, scale: 2 }),
+  tripleOccupancyPrice: decimal("triple_occupancy_price", { precision: 10, scale: 2 }),
+  // Bulk booking options
+  bulkBookingEnabled: boolean("bulk_booking_enabled").notNull().default(false),
+  bulkBookingMinRooms: integer("bulk_booking_min_rooms").default(5),
+  bulkBookingDiscountPercent: decimal("bulk_booking_discount_percent", { precision: 5, scale: 2 }).default("10"),
   maxGuests: integer("max_guests").notNull().default(2),
   bedrooms: integer("bedrooms").notNull().default(1),
   beds: integer("beds").notNull().default(1),
