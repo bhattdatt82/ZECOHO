@@ -2159,11 +2159,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Calculate total price server-side (don't trust client)
+      // Price = pricePerNight × nights × rooms
       const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-      const totalPrice = nights * Number(property.pricePerNight);
+      const roomsCount = validatedData.rooms || 1;
+      const totalPrice = nights * Number(property.pricePerNight) * roomsCount;
       
       const booking = await storage.createBooking({
         ...validatedData,
+        rooms: roomsCount,
         totalPrice: totalPrice.toString(),
       });
       
@@ -2209,7 +2212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const conversation = await storage.getOrCreateConversation(validatedData.propertyId, userId);
         
-        const bookingMessage = `I'd like to book your property for ${validatedData.guests || 1} guest(s) from ${checkInFormatted} to ${checkOutFormatted}. Total: Rs. ${totalPrice}`;
+        const bookingMessage = `I'd like to book ${roomsCount} room${roomsCount > 1 ? 's' : ''} for ${validatedData.guests || 1} guest${(validatedData.guests || 1) > 1 ? 's' : ''} from ${checkInFormatted} to ${checkOutFormatted}. Total: Rs. ${totalPrice}`;
         
         const message = await storage.createMessage({
           conversationId: conversation.id,

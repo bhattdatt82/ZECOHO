@@ -484,8 +484,8 @@ export default function PropertyDetails() {
       if (!checkIn || !checkOut) {
         throw new Error("Please select check-in and check-out dates");
       }
-      if (guests < 1 || guests > (property?.maxGuests || 1)) {
-        throw new Error(`Guests must be between 1 and ${property?.maxGuests || 1}`);
+      if (guests < 1 || guests > maxAllowedGuests) {
+        throw new Error(`Guests must be between 1 and ${maxAllowedGuests} for ${rooms} room${rooms > 1 ? 's' : ''}`);
       }
       
       const totalPrice = calculateTotalPrice();
@@ -495,6 +495,7 @@ export default function PropertyDetails() {
         checkIn: new Date(checkIn).toISOString(),
         checkOut: new Date(checkOut).toISOString(),
         guests,
+        rooms,
         totalPrice,
       });
     },
@@ -533,6 +534,14 @@ export default function PropertyDetails() {
     },
   });
 
+  // Max guests per room - use property.maxGuests as the per-room capacity
+  const maxGuestsPerRoom = property?.maxGuests || 2;
+  
+  // Calculate maximum allowed guests based on rooms selected
+  const maxAllowedGuests = useMemo(() => {
+    return rooms * maxGuestsPerRoom;
+  }, [rooms, maxGuestsPerRoom]);
+  
   const calculateTotalPrice = () => {
     if (!checkIn || !checkOut || !property) return 0;
     
@@ -542,10 +551,11 @@ export default function PropertyDetails() {
     
     if (nights <= 0) return 0;
     
-    return nights * Number(property.pricePerNight);
+    // Price = pricePerNight × nights × rooms
+    return nights * Number(property.pricePerNight) * rooms;
   };
 
-  const totalPrice = useMemo(() => calculateTotalPrice(), [checkIn, checkOut, property]);
+  const totalPrice = useMemo(() => calculateTotalPrice(), [checkIn, checkOut, property, rooms]);
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
     const start = new Date(checkIn);
@@ -1319,12 +1329,11 @@ export default function PropertyDetails() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  const maxAllowed = property?.maxGuests || 10;
-                                  if (adults + children < maxAllowed) {
-                                    setAdults(Math.min(10, adults + 1));
+                                  if (adults + children < maxAllowedGuests) {
+                                    setAdults(Math.min(maxAllowedGuests, adults + 1));
                                   }
                                 }}
-                                disabled={adults >= 10 || (adults + children) >= (property?.maxGuests || 10)}
+                                disabled={adults >= maxAllowedGuests || (adults + children) >= maxAllowedGuests}
                                 className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 data-testid="button-adults-plus"
                               >
@@ -1359,12 +1368,11 @@ export default function PropertyDetails() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  const maxAllowed = property?.maxGuests || 10;
-                                  if (adults + children < maxAllowed) {
-                                    setChildren(Math.min(6, children + 1));
+                                  if (adults + children < maxAllowedGuests) {
+                                    setChildren(Math.min(maxAllowedGuests - adults, children + 1));
                                   }
                                 }}
-                                disabled={children >= 6 || (adults + children) >= (property?.maxGuests || 10)}
+                                disabled={children >= (maxAllowedGuests - adults) || (adults + children) >= maxAllowedGuests}
                                 className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 data-testid="button-children-plus"
                               >
@@ -1412,7 +1420,7 @@ export default function PropertyDetails() {
                           
                           {/* Max guests info */}
                           <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                            Maximum {property?.maxGuests || 10} guests allowed
+                            Max {maxGuestsPerRoom} guests per room ({maxAllowedGuests} total for {rooms} room{rooms > 1 ? 's' : ''})
                           </div>
                         </div>
                       </PopoverContent>
@@ -1432,13 +1440,16 @@ export default function PropertyDetails() {
                   <div className="mb-6 p-4 bg-muted rounded-lg space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        ₹{Number(property.pricePerNight).toLocaleString('en-IN')} x {nights} {nights === 1 ? 'night' : 'nights'}
+                        ₹{Number(property.pricePerNight).toLocaleString('en-IN')} × {nights} {nights === 1 ? 'night' : 'nights'} × {rooms} {rooms === 1 ? 'room' : 'rooms'}
                       </span>
                       <span className="font-semibold">₹{totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{guests} guest{guests !== 1 ? 's' : ''} ({adults} adult{adults !== 1 ? 's' : ''}, {children} child{children !== 1 ? 'ren' : ''})</span>
+                    </div>
                     <div className="flex justify-between text-base font-semibold pt-2 border-t">
                       <span>Total</span>
-                      <span>₹{totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span data-testid="text-total-price">₹{totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 )}

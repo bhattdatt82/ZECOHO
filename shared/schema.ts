@@ -233,6 +233,7 @@ export const bookings = pgTable("bookings", {
   checkOut: timestamp("check_out").notNull(),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   guests: integer("guests").notNull().default(1),
+  rooms: integer("rooms").notNull().default(1),
   status: bookingStatusEnum("status").notNull().default("pending"),
   ownerResponseMessage: text("owner_response_message"),
   respondedAt: timestamp("responded_at"),

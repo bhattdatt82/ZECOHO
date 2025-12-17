@@ -29,6 +29,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Bed,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -40,6 +41,7 @@ interface Booking {
   checkIn: string;
   checkOut: string;
   guests: number;
+  rooms?: number;
   totalPrice: string;
   status: "pending" | "confirmed" | "rejected" | "cancelled" | "completed";
   ownerResponseMessage?: string;
@@ -185,13 +187,20 @@ export function BookingActionCard({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Bed className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div>
+                <p className="text-muted-foreground text-xs">Rooms</p>
+                <p className="font-medium">{booking.rooms || 1}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div>
                 <p className="text-muted-foreground text-xs">Guests</p>
                 <p className="font-medium">{booking.guests}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 col-span-2">
               <IndianRupee className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div>
                 <p className="text-muted-foreground text-xs">Total</p>
