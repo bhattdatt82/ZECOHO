@@ -170,84 +170,17 @@ export function Header() {
 
               {/* Show Owner Portal for owners OR users who have engaged with KYC (pending/rejected) */}
               {(isOwner || isKycRejected || isKycPending) && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant={location.startsWith("/owner") ? "secondary" : "ghost"}
-                      size="sm"
-                      className="font-medium text-sm"
-                      data-testid="button-owner-menu"
-                    >
-                      <Building className="h-4 w-4 md:mr-2" />
-                      <span className="hidden md:inline">Owner Portal</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <div className="px-2 py-1.5">
-                      <p className="text-sm font-semibold flex items-center gap-2">
-                        <Building className="h-4 w-4" />
-                        Owner Portal
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {isKycRejected ? "Fix KYC to unlock features" : "Manage your property business"}
-                      </p>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild data-testid="link-owner-dashboard">
-                      <Link href="/owner/dashboard">
-                        <LayoutDashboard className="h-4 w-4 mr-2" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    {isKycRejected ? (
-                      <DropdownMenuItem asChild data-testid="link-owner-kyc">
-                        <Link href="/owner/kyc">
-                          <FileText className="h-4 w-4 mr-2" />
-                          Fix KYC
-                        </Link>
-                      </DropdownMenuItem>
-                    ) : (
-                      <>
-                        <DropdownMenuItem asChild data-testid="link-owner-bookings">
-                          <Link href="/owner/bookings">
-                            <CalendarCheck className="h-4 w-4 mr-2" />
-                            Bookings
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild data-testid="link-owner-messages">
-                          <Link href="/owner/messages">
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            Messages
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild data-testid="link-owner-property">
-                          <Link href="/owner/property">
-                            <Building className="h-4 w-4 mr-2" />
-                            My Properties
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild data-testid="link-owner-earnings">
-                          <Link href="/owner/earnings">
-                            <IndianRupee className="h-4 w-4 mr-2" />
-                            Earnings
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild data-testid="link-owner-reviews">
-                          <Link href="/owner/reviews">
-                            <Star className="h-4 w-4 mr-2" />
-                            Reviews
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild data-testid="link-owner-settings">
-                          <Link href="/owner/settings">
-                            <Settings className="h-4 w-4 mr-2" />
-                            Settings
-                          </Link>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Link href="/owner/dashboard">
+                  <Button 
+                    variant={location.startsWith("/owner") ? "secondary" : "ghost"}
+                    size="sm"
+                    className="font-medium text-sm"
+                    data-testid="button-owner-portal"
+                  >
+                    <Building className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Owner Portal</span>
+                  </Button>
+                </Link>
               )}
 
               {isAdmin && (
