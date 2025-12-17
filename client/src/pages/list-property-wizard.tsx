@@ -31,7 +31,7 @@ import {
   defaultCategorizedImages 
 } from "@/components/PropertyImageUploader";
 import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/components/KycDocumentUploader";
-import { Loader2, Building2, User, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle, IdCard, Shield, Flame, Camera, Zap, FileCheck } from "lucide-react";
+import { Loader2, Building2, User, Users, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle, IdCard, Shield, Flame, Camera, Zap, FileCheck } from "lucide-react";
 import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
 import type { KycSectionId, KycRejectionDetails } from "@shared/schema";
 import { useEffect, useMemo, useRef, useCallback } from "react";
@@ -129,6 +129,15 @@ const combinedSchema = z.object({
   propPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
   
   pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
+  // Occupancy-based pricing (optional)
+  singleOccupancyPrice: z.coerce.number().optional(),
+  doubleOccupancyPrice: z.coerce.number().optional(),
+  tripleOccupancyPrice: z.coerce.number().optional(),
+  // Bulk booking options
+  bulkBookingEnabled: z.boolean().optional(),
+  bulkBookingMinRooms: z.coerce.number().min(2).optional(),
+  bulkBookingDiscountPercent: z.coerce.number().min(0).max(50).optional(),
+  
   maxGuests: z.coerce.number().min(1, "At least 1 guest required"),
   bedrooms: z.coerce.number().min(1, "At least 1 bedroom required"),
   beds: z.coerce.number().min(1, "At least 1 bed required"),
@@ -295,6 +304,12 @@ export default function ListPropertyWizard() {
       propState: "",
       propPincode: "",
       pricePerNight: 1000,
+      singleOccupancyPrice: undefined,
+      doubleOccupancyPrice: undefined,
+      tripleOccupancyPrice: undefined,
+      bulkBookingEnabled: false,
+      bulkBookingMinRooms: 5,
+      bulkBookingDiscountPercent: 10,
       maxGuests: 2,
       bedrooms: 1,
       beds: 1,
@@ -897,6 +912,12 @@ export default function ListPropertyWizard() {
           latitude: propertyAddress.latitude,
           longitude: propertyAddress.longitude,
           pricePerNight: data.pricePerNight,
+          singleOccupancyPrice: data.singleOccupancyPrice || null,
+          doubleOccupancyPrice: data.doubleOccupancyPrice || null,
+          tripleOccupancyPrice: data.tripleOccupancyPrice || null,
+          bulkBookingEnabled: data.bulkBookingEnabled || false,
+          bulkBookingMinRooms: data.bulkBookingMinRooms || 5,
+          bulkBookingDiscountPercent: data.bulkBookingDiscountPercent || 10,
           maxGuests: data.maxGuests,
           bedrooms: data.bedrooms,
           beds: data.beds,
@@ -2526,16 +2547,197 @@ export default function ListPropertyWizard() {
                       name="pricePerNight"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Price per Night (₹) *</FormLabel>
+                          <FormLabel>Base Price per Night (₹) *</FormLabel>
                           <FormControl>
                             <Input type="number" min="100" step="100" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} data-testid="input-price" />
                           </FormControl>
+                          <p className="text-xs text-muted-foreground">This is the default price when no occupancy type is selected</p>
                           <PriceGuidanceWidget propertyType={form.watch("propertyType")} city={form.watch("propCity")} />
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+                  </CardContent>
+                </Card>
 
+                {/* Occupancy-Based Pricing Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Occupancy-Based Pricing
+                    </CardTitle>
+                    <CardDescription>
+                      Set different prices based on number of guests per room (optional)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="singleOccupancyPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Single Occupancy (₹)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="100" 
+                                step="100" 
+                                placeholder="e.g., 800"
+                                {...field} 
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} 
+                                data-testid="input-single-occupancy-price" 
+                              />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground">Price for 1 guest</p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="doubleOccupancyPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Double Occupancy (₹)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="100" 
+                                step="100" 
+                                placeholder="e.g., 1200"
+                                {...field} 
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} 
+                                data-testid="input-double-occupancy-price" 
+                              />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground">Price for 2 guests</p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="tripleOccupancyPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Triple Occupancy (₹)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="100" 
+                                step="100" 
+                                placeholder="e.g., 1500"
+                                {...field} 
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} 
+                                data-testid="input-triple-occupancy-price" 
+                              />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground">Price for 3 guests</p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                      Leave fields empty to use the base price for all occupancy types
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Bulk Booking Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Bulk Booking Options
+                    </CardTitle>
+                    <CardDescription>
+                      Offer discounts for large group bookings (optional)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="bulkBookingEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Enable Bulk Booking Discounts</FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                              Attract corporate clients and group travelers
+                            </p>
+                          </div>
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="checkbox-bulk-booking"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {form.watch("bulkBookingEnabled") && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <FormField
+                          control={form.control}
+                          name="bulkBookingMinRooms"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Minimum Rooms for Bulk Discount</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="2" 
+                                  step="1"
+                                  {...field} 
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 5)} 
+                                  data-testid="input-bulk-min-rooms" 
+                                />
+                              </FormControl>
+                              <p className="text-xs text-muted-foreground">Discount applies when booking this many rooms or more</p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="bulkBookingDiscountPercent"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Discount Percentage (%)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  max="50" 
+                                  step="1"
+                                  {...field} 
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 10)} 
+                                  data-testid="input-bulk-discount" 
+                                />
+                              </FormControl>
+                              <p className="text-xs text-muted-foreground">Maximum 50% discount allowed</p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>House Rules & Policies</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
                       name="policies"
