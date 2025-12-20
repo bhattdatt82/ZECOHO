@@ -48,9 +48,13 @@ interface Booking {
   checkOut: string;
   guests: number;
   totalPrice: string;
-  status: "pending" | "confirmed" | "rejected" | "cancelled" | "completed";
+  status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed";
   ownerResponseMessage?: string;
   respondedAt?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  checkedInBy?: string;
+  checkedOutBy?: string;
   createdAt: string;
   property?: {
     id: string;
@@ -136,6 +140,46 @@ export default function OwnerBookings() {
     },
   });
 
+  const checkInMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("PATCH", `/api/owner/bookings/${id}/check-in`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
+      toast({
+        title: "Guest Checked In",
+        description: "The guest has been successfully checked in.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Check-in Failed",
+        description: error?.message || "Failed to mark guest as checked in.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const checkOutMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("PATCH", `/api/owner/bookings/${id}/check-out`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
+      toast({
+        title: "Guest Checked Out",
+        description: "The guest has been checked out and the booking is now complete.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Check-out Failed",
+        description: error?.message || "Failed to mark guest as checked out.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleReject = () => {
     if (!selectedBooking) return;
     let finalReason = "";
@@ -173,6 +217,8 @@ export default function OwnerBookings() {
       pending: { variant: "outline", label: "Pending Review" },
       confirmed: { variant: "default", label: "Confirmed" },
       rejected: { variant: "destructive", label: "Declined" },
+      checked_in: { variant: "default", label: "Checked In" },
+      checked_out: { variant: "secondary", label: "Checked Out" },
       completed: { variant: "secondary", label: "Completed" },
       cancelled: { variant: "destructive", label: "Cancelled" },
     };
@@ -180,10 +226,30 @@ export default function OwnerBookings() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  // Helper to check if check-in is allowed (today >= check-in date)
+  const canCheckIn = (booking: Booking) => {
+    if (booking.status !== "confirmed") return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDate = new Date(booking.checkIn);
+    checkInDate.setHours(0, 0, 0, 0);
+    return today >= checkInDate;
+  };
+
+  // Helper to check if check-out is allowed (today >= check-out date)
+  const canCheckOut = (booking: Booking) => {
+    if (booking.status !== "checked_in") return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkOutDate = new Date(booking.checkOut);
+    checkOutDate.setHours(0, 0, 0, 0);
+    return today >= checkOutDate;
+  };
+
   const filteredBookings = bookings?.filter((booking) => {
     if (activeTab === "all") return true;
-    if (activeTab === "upcoming") return booking.status === "confirmed";
-    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected";
+    if (activeTab === "upcoming") return booking.status === "confirmed" || booking.status === "checked_in";
+    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out";
     if (activeTab === "pending") return booking.status === "pending";
     return true;
   });
@@ -272,16 +338,47 @@ export default function OwnerBookings() {
               </Button>
             </>
           )}
-          {booking.status === "confirmed" && (
+          {booking.status === "confirmed" && canCheckIn(booking) && (
             <Button
               size="sm"
-              onClick={() => updateStatusMutation.mutate({ id: booking.id, status: "completed" })}
-              disabled={updateStatusMutation.isPending}
-              data-testid={`complete-booking-${booking.id}`}
+              onClick={() => checkInMutation.mutate(booking.id)}
+              disabled={checkInMutation.isPending}
+              data-testid={`check-in-booking-${booking.id}`}
             >
               <Check className="h-4 w-4 mr-1" />
-              Mark Complete
+              Mark Checked-in
             </Button>
+          )}
+          {booking.status === "confirmed" && !canCheckIn(booking) && (
+            <Badge variant="outline" className="text-xs">
+              Check-in available from {format(new Date(booking.checkIn), "dd MMM")}
+            </Badge>
+          )}
+          {booking.status === "checked_in" && canCheckOut(booking) && (
+            <Button
+              size="sm"
+              onClick={() => checkOutMutation.mutate(booking.id)}
+              disabled={checkOutMutation.isPending}
+              data-testid={`check-out-booking-${booking.id}`}
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Mark Checked-out
+            </Button>
+          )}
+          {booking.status === "checked_in" && !canCheckOut(booking) && (
+            <Badge variant="outline" className="text-xs">
+              Check-out available from {format(new Date(booking.checkOut), "dd MMM")}
+            </Badge>
+          )}
+          {booking.checkInTime && (
+            <span className="text-xs text-muted-foreground">
+              Checked in: {format(new Date(booking.checkInTime), "dd MMM HH:mm")}
+            </span>
+          )}
+          {booking.checkOutTime && (
+            <span className="text-xs text-muted-foreground">
+              Checked out: {format(new Date(booking.checkOutTime), "dd MMM HH:mm")}
+            </span>
           )}
           <Link href="/owner/messages">
             <Button size="sm" variant="ghost" data-testid={`message-guest-${booking.id}`}>
