@@ -27,9 +27,11 @@ interface Booking {
   checkOut: string;
   guests: number;
   totalPrice: string;
-  status: "pending" | "confirmed" | "rejected" | "cancelled" | "completed";
+  status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed";
   ownerResponseMessage?: string;
   respondedAt?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
   createdAt: string;
   property?: {
     id: string;
@@ -60,6 +62,8 @@ export default function MyBookings() {
       pending: { variant: "outline", label: "Awaiting Confirmation", icon: Clock },
       confirmed: { variant: "default", label: "Confirmed", icon: CheckCircle },
       rejected: { variant: "destructive", label: "Declined", icon: XCircle },
+      checked_in: { variant: "default", label: "Checked In", icon: CheckCircle },
+      checked_out: { variant: "secondary", label: "Checked Out", icon: CheckCircle },
       completed: { variant: "secondary", label: "Completed", icon: CheckCircle },
       cancelled: { variant: "destructive", label: "Cancelled", icon: XCircle },
     };
@@ -75,8 +79,8 @@ export default function MyBookings() {
 
   const filteredBookings = bookings?.filter((booking) => {
     if (activeTab === "all") return true;
-    if (activeTab === "upcoming") return booking.status === "pending" || booking.status === "confirmed";
-    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected";
+    if (activeTab === "upcoming") return booking.status === "pending" || booking.status === "confirmed" || booking.status === "checked_in";
+    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out";
     return true;
   });
 
@@ -167,6 +171,30 @@ export default function MyBookings() {
               <div className="text-sm p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md">
                 <p className="text-green-800 dark:text-green-200">
                   Your booking is confirmed! You'll receive check-in details closer to your arrival date.
+                </p>
+              </div>
+            )}
+
+            {booking.status === "checked_in" && (
+              <div className="text-sm p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
+                <p className="text-blue-800 dark:text-blue-200">
+                  You're checked in! Enjoy your stay.
+                  {booking.checkInTime && (
+                    <span className="block text-xs mt-1">
+                      Checked in on {format(new Date(booking.checkInTime), "dd MMM yyyy 'at' HH:mm")}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {(booking.status === "checked_out" || booking.status === "completed") && booking.checkOutTime && (
+              <div className="text-sm p-3 bg-muted border rounded-md">
+                <p className="text-muted-foreground">
+                  Your stay is complete. Thank you for choosing us!
+                  <span className="block text-xs mt-1">
+                    Checked out on {format(new Date(booking.checkOutTime), "dd MMM yyyy 'at' HH:mm")}
+                  </span>
                 </p>
               </div>
             )}
