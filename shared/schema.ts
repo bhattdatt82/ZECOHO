@@ -88,6 +88,8 @@ export const bookingStatusEnum = pgEnum("booking_status", [
   "confirmed",    // Owner accepted the booking
   "rejected",     // Owner rejected the booking
   "cancelled",    // Guest cancelled the booking
+  "checked_in",   // Guest has checked in (owner marked)
+  "checked_out",  // Guest has checked out (owner marked)
   "completed",    // Stay completed
 ]);
 
@@ -252,6 +254,11 @@ export const bookings = pgTable("bookings", {
   status: bookingStatusEnum("status").notNull().default("pending"),
   ownerResponseMessage: text("owner_response_message"),
   respondedAt: timestamp("responded_at"),
+  // Check-in/check-out tracking (owner-controlled)
+  checkInTime: timestamp("check_in_time"),
+  checkOutTime: timestamp("check_out_time"),
+  checkedInBy: varchar("checked_in_by").references(() => users.id),
+  checkedOutBy: varchar("checked_out_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
