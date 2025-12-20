@@ -3547,6 +3547,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mark booking as checked-in (owner only)
+  app.patch("/api/owner/bookings/:id/check-in", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can mark check-in" });
+      }
+
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Verify owner owns the property
+      const property = await storage.getProperty(booking.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this booking" });
+      }
+
+      // Only allow check-in from confirmed status
+      if (booking.status !== "confirmed") {
+        return res.status(400).json({ message: "Can only check-in confirmed bookings" });
+      }
+
+      // Verify check-in date has arrived (current date >= check-in date)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkInDate = new Date(booking.checkIn);
+      checkInDate.setHours(0, 0, 0, 0);
+      
+      if (today < checkInDate) {
+        return res.status(400).json({ message: "Cannot check-in before the scheduled check-in date" });
+      }
+
+      const updated = await storage.markCheckedIn(req.params.id, userId);
+      
+      // Notify guest via WebSocket
+      const guest = await storage.getUser(booking.guestId);
+      if (wss && guest) {
+        const notification = {
+          type: "booking_status_update",
+          bookingId: booking.id,
+          status: "checked_in",
+          message: `You have been checked in at ${property.title}. Enjoy your stay!`,
+          propertyTitle: property.title,
+        };
+        broadcastToUser(guest.id, notification);
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error marking check-in:", error);
+      res.status(500).json({ message: "Failed to mark check-in" });
+    }
+  });
+
+  // Mark booking as checked-out (owner only)
+  app.patch("/api/owner/bookings/:id/check-out", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can mark check-out" });
+      }
+
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Verify owner owns the property
+      const property = await storage.getProperty(booking.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this booking" });
+      }
+
+      // Only allow check-out from checked_in status
+      if (booking.status !== "checked_in") {
+        return res.status(400).json({ message: "Can only check-out guests who are currently checked-in" });
+      }
+
+      // Verify check-out date has arrived (current date >= check-out date)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkOutDate = new Date(booking.checkOut);
+      checkOutDate.setHours(0, 0, 0, 0);
+      
+      if (today < checkOutDate) {
+        return res.status(400).json({ message: "Cannot check-out before the scheduled check-out date" });
+      }
+
+      // Mark as checked out first
+      await storage.markCheckedOut(req.params.id, userId);
+      
+      // Then automatically mark as completed
+      const updated = await storage.updateBookingStatus(req.params.id, "completed");
+      
+      // Notify guest via WebSocket
+      const guest = await storage.getUser(booking.guestId);
+      if (wss && guest) {
+        const notification = {
+          type: "booking_status_update",
+          bookingId: booking.id,
+          status: "completed",
+          message: `Thank you for staying at ${property.title}. We hope you enjoyed your stay!`,
+          propertyTitle: property.title,
+        };
+        broadcastToUser(guest.id, notification);
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error marking check-out:", error);
+      res.status(500).json({ message: "Failed to mark check-out" });
+    }
+  });
+
   // Get owner's reviews
   app.get("/api/owner/reviews", isAuthenticated, async (req: any, res) => {
     try {

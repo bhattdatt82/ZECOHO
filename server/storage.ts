@@ -112,7 +112,9 @@ export interface IStorage {
   getBookingsByProperty(propertyId: string): Promise<Booking[]>;
   getBookingsByGuest(guestId: string): Promise<Booking[]>;
   getPropertyBookedDates(propertyId: string, startDate: Date, endDate: Date): Promise<{ checkIn: Date; checkOut: Date }[]>;
-  updateBookingStatus(id: string, status: "pending" | "confirmed" | "rejected" | "cancelled" | "completed", responseMessage?: string): Promise<Booking | undefined>;
+  updateBookingStatus(id: string, status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed", responseMessage?: string): Promise<Booking | undefined>;
+  markCheckedIn(bookingId: string, userId: string): Promise<Booking | undefined>;
+  markCheckedOut(bookingId: string, userId: string): Promise<Booking | undefined>;
   deleteBooking(id: string): Promise<void>;
 
   // Conversation operations
@@ -473,7 +475,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateBookingStatus(
     id: string,
-    status: "pending" | "confirmed" | "rejected" | "cancelled" | "completed",
+    status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed",
     responseMessage?: string
   ): Promise<Booking | undefined> {
     const updateData: any = { status, updatedAt: new Date() };
@@ -485,6 +487,34 @@ export class DatabaseStorage implements IStorage {
       .update(bookings)
       .set(updateData)
       .where(eq(bookings.id, id))
+      .returning();
+    return updated;
+  }
+
+  async markCheckedIn(bookingId: string, userId: string): Promise<Booking | undefined> {
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "checked_in",
+        checkInTime: new Date(),
+        checkedInBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    return updated;
+  }
+
+  async markCheckedOut(bookingId: string, userId: string): Promise<Booking | undefined> {
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "checked_out",
+        checkOutTime: new Date(),
+        checkedOutBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
       .returning();
     return updated;
   }
