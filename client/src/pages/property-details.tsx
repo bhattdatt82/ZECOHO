@@ -151,6 +151,8 @@ export default function PropertyDetails() {
   const [children, setChildren] = useState(0);
   const [rooms, setRooms] = useState(1);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string | null>(null);
+  const [selectedMealOptionId, setSelectedMealOptionId] = useState<string | null>(null);
   
   // Controlled popover states for date pickers and guests with auto-navigation
   const [checkInPopoverOpen, setCheckInPopoverOpen] = useState(false);
@@ -236,6 +238,12 @@ export default function PropertyDetails() {
 
   const { data: reviews = [] } = useQuery<any[]>({
     queryKey: ["/api/properties", propertyId, "reviews"],
+    enabled: !!propertyId,
+  });
+
+  // Fetch room types for this property
+  const { data: roomTypes = [] } = useQuery<any[]>({
+    queryKey: ["/api/properties", propertyId, "rooms"],
     enabled: !!propertyId,
   });
 
@@ -506,14 +514,23 @@ export default function PropertyDetails() {
       
       const totalPrice = calculateTotalPrice();
       
-      return apiRequest("POST", "/api/bookings", {
+      const bookingData: any = {
         propertyId,
         checkIn: new Date(checkIn).toISOString(),
         checkOut: new Date(checkOut).toISOString(),
         guests,
         rooms,
         totalPrice,
-      });
+      };
+      
+      if (selectedRoomTypeId) {
+        bookingData.roomTypeId = selectedRoomTypeId;
+      }
+      if (selectedMealOptionId) {
+        bookingData.roomOptionId = selectedMealOptionId;
+      }
+      
+      return apiRequest("POST", "/api/bookings", bookingData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
@@ -529,6 +546,8 @@ export default function PropertyDetails() {
       setAdults(2);
       setChildren(0);
       setRooms(1);
+      setSelectedRoomTypeId(null);
+      setSelectedMealOptionId(null);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -570,19 +589,37 @@ export default function PropertyDetails() {
     // Calculate guests per room to determine occupancy type
     const guestsPerRoom = Math.ceil(guests / rooms);
     
-    // Determine price based on occupancy type
+    // Determine price based on room type selection or occupancy type
     let pricePerNight = Number(property.pricePerNight);
+    let mealOptionPrice = 0;
     
-    if (guestsPerRoom === 1 && property.singleOccupancyPrice) {
-      pricePerNight = Number(property.singleOccupancyPrice);
-    } else if (guestsPerRoom === 2 && property.doubleOccupancyPrice) {
-      pricePerNight = Number(property.doubleOccupancyPrice);
-    } else if (guestsPerRoom >= 3 && property.tripleOccupancyPrice) {
-      pricePerNight = Number(property.tripleOccupancyPrice);
+    // If a room type is selected, use its base price
+    if (selectedRoomTypeId) {
+      const selectedRoomType = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
+      if (selectedRoomType) {
+        pricePerNight = Number(selectedRoomType.basePrice);
+        
+        // Add meal option price if selected
+        if (selectedMealOptionId && selectedRoomType.mealOptions) {
+          const selectedMealOption = selectedRoomType.mealOptions.find((opt: any) => opt.id === selectedMealOptionId);
+          if (selectedMealOption) {
+            mealOptionPrice = Number(selectedMealOption.priceAdjustment);
+          }
+        }
+      }
+    } else {
+      // Fallback to property's occupancy-based pricing
+      if (guestsPerRoom === 1 && property.singleOccupancyPrice) {
+        pricePerNight = Number(property.singleOccupancyPrice);
+      } else if (guestsPerRoom === 2 && property.doubleOccupancyPrice) {
+        pricePerNight = Number(property.doubleOccupancyPrice);
+      } else if (guestsPerRoom >= 3 && property.tripleOccupancyPrice) {
+        pricePerNight = Number(property.tripleOccupancyPrice);
+      }
     }
     
-    // Calculate base price
-    let basePrice = nights * pricePerNight * rooms;
+    // Calculate base price (room + meal per night per room)
+    let basePrice = nights * (pricePerNight + mealOptionPrice) * rooms;
     
     // Apply bulk booking discount if applicable
     if (property.bulkBookingEnabled && 
@@ -596,7 +633,7 @@ export default function PropertyDetails() {
     return Math.round(basePrice);
   };
 
-  const totalPrice = useMemo(() => calculateTotalPrice(), [checkIn, checkOut, property, rooms, guests]);
+  const totalPrice = useMemo(() => calculateTotalPrice(), [checkIn, checkOut, property, rooms, guests, selectedRoomTypeId, selectedMealOptionId, roomTypes]);
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
     const start = new Date(checkIn);
@@ -1529,6 +1566,111 @@ export default function PropertyDetails() {
                       </PopoverContent>
                     </Popover>
                   </div>
+
+                  {/* Room Type Selection */}
+                  {roomTypes.length > 0 && (
+                    <div>
+                      <label className="text-sm font-semibold block mb-2">Select Room Type</label>
+                      <div className="space-y-3">
+                        {roomTypes.filter((rt: any) => rt.isActive).map((roomType: any) => (
+                          <div
+                            key={roomType.id}
+                            className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                              selectedRoomTypeId === roomType.id
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover-elevate"
+                            }`}
+                            onClick={() => {
+                              setSelectedRoomTypeId(roomType.id);
+                              setSelectedMealOptionId(null);
+                            }}
+                            data-testid={`card-room-type-${roomType.id}`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium">{roomType.name}</h4>
+                                  {selectedRoomTypeId === roomType.id && (
+                                    <Badge variant="secondary" className="text-xs">Selected</Badge>
+                                  )}
+                                </div>
+                                {roomType.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{roomType.description}</p>
+                                )}
+                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3.5 w-3.5" />
+                                    Up to {roomType.maxGuests} guests
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Bed className="h-3.5 w-3.5" />
+                                    {roomType.totalRooms} available
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">₹{Number(roomType.basePrice).toLocaleString('en-IN')}</div>
+                                <div className="text-xs text-muted-foreground">per night</div>
+                              </div>
+                            </div>
+                            
+                            {/* Meal Options for selected room type */}
+                            {selectedRoomTypeId === roomType.id && roomType.mealOptions && roomType.mealOptions.length > 0 && (
+                              <div className="mt-3 pt-3 border-t space-y-2">
+                                <p className="text-sm font-medium text-muted-foreground">Meal Options</p>
+                                <div className="space-y-2">
+                                  <div
+                                    className={`p-2 rounded border cursor-pointer text-sm transition-all ${
+                                      selectedMealOptionId === null
+                                        ? "border-primary bg-primary/5"
+                                        : "border-border hover-elevate"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedMealOptionId(null);
+                                    }}
+                                    data-testid="option-no-meal"
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <span>Room only (no meals)</span>
+                                      <span className="text-muted-foreground">Included</span>
+                                    </div>
+                                  </div>
+                                  {roomType.mealOptions.map((option: any) => (
+                                    <div
+                                      key={option.id}
+                                      className={`p-2 rounded border cursor-pointer text-sm transition-all ${
+                                        selectedMealOptionId === option.id
+                                          ? "border-primary bg-primary/5"
+                                          : "border-border hover-elevate"
+                                      }`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedMealOptionId(option.id);
+                                      }}
+                                      data-testid={`option-meal-${option.id}`}
+                                    >
+                                      <div className="flex justify-between items-center">
+                                        <div>
+                                          <span className="font-medium">{option.name}</span>
+                                          {option.description && (
+                                            <p className="text-xs text-muted-foreground">{option.description}</p>
+                                          )}
+                                        </div>
+                                        <span className="text-primary font-medium">
+                                          +₹{Number(option.priceAdjustment).toLocaleString('en-IN')}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {hasDateOverlap && (
@@ -1558,16 +1700,37 @@ export default function PropertyDetails() {
                   const guestsPerRoom = Math.ceil(guests / rooms);
                   let effectivePrice = Number(property.pricePerNight);
                   let occupancyLabel = "";
+                  let roomTypeName = "";
+                  let mealOptionName = "";
+                  let mealOptionPrice = 0;
                   
-                  if (guestsPerRoom === 1 && property.singleOccupancyPrice) {
-                    effectivePrice = Number(property.singleOccupancyPrice);
-                    occupancyLabel = "Single";
-                  } else if (guestsPerRoom === 2 && property.doubleOccupancyPrice) {
-                    effectivePrice = Number(property.doubleOccupancyPrice);
-                    occupancyLabel = "Double";
-                  } else if (guestsPerRoom >= 3 && property.tripleOccupancyPrice) {
-                    effectivePrice = Number(property.tripleOccupancyPrice);
-                    occupancyLabel = "Triple";
+                  // Check if room type is selected
+                  if (selectedRoomTypeId) {
+                    const selectedRoomType = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
+                    if (selectedRoomType) {
+                      effectivePrice = Number(selectedRoomType.basePrice);
+                      roomTypeName = selectedRoomType.name;
+                      
+                      if (selectedMealOptionId && selectedRoomType.mealOptions) {
+                        const selectedMealOption = selectedRoomType.mealOptions.find((opt: any) => opt.id === selectedMealOptionId);
+                        if (selectedMealOption) {
+                          mealOptionName = selectedMealOption.name;
+                          mealOptionPrice = Number(selectedMealOption.priceAdjustment);
+                        }
+                      }
+                    }
+                  } else {
+                    // Fallback to occupancy-based pricing
+                    if (guestsPerRoom === 1 && property.singleOccupancyPrice) {
+                      effectivePrice = Number(property.singleOccupancyPrice);
+                      occupancyLabel = "Single";
+                    } else if (guestsPerRoom === 2 && property.doubleOccupancyPrice) {
+                      effectivePrice = Number(property.doubleOccupancyPrice);
+                      occupancyLabel = "Double";
+                    } else if (guestsPerRoom >= 3 && property.tripleOccupancyPrice) {
+                      effectivePrice = Number(property.tripleOccupancyPrice);
+                      occupancyLabel = "Triple";
+                    }
                   }
                   
                   const hasBulkDiscount = property.bulkBookingEnabled && 
@@ -1576,16 +1739,31 @@ export default function PropertyDetails() {
                     property.bulkBookingDiscountPercent;
                   
                   const discountPercent = hasBulkDiscount ? Number(property.bulkBookingDiscountPercent) : 0;
-                  const subtotal = nights * effectivePrice * rooms;
+                  const roomSubtotal = nights * effectivePrice * rooms;
+                  const mealSubtotal = nights * mealOptionPrice * rooms;
+                  const subtotal = roomSubtotal + mealSubtotal;
                   
                   return (
                     <div className="mb-6 p-4 bg-muted rounded-lg space-y-2">
+                      {/* Room pricing */}
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
+                          {roomTypeName && <span className="font-medium">{roomTypeName}: </span>}
                           ₹{effectivePrice.toLocaleString('en-IN')} × {nights} {nights === 1 ? 'night' : 'nights'} × {rooms} {rooms === 1 ? 'room' : 'rooms'}
                         </span>
-                        <span className="font-semibold">₹{subtotal.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold">₹{roomSubtotal.toLocaleString('en-IN')}</span>
                       </div>
+                      
+                      {/* Meal option pricing */}
+                      {mealOptionPrice > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {mealOptionName}: ₹{mealOptionPrice.toLocaleString('en-IN')} × {nights} {nights === 1 ? 'night' : 'nights'} × {rooms} {rooms === 1 ? 'room' : 'rooms'}
+                          </span>
+                          <span className="font-semibold">₹{mealSubtotal.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>
                           {guests} guest{guests !== 1 ? 's' : ''} ({adults} adult{adults !== 1 ? 's' : ''}, {children} child{children !== 1 ? 'ren' : ''})
