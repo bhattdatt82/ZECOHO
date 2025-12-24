@@ -188,7 +188,8 @@ export default function ListPropertyWizard() {
   // Steps for verified/pending users: 3 (property info) -> 4 (photos) -> 5 (review)
   // Steps for new/rejected users: 1 (personal) -> 2 (business/docs) -> 3 (property) -> 4 (photos) -> 5 (review)
   const kycStepsCount = canSkipKycSteps ? 0 : 2;
-  const totalSteps = canSkipKycSteps ? 3 : 5;
+  // totalSteps is always 5 (the last step number), regardless of whether KYC steps are skipped
+  const totalSteps = 5;
   const firstStep = canSkipKycSteps ? 3 : 1;
   
   const [step, setStep] = useState(firstStep);
