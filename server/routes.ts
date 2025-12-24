@@ -2418,10 +2418,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Check-out must be after check-in" });
       }
 
+      // If room type is selected, only check bookings for that specific room type
+      // This allows different room types to be booked on overlapping dates
       const bookedDates = await storage.getPropertyBookedDates(
         validatedData.propertyId,
         checkIn,
-        checkOut
+        checkOut,
+        validatedData.roomTypeId || null
       );
 
       if (bookedDates.length > 0) {
@@ -2632,16 +2635,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/properties/:id/booked-dates", async (req, res) => {
     try {
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate, roomTypeId } = req.query;
       
       if (!startDate || !endDate) {
         return res.status(400).json({ message: "startDate and endDate are required" });
       }
 
+      // Optionally filter by room type - allows different room types on overlapping dates
       const bookedDates = await storage.getPropertyBookedDates(
         req.params.id,
         new Date(startDate as string),
-        new Date(endDate as string)
+        new Date(endDate as string),
+        (roomTypeId as string) || null
       );
       
       res.json(bookedDates);
@@ -3911,11 +3916,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Extension check-out must be after the original check-out date" });
       }
 
-      // Check for overlapping bookings during extension period
+      // Check for overlapping bookings during extension period (for same room type)
       const overlappingBookings = await storage.getPropertyBookedDates(
         parentBooking.propertyId,
         extensionCheckIn,
-        extensionCheckOut
+        extensionCheckOut,
+        parentBooking.roomTypeId || null
       );
 
       // Filter out the parent booking from overlap check
@@ -3924,11 +3930,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return true;
       });
 
-      // Check for blocked dates during extension period
+      // Check for blocked dates during extension period (for same room type)
       const blockedDates = await storage.getPropertyBlockedDates(
         parentBooking.propertyId,
         extensionCheckIn,
-        extensionCheckOut
+        extensionCheckOut,
+        parentBooking.roomTypeId || null
       );
 
       if (blockedDates.length > 0) {
@@ -3937,10 +3944,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Calculate extension price
+      // Calculate extension price using room type pricing from original booking
       const nights = Math.ceil((extensionCheckOut.getTime() - extensionCheckIn.getTime()) / (1000 * 60 * 60 * 24));
       const roomsCount = rooms || parentBooking.rooms || 1;
-      const totalPrice = nights * Number(property.pricePerNight) * roomsCount;
+      
+      let basePrice = Number(property.pricePerNight);
+      let mealPrice = 0;
+      
+      // Use same room type and meal option pricing from parent booking
+      if (parentBooking.roomTypeId) {
+        const roomType = await storage.getRoomType(parentBooking.roomTypeId);
+        if (roomType) {
+          basePrice = Number(roomType.basePrice);
+          
+          if (parentBooking.roomOptionId) {
+            const mealOption = await storage.getRoomOption(parentBooking.roomOptionId);
+            if (mealOption && mealOption.roomTypeId === parentBooking.roomTypeId) {
+              mealPrice = Number(mealOption.priceAdjustment);
+            }
+          }
+        }
+      }
+      
+      const totalPrice = nights * (basePrice + mealPrice) * roomsCount;
 
       // Create extension booking (payment at hotel)
       const extensionBooking = await storage.createBooking({
@@ -3955,6 +3981,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "confirmed", // Auto-confirm extension since guest is already checked in
         bookingType: "extension",
         parentBookingId: parentBooking.id,
+        roomTypeId: parentBooking.roomTypeId,
+        roomOptionId: parentBooking.roomOptionId,
       });
 
       // Notify guest via WebSocket

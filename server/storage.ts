@@ -126,7 +126,7 @@ export interface IStorage {
   getBooking(id: string): Promise<Booking | undefined>;
   getBookingsByProperty(propertyId: string): Promise<Booking[]>;
   getBookingsByGuest(guestId: string): Promise<Booking[]>;
-  getPropertyBookedDates(propertyId: string, startDate: Date, endDate: Date): Promise<{ checkIn: Date; checkOut: Date }[]>;
+  getPropertyBookedDates(propertyId: string, startDate: Date, endDate: Date, roomTypeId?: string | null): Promise<{ checkIn: Date; checkOut: Date }[]>;
   updateBookingStatus(id: string, status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed", responseMessage?: string): Promise<Booking | undefined>;
   markCheckedIn(bookingId: string, userId: string): Promise<Booking | undefined>;
   markCheckedOut(bookingId: string, userId: string, isEarlyCheckout?: boolean): Promise<Booking | undefined>;
@@ -511,22 +511,30 @@ export class DatabaseStorage implements IStorage {
   async getPropertyBookedDates(
     propertyId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    roomTypeId?: string | null
   ): Promise<{ checkIn: Date; checkOut: Date }[]> {
+    // Build where conditions
+    const conditions = [
+      eq(bookings.propertyId, propertyId),
+      inArray(bookings.status, ["pending", "confirmed"]),
+      gt(bookings.checkOut, startDate),
+      lt(bookings.checkIn, endDate)
+    ];
+    
+    // If roomTypeId is provided, only check bookings for that specific room type
+    // This allows different room types to be booked on overlapping dates
+    if (roomTypeId) {
+      conditions.push(eq(bookings.roomTypeId, roomTypeId));
+    }
+    
     const results = await db
       .select({
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
       })
       .from(bookings)
-      .where(
-        and(
-          eq(bookings.propertyId, propertyId),
-          inArray(bookings.status, ["pending", "confirmed"]),
-          gt(bookings.checkOut, startDate),
-          lt(bookings.checkIn, endDate)
-        )
-      );
+      .where(and(...conditions));
     return results.map(r => ({
       checkIn: new Date(r.checkIn),
       checkOut: new Date(r.checkOut),
