@@ -728,7 +728,7 @@ export async function sendBookingRequestToOwnerEmail(
               </p>
               
               <div style="text-align: center;">
-                <a href="https://zecoho.replit.app/messages" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="https://zecoho.replit.app/owner/messages" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   View Messages
                 </a>
               </div>
