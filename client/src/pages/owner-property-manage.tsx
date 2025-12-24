@@ -29,13 +29,20 @@ import {
   Pause,
   Ban,
   Settings,
+  Bed,
+  Edit,
+  Utensils,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import type { Property, AvailabilityOverride } from "@shared/schema";
+import type { Property, AvailabilityOverride, RoomType, RoomOption } from "@shared/schema";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 
 export default function OwnerPropertyManage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("pricing");
+  const [activeTab, setActiveTab] = useState("rooms");
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: ["/api/properties", id],
@@ -44,6 +51,11 @@ export default function OwnerPropertyManage() {
 
   const { data: overrides = [], isLoading: overridesLoading } = useQuery<AvailabilityOverride[]>({
     queryKey: ["/api/properties", id, "availability-overrides"],
+    enabled: !!id,
+  });
+
+  const { data: roomTypes = [], isLoading: roomTypesLoading } = useQuery<RoomType[]>({
+    queryKey: ["/api/properties", id, "rooms"],
     enabled: !!id,
   });
 
@@ -103,7 +115,11 @@ export default function OwnerPropertyManage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsList className="grid grid-cols-4 w-full max-w-lg">
+            <TabsTrigger value="rooms" data-testid="tab-rooms">
+              <Bed className="h-4 w-4 mr-2" />
+              Rooms
+            </TabsTrigger>
             <TabsTrigger value="pricing" data-testid="tab-pricing">
               <IndianRupee className="h-4 w-4 mr-2" />
               Pricing
@@ -117,6 +133,14 @@ export default function OwnerPropertyManage() {
               Status
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="rooms" className="mt-6">
+            <RoomsSection 
+              propertyId={id!} 
+              roomTypes={roomTypes} 
+              isLoading={roomTypesLoading} 
+            />
+          </TabsContent>
 
           <TabsContent value="pricing" className="mt-6">
             <PricingSection property={property} />
@@ -723,6 +747,669 @@ function StatusSection({ property }: { property: Property }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function RoomsSection({ 
+  propertyId, 
+  roomTypes, 
+  isLoading 
+}: { 
+  propertyId: string; 
+  roomTypes: RoomType[]; 
+  isLoading: boolean;
+}) {
+  const { toast } = useToast();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<RoomType | null>(null);
+  const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
+  
+  // Add room form state
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomDescription, setNewRoomDescription] = useState("");
+  const [newRoomCapacity, setNewRoomCapacity] = useState("2");
+  const [newRoomCount, setNewRoomCount] = useState("1");
+  const [newRoomPrice, setNewRoomPrice] = useState("");
+
+  const createRoomMutation = useMutation({
+    mutationFn: async (data: { name: string; description?: string; maxGuests: number; totalRooms: number; basePrice: string }) => {
+      return apiRequest("POST", `/api/properties/${propertyId}/rooms`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "rooms"] });
+      setShowAddForm(false);
+      resetForm();
+      toast({
+        title: "Room Added",
+        description: "Room type has been added successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add room type.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateRoomMutation = useMutation({
+    mutationFn: async ({ roomId, data }: { roomId: string; data: Partial<RoomType> }) => {
+      return apiRequest("PATCH", `/api/properties/${propertyId}/rooms/${roomId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "rooms"] });
+      setEditingRoom(null);
+      toast({
+        title: "Room Updated",
+        description: "Room type has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update room type.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteRoomMutation = useMutation({
+    mutationFn: async (roomId: string) => {
+      return apiRequest("DELETE", `/api/properties/${propertyId}/rooms/${roomId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "rooms"] });
+      toast({
+        title: "Room Deleted",
+        description: "Room type has been deleted.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete room type.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setNewRoomName("");
+    setNewRoomDescription("");
+    setNewRoomCapacity("2");
+    setNewRoomCount("1");
+    setNewRoomPrice("");
+  };
+
+  const handleAddRoom = () => {
+    if (!newRoomName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter a room type name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!newRoomPrice) {
+      toast({
+        title: "Price Required",
+        description: "Please enter a base price.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createRoomMutation.mutate({
+      name: newRoomName.trim(),
+      description: newRoomDescription.trim() || undefined,
+      maxGuests: parseInt(newRoomCapacity),
+      totalRooms: parseInt(newRoomCount),
+      basePrice: newRoomPrice,
+    });
+  };
+
+  const toggleExpanded = (roomId: string) => {
+    setExpandedRooms(prev => {
+      const next = new Set(prev);
+      if (next.has(roomId)) {
+        next.delete(roomId);
+      } else {
+        next.add(roomId);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle>Room Types</CardTitle>
+              <CardDescription>
+                Manage room types, pricing, and meal plans for your property
+              </CardDescription>
+            </div>
+            {!showAddForm && (
+              <Button onClick={() => setShowAddForm(true)} data-testid="add-room-type">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Room Type
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {showAddForm && (
+            <Card className="mb-6 border-dashed">
+              <CardHeader>
+                <CardTitle className="text-lg">New Room Type</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="roomName">Room Name</Label>
+                    <Input
+                      id="roomName"
+                      value={newRoomName}
+                      onChange={(e) => setNewRoomName(e.target.value)}
+                      placeholder="e.g., Deluxe Room, Suite"
+                      data-testid="input-new-room-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="roomPrice">Base Price per Night (₹)</Label>
+                    <Input
+                      id="roomPrice"
+                      type="number"
+                      value={newRoomPrice}
+                      onChange={(e) => setNewRoomPrice(e.target.value)}
+                      placeholder="2000"
+                      data-testid="input-new-room-price"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="roomDescription">Description (optional)</Label>
+                  <Textarea
+                    id="roomDescription"
+                    value={newRoomDescription}
+                    onChange={(e) => setNewRoomDescription(e.target.value)}
+                    placeholder="Describe this room type..."
+                    rows={2}
+                    data-testid="input-new-room-description"
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="roomCapacity">Max Guests</Label>
+                    <Input
+                      id="roomCapacity"
+                      type="number"
+                      min="1"
+                      value={newRoomCapacity}
+                      onChange={(e) => setNewRoomCapacity(e.target.value)}
+                      data-testid="input-new-room-capacity"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="roomCount">Number of Rooms</Label>
+                    <Input
+                      id="roomCount"
+                      type="number"
+                      min="1"
+                      value={newRoomCount}
+                      onChange={(e) => setNewRoomCount(e.target.value)}
+                      data-testid="input-new-room-count"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleAddRoom}
+                    disabled={createRoomMutation.isPending}
+                    data-testid="save-new-room"
+                  >
+                    {createRoomMutation.isPending ? "Adding..." : "Add Room"}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => { setShowAddForm(false); resetForm(); }}
+                    data-testid="cancel-new-room"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : roomTypes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Bed className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No room types added yet.</p>
+              <p className="text-sm">Add room types to offer different accommodations with specific pricing and meal plans.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {roomTypes.map((room) => (
+                <RoomTypeCard
+                  key={room.id}
+                  room={room}
+                  propertyId={propertyId}
+                  isExpanded={expandedRooms.has(room.id)}
+                  onToggleExpand={() => toggleExpanded(room.id)}
+                  isEditing={editingRoom?.id === room.id}
+                  onEdit={() => setEditingRoom(room)}
+                  onCancelEdit={() => setEditingRoom(null)}
+                  onSave={(data) => updateRoomMutation.mutate({ roomId: room.id, data })}
+                  onDelete={() => deleteRoomMutation.mutate(room.id)}
+                  isSaving={updateRoomMutation.isPending}
+                  isDeleting={deleteRoomMutation.isPending}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function RoomTypeCard({
+  room,
+  propertyId,
+  isExpanded,
+  onToggleExpand,
+  isEditing,
+  onEdit,
+  onCancelEdit,
+  onSave,
+  onDelete,
+  isSaving,
+  isDeleting,
+}: {
+  room: RoomType;
+  propertyId: string;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: (data: Partial<RoomType>) => void;
+  onDelete: () => void;
+  isSaving: boolean;
+  isDeleting: boolean;
+}) {
+  const [editName, setEditName] = useState(room.name);
+  const [editDescription, setEditDescription] = useState(room.description || "");
+  const [editMaxGuests, setEditMaxGuests] = useState(String(room.maxGuests));
+  const [editTotalRooms, setEditTotalRooms] = useState(String(room.totalRooms || 1));
+  const [editPrice, setEditPrice] = useState(room.basePrice || "");
+  const [editActive, setEditActive] = useState(room.isActive ?? true);
+
+  const handleSave = () => {
+    onSave({
+      name: editName,
+      description: editDescription || null,
+      maxGuests: parseInt(editMaxGuests),
+      totalRooms: parseInt(editTotalRooms),
+      basePrice: editPrice,
+      isActive: editActive,
+    });
+  };
+
+  // Reset edit form when room changes
+  const resetEditForm = () => {
+    setEditName(room.name);
+    setEditDescription(room.description || "");
+    setEditMaxGuests(String(room.maxGuests));
+    setEditTotalRooms(String(room.totalRooms || 1));
+    setEditPrice(room.basePrice || "");
+    setEditActive(room.isActive ?? true);
+  };
+
+  return (
+    <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
+      <div className="border rounded-lg overflow-hidden" data-testid={`room-type-${room.id}`}>
+        <div className="flex items-center justify-between p-4 bg-muted/30">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Bed className="h-5 w-5 text-muted-foreground" />
+              {isEditing ? (
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-48"
+                  data-testid={`edit-room-name-${room.id}`}
+                />
+              ) : (
+                <span className="font-medium">{room.name}</span>
+              )}
+            </div>
+            {!isEditing && (
+              <>
+                <Badge variant="secondary">{room.maxGuests} guests</Badge>
+                <Badge variant="outline">{room.totalRooms || 1} rooms</Badge>
+                {room.basePrice && (
+                  <Badge variant="default">₹{room.basePrice}/night</Badge>
+                )}
+                {room.isActive === false && (
+                  <Badge variant="destructive">Inactive</Badge>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <Button size="sm" onClick={handleSave} disabled={isSaving} data-testid={`save-room-${room.id}`}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { onCancelEdit(); resetEditForm(); }} data-testid={`cancel-edit-room-${room.id}`}>
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="sm" variant="ghost" onClick={onEdit} data-testid={`edit-room-${room.id}`}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                  data-testid={`delete-room-${room.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+                <CollapsibleTrigger asChild>
+                  <Button size="sm" variant="ghost" data-testid={`expand-room-${room.id}`}>
+                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+              </>
+            )}
+          </div>
+        </div>
+
+        {isEditing && (
+          <div className="p-4 border-t space-y-4">
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Room description..."
+                rows={2}
+                data-testid={`edit-room-description-${room.id}`}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="space-y-2">
+                <Label>Max Guests</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={editMaxGuests}
+                  onChange={(e) => setEditMaxGuests(e.target.value)}
+                  data-testid={`edit-room-capacity-${room.id}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Number of Rooms</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={editTotalRooms}
+                  onChange={(e) => setEditTotalRooms(e.target.value)}
+                  data-testid={`edit-room-count-${room.id}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Base Price (₹)</Label>
+                <Input
+                  type="number"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  data-testid={`edit-room-price-${room.id}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Active</Label>
+                <div className="flex items-center gap-2 pt-2">
+                  <Switch
+                    checked={editActive}
+                    onCheckedChange={setEditActive}
+                    data-testid={`edit-room-active-${room.id}`}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {editActive ? "Accepting bookings" : "Not accepting bookings"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <CollapsibleContent>
+          <div className="p-4 border-t">
+            <RoomOptionsSection roomId={room.id} />
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+function RoomOptionsSection({ roomId }: { roomId: string }) {
+  const { toast } = useToast();
+  const [showAddOption, setShowAddOption] = useState(false);
+  const [newOptionName, setNewOptionName] = useState("");
+  const [newOptionPrice, setNewOptionPrice] = useState("");
+  const [newOptionInclusions, setNewOptionInclusions] = useState("");
+  const [newOptionRefundable, setNewOptionRefundable] = useState(true);
+
+  const { data: options = [], isLoading } = useQuery<RoomOption[]>({
+    queryKey: ["/api/rooms", roomId, "options"],
+  });
+
+  const createOptionMutation = useMutation({
+    mutationFn: async (data: { name: string; priceAdjustment: string; inclusions?: string; refundable?: boolean }) => {
+      return apiRequest("POST", `/api/rooms/${roomId}/options`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId, "options"] });
+      setShowAddOption(false);
+      setNewOptionName("");
+      setNewOptionPrice("");
+      setNewOptionInclusions("");
+      setNewOptionRefundable(true);
+      toast({
+        title: "Option Added",
+        description: "Meal plan option has been added.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add option.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteOptionMutation = useMutation({
+    mutationFn: async (optionId: string) => {
+      return apiRequest("DELETE", `/api/rooms/${roomId}/options/${optionId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId, "options"] });
+      toast({
+        title: "Option Deleted",
+        description: "Meal plan option has been removed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete option.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddOption = () => {
+    if (!newOptionName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter a plan name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createOptionMutation.mutate({
+      name: newOptionName.trim(),
+      priceAdjustment: newOptionPrice || "0",
+      inclusions: newOptionInclusions.trim() || undefined,
+      refundable: newOptionRefundable,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Utensils className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">Meal Plans & Options</span>
+        </div>
+        {!showAddOption && (
+          <Button size="sm" variant="outline" onClick={() => setShowAddOption(true)} data-testid={`add-option-${roomId}`}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Plan
+          </Button>
+        )}
+      </div>
+
+      {showAddOption && (
+        <Card className="border-dashed">
+          <CardContent className="pt-4 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Plan Name</Label>
+                <Input
+                  value={newOptionName}
+                  onChange={(e) => setNewOptionName(e.target.value)}
+                  placeholder="e.g., Room Only, Breakfast Included"
+                  data-testid={`input-option-name-${roomId}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Price Adjustment (₹)</Label>
+                <Input
+                  type="number"
+                  value={newOptionPrice}
+                  onChange={(e) => setNewOptionPrice(e.target.value)}
+                  placeholder="0 for no change, 500 for extra"
+                  data-testid={`input-option-price-${roomId}`}
+                />
+                <p className="text-xs text-muted-foreground">Additional cost added to base room price</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>What's Included</Label>
+              <Textarea
+                value={newOptionInclusions}
+                onChange={(e) => setNewOptionInclusions(e.target.value)}
+                placeholder="e.g., Breakfast, Dinner, Welcome drink"
+                rows={2}
+                data-testid={`input-option-inclusions-${roomId}`}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={newOptionRefundable}
+                onCheckedChange={setNewOptionRefundable}
+                data-testid={`input-option-refundable-${roomId}`}
+              />
+              <span className="text-sm">Refundable</span>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                size="sm"
+                onClick={handleAddOption}
+                disabled={createOptionMutation.isPending}
+                data-testid={`save-option-${roomId}`}
+              >
+                {createOptionMutation.isPending ? "Adding..." : "Add Plan"}
+              </Button>
+              <Button 
+                size="sm"
+                variant="outline" 
+                onClick={() => setShowAddOption(false)}
+                data-testid={`cancel-option-${roomId}`}
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : options.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          No meal plans added. Add plans to offer different booking options.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {options.map((option) => (
+            <div 
+              key={option.id}
+              className="flex items-center justify-between p-3 rounded-lg border bg-background"
+              data-testid={`option-${option.id}`}
+            >
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-medium">{option.name}</span>
+                {Number(option.priceAdjustment) !== 0 && (
+                  <Badge variant={Number(option.priceAdjustment) > 0 ? "default" : "secondary"}>
+                    {Number(option.priceAdjustment) > 0 ? "+" : ""}₹{option.priceAdjustment}
+                  </Badge>
+                )}
+                {option.refundable && (
+                  <Badge variant="outline">Refundable</Badge>
+                )}
+                {option.isActive === false && (
+                  <Badge variant="destructive">Inactive</Badge>
+                )}
+                {option.inclusions && (
+                  <span className="text-sm text-muted-foreground">{option.inclusions}</span>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => deleteOptionMutation.mutate(option.id)}
+                disabled={deleteOptionMutation.isPending}
+                data-testid={`delete-option-${option.id}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
