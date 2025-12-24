@@ -6,7 +6,7 @@ import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 import { users } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertPropertySchema, insertRoomSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
+import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
 import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail } from "./emailService";
@@ -2081,6 +2081,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid room data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create room" });
+    }
+  });
+
+  // Update room type
+  app.patch("/api/properties/:id/rooms/:roomId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can update rooms" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to modify rooms for this property" });
+      }
+
+      const room = await storage.updateRoom(req.params.roomId, req.body);
+      
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+      
+      res.json(room);
+    } catch (error: any) {
+      console.error("Error updating room:", error);
+      res.status(500).json({ message: "Failed to update room" });
+    }
+  });
+
+  // Delete room type
+  app.delete("/api/properties/:id/rooms/:roomId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can delete rooms" });
+      }
+
+      const property = await storage.getProperty(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete rooms from this property" });
+      }
+
+      await storage.deleteRoom(req.params.roomId);
+      
+      res.json({ message: "Room deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting room:", error);
+      res.status(500).json({ message: "Failed to delete room" });
+    }
+  });
+
+  // Room Options (Meal Plans) routes
+  app.get("/api/rooms/:roomId/options", async (req, res) => {
+    try {
+      const options = await storage.getRoomOptions(req.params.roomId);
+      res.json(options);
+    } catch (error) {
+      console.error("Error fetching room options:", error);
+      res.status(500).json({ message: "Failed to fetch room options" });
+    }
+  });
+
+  app.post("/api/rooms/:roomId/options", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can add room options" });
+      }
+
+      // Verify room exists and user owns the property
+      const room = await storage.getRoomType(req.params.roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      const property = await storage.getProperty(room.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to add options to this room" });
+      }
+
+      const validatedData = insertRoomOptionSchema.parse({
+        ...req.body,
+        roomTypeId: req.params.roomId,
+      });
+
+      const option = await storage.createRoomOption(validatedData);
+      res.json(option);
+    } catch (error: any) {
+      console.error("Error creating room option:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid room option data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create room option" });
+    }
+  });
+
+  app.patch("/api/rooms/:roomId/options/:optionId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can update room options" });
+      }
+
+      const room = await storage.getRoomType(req.params.roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      const property = await storage.getProperty(room.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update options for this room" });
+      }
+
+      const option = await storage.updateRoomOption(req.params.optionId, req.body);
+      
+      if (!option) {
+        return res.status(404).json({ message: "Room option not found" });
+      }
+      
+      res.json(option);
+    } catch (error) {
+      console.error("Error updating room option:", error);
+      res.status(500).json({ message: "Failed to update room option" });
+    }
+  });
+
+  app.delete("/api/rooms/:roomId/options/:optionId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can delete room options" });
+      }
+
+      const room = await storage.getRoomType(req.params.roomId);
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+
+      const property = await storage.getProperty(room.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete options from this room" });
+      }
+
+      await storage.deleteRoomOption(req.params.optionId);
+      res.json({ message: "Room option deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting room option:", error);
+      res.status(500).json({ message: "Failed to delete room option" });
     }
   });
 

@@ -697,7 +697,7 @@ export const insertRoomTypeSchema = createInsertSchema(roomTypes).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
-  basePrice: z.string().or(z.number()).pipe(z.coerce.number()),
+  basePrice: z.string().or(z.number()).transform(v => String(v)),
 });
 
 export const insertRoomOptionSchema = createInsertSchema(roomOptions).omit({
@@ -705,7 +705,7 @@ export const insertRoomOptionSchema = createInsertSchema(roomOptions).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
-  priceAdjustment: z.string().or(z.number()).pipe(z.coerce.number()),
+  priceAdjustment: z.string().or(z.number()).transform(v => String(v)),
 });
 
 export const insertWishlistSchema = createInsertSchema(wishlists).omit({
