@@ -2141,17 +2141,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
+      console.log("Creating room - userId:", userId, "body:", req.body);
+      
       if (!user || !userHasRole(user, "owner")) {
+        console.log("Room creation failed: user not owner", user?.userRole);
         return res.status(403).json({ message: "Only owners can add rooms" });
       }
 
       const property = await storage.getProperty(req.params.id);
       
       if (!property) {
+        console.log("Room creation failed: property not found", req.params.id);
         return res.status(404).json({ message: "Property not found" });
       }
       
       if (property.ownerId !== userId) {
+        console.log("Room creation failed: not authorized", property.ownerId, "!=", userId);
         return res.status(403).json({ message: "Not authorized to add rooms to this property" });
       }
 
@@ -2160,13 +2165,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         propertyId: req.params.id,
       });
+      
+      console.log("Room validated data:", validatedData);
 
       const room = await storage.createRoom(validatedData);
       
+      console.log("Room created successfully:", room.id);
       res.json(room);
     } catch (error: any) {
       console.error("Error creating room:", error);
+      console.error("Error details:", error.message, error.stack);
       if (error.name === "ZodError") {
+        console.error("Zod validation errors:", JSON.stringify(error.errors));
         return res.status(400).json({ message: "Invalid room data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create room" });
