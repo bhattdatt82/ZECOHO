@@ -30,6 +30,7 @@ import {
   getImagesArrayFromCategorized,
   defaultCategorizedImages 
 } from "@/components/PropertyImageUploader";
+import { RoomTypeBuilder, type WizardRoomType } from "@/components/RoomTypeBuilder";
 import { KycDocumentUploader, defaultKycDocuments, type KycDocuments } from "@/components/KycDocumentUploader";
 import { Loader2, Building2, User, Users, MapPin, FileText, Home, CheckCircle, ArrowRight, ArrowLeft, XCircle, Clock, AlertTriangle, IdCard, Shield, Flame, Camera, Zap, FileCheck } from "lucide-react";
 import { INDIAN_STATES, INDIAN_CITIES } from "@/data/locations";
@@ -128,8 +129,9 @@ const combinedSchema = z.object({
   propState: z.string().min(2, "State is required"),
   propPincode: z.string().min(6, "Valid 6-digit PIN code is required"),
   
-  pricePerNight: z.coerce.number().min(100, "Price must be at least ₹100"),
-  // Occupancy-based pricing (optional)
+  // Base price is now optional - pricing comes from room types
+  pricePerNight: z.coerce.number().optional(),
+  // Occupancy-based pricing (optional - legacy support)
   singleOccupancyPrice: z.coerce.number().optional(),
   doubleOccupancyPrice: z.coerce.number().optional(),
   tripleOccupancyPrice: z.coerce.number().optional(),
@@ -138,10 +140,11 @@ const combinedSchema = z.object({
   bulkBookingMinRooms: z.coerce.number().min(2).optional(),
   bulkBookingDiscountPercent: z.coerce.number().min(0).max(50).optional(),
   
-  maxGuests: z.coerce.number().min(1, "At least 1 guest required"),
-  bedrooms: z.coerce.number().min(1, "At least 1 bedroom required"),
-  beds: z.coerce.number().min(1, "At least 1 bed required"),
-  bathrooms: z.coerce.number().min(1, "At least 1 bathroom required"),
+  // These are now optional - managed via room types
+  maxGuests: z.coerce.number().optional(),
+  bedrooms: z.coerce.number().optional(),
+  beds: z.coerce.number().optional(),
+  bathrooms: z.coerce.number().optional(),
   policies: z.string().optional(),
 });
 
@@ -271,6 +274,7 @@ export default function ListPropertyWizard() {
   const [videos, setVideos] = useState<string[]>([]);
   const [categorizedImages, setCategorizedImages] = useState<CategorizedPropertyImages>(defaultCategorizedImages);
   const [propertyAddress, setPropertyAddress] = useState<AddressDetails>({ fullAddress: "" });
+  const [wizardRoomTypes, setWizardRoomTypes] = useState<WizardRoomType[]>([]);
 
   const form = useForm<CombinedFormData>({
     resolver: zodResolver(combinedSchema),
@@ -1060,8 +1064,18 @@ export default function ListPropertyWizard() {
         fieldsToValidate = ["businessName", "kycStreetAddress", "kycLocality", "kycCity", "kycDistrict", "kycState", "kycPincode", "panNumber"];
       } else if (step === 3) {
         fieldsToValidate = ["propertyTitle", "propertyType", "description", "propStreetAddress", "propLocality", "propCity", "propDistrict", "propState", "propPincode"];
+        // Also validate that at least one room type is added
+        if (wizardRoomTypes.length === 0) {
+          toast({
+            title: "Room Types Required",
+            description: "Please add at least one room type with pricing before proceeding.",
+            variant: "destructive",
+          });
+          return;
+        }
       } else if (step === 4) {
-        fieldsToValidate = ["pricePerNight", "maxGuests", "bedrooms", "beds", "bathrooms"];
+        // Step 4 is now only for amenities which are optional - no required fields
+        fieldsToValidate = [];
       }
     }
     
@@ -2183,6 +2197,7 @@ export default function ListPropertyWizard() {
 
             {/* Step 3: Property Details */}
             {step === 3 && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2478,90 +2493,20 @@ export default function ListPropertyWizard() {
                   />
                 </CardContent>
               </Card>
+
+              {/* Room Types & Pricing */}
+              <RoomTypeBuilder
+                value={wizardRoomTypes}
+                onChange={setWizardRoomTypes}
+                propertyType={form.watch("propertyType")}
+              />
+              </div>
             )}
 
-            {/* Step 4: Pricing & Amenities */}
+            {/* Step 4: Amenities & Additional Options */}
             {step === 4 && (
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Property Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="maxGuests"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Max Guests *</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-max-guests" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="bedrooms"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Bedrooms *</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-bedrooms" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="beds"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Beds *</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-beds" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="bathrooms"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Bathrooms *</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} data-testid="input-bathrooms" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="pricePerNight"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Base Price per Night (₹) *</FormLabel>
-                          <FormControl>
-                            <Input type="number" min="100" step="100" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} data-testid="input-price" />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground">This is the default price when no occupancy type is selected</p>
-                          <PriceGuidanceWidget propertyType={form.watch("propertyType")} city={form.watch("propCity")} />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Occupancy-Based Pricing Card */}
+                {/* Occupancy-Based Pricing Card - Optional */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
