@@ -534,12 +534,12 @@ function AvailabilitySection({
             
             <div className="space-y-2">
               <Label>Room Type (optional)</Label>
-              <Select value={selectedRoomTypeId} onValueChange={setSelectedRoomTypeId}>
+              <Select value={selectedRoomTypeId || "all"} onValueChange={(val) => setSelectedRoomTypeId(val === "all" ? "" : val)}>
                 <SelectTrigger data-testid="select-room-type-block">
                   <SelectValue placeholder="All rooms" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Rooms</SelectItem>
+                  <SelectItem value="all">All Rooms</SelectItem>
                   {roomTypes.map((rt) => (
                     <SelectItem key={rt.id} value={rt.id}>
                       {rt.name}
