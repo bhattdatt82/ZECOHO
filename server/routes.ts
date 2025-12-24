@@ -3605,7 +3605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mark booking as checked-out (owner only)
+  // Mark booking as checked-out (owner only) - supports early checkout
   app.patch("/api/owner/bookings/:id/check-out", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3631,18 +3631,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Can only check-out guests who are currently checked-in" });
       }
 
-      // Verify check-out date has arrived (current date >= check-out date)
+      // Check if this is an early checkout
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const checkOutDate = new Date(booking.checkOut);
       checkOutDate.setHours(0, 0, 0, 0);
+      const isEarlyCheckout = today < checkOutDate;
       
-      if (today < checkOutDate) {
-        return res.status(400).json({ message: "Cannot check-out before the scheduled check-out date" });
+      // If early checkout, require explicit confirmation from frontend
+      const { confirmEarlyCheckout } = req.body || {};
+      if (isEarlyCheckout && !confirmEarlyCheckout) {
+        return res.status(400).json({ 
+          message: "Early checkout detected",
+          requiresConfirmation: true,
+          scheduledCheckOutDate: booking.checkOut,
+          isEarlyCheckout: true
+        });
       }
 
-      // Mark as checked out first
-      await storage.markCheckedOut(req.params.id, userId);
+      // Mark as checked out with early checkout tracking
+      await storage.markCheckedOut(req.params.id, userId, isEarlyCheckout);
       
       // Then automatically mark as completed
       const updated = await storage.updateBookingStatus(req.params.id, "completed");
@@ -3650,17 +3658,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Notify guest via WebSocket
       const guest = await storage.getUser(booking.guestId);
       if (wss && guest) {
+        const notificationMessage = isEarlyCheckout
+          ? `You've checked out early from ${property.title}. Please contact the hotel regarding any refund policies.`
+          : `Thank you for staying at ${property.title}. We hope you enjoyed your stay!`;
         const notification = {
           type: "booking_status_update",
           bookingId: booking.id,
           status: "completed",
-          message: `Thank you for staying at ${property.title}. We hope you enjoyed your stay!`,
+          message: notificationMessage,
           propertyTitle: property.title,
+          isEarlyCheckout,
         };
         broadcastToUser(guest.id, notification);
       }
       
-      res.json(updated);
+      res.json({ ...updated, isEarlyCheckout });
     } catch (error) {
       console.error("Error marking check-out:", error);
       res.status(500).json({ message: "Failed to mark check-out" });

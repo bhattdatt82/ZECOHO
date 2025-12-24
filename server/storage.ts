@@ -114,7 +114,7 @@ export interface IStorage {
   getPropertyBookedDates(propertyId: string, startDate: Date, endDate: Date): Promise<{ checkIn: Date; checkOut: Date }[]>;
   updateBookingStatus(id: string, status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed", responseMessage?: string): Promise<Booking | undefined>;
   markCheckedIn(bookingId: string, userId: string): Promise<Booking | undefined>;
-  markCheckedOut(bookingId: string, userId: string): Promise<Booking | undefined>;
+  markCheckedOut(bookingId: string, userId: string, isEarlyCheckout?: boolean): Promise<Booking | undefined>;
   deleteBooking(id: string): Promise<void>;
 
   // Conversation operations
@@ -505,14 +505,17 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async markCheckedOut(bookingId: string, userId: string): Promise<Booking | undefined> {
+  async markCheckedOut(bookingId: string, userId: string, isEarlyCheckout?: boolean): Promise<Booking | undefined> {
+    const now = new Date();
     const [updated] = await db
       .update(bookings)
       .set({
         status: "checked_out",
-        checkOutTime: new Date(),
+        checkOutTime: now,
         checkedOutBy: userId,
-        updatedAt: new Date(),
+        actualCheckOutDate: now,
+        earlyCheckout: isEarlyCheckout || false,
+        updatedAt: now,
       })
       .where(eq(bookings.id, bookingId))
       .returning();
