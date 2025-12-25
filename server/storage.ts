@@ -57,18 +57,44 @@ import {
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc, count } from "drizzle-orm";
 
+// Helper function to generate random alphanumeric code
+function generateRandomCode(length: number = 6): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid confusing chars like 0/O, 1/I
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 // Helper function to generate unique property code (PROP-XXXXXX)
 async function generatePropertyCode(): Promise<string> {
-  const [result] = await db.select({ count: count() }).from(properties);
-  const nextNum = (result?.count || 0) + 1;
-  return `PROP-${String(nextNum).padStart(6, '0')}`;
+  // Use random alphanumeric to avoid race conditions and reuse issues
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = `PROP-${generateRandomCode(6)}`;
+    // Check if code already exists
+    const [existing] = await db.select({ id: properties.id }).from(properties).where(eq(properties.propertyCode, code));
+    if (!existing) {
+      return code;
+    }
+  }
+  // Fallback to timestamp-based if random fails
+  return `PROP-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 }
 
 // Helper function to generate unique booking code (BKG-XXXXXX)
 async function generateBookingCode(): Promise<string> {
-  const [result] = await db.select({ count: count() }).from(bookings);
-  const nextNum = (result?.count || 0) + 1;
-  return `BKG-${String(nextNum).padStart(6, '0')}`;
+  // Use random alphanumeric to avoid race conditions and reuse issues
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = `BKG-${generateRandomCode(6)}`;
+    // Check if code already exists
+    const [existing] = await db.select({ id: bookings.id }).from(bookings).where(eq(bookings.bookingCode, code));
+    if (!existing) {
+      return code;
+    }
+  }
+  // Fallback to timestamp-based if random fails
+  return `BKG-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 }
 
 // Interface for storage operations
