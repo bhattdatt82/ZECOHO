@@ -14,10 +14,18 @@ export async function serveStatic(app: Express, _server: Server) {
     );
   }
 
+  // Serve static files
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // SPA catch-all: serve index.html for any route that doesn't match a static file or API
+  // This enables client-side routing to work correctly
+  app.get("*", (req, res, next) => {
+    // Skip API routes - they should have been handled already
+    if (req.path.startsWith("/api")) {
+      return next();
+    }
+    
+    // Serve index.html for all other routes (SPA routing)
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
