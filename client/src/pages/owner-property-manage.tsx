@@ -1261,38 +1261,45 @@ function RoomTypeCard({
   );
 }
 
+const PRESET_MEAL_OPTIONS = [
+  { name: "Room Only", priceAdjustment: "0", inclusions: "No meals included" },
+  { name: "Breakfast Included", priceAdjustment: "300", inclusions: "Daily breakfast buffet" },
+  { name: "Half Board", priceAdjustment: "600", inclusions: "Breakfast and dinner included" },
+  { name: "Full Board", priceAdjustment: "900", inclusions: "All meals included (breakfast, lunch, dinner)" },
+];
+
 function RoomOptionsSection({ roomId }: { roomId: string }) {
   const { toast } = useToast();
   const [showAddOption, setShowAddOption] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [newOptionName, setNewOptionName] = useState("");
   const [newOptionPrice, setNewOptionPrice] = useState("");
   const [newOptionInclusions, setNewOptionInclusions] = useState("");
-  const [newOptionRefundable, setNewOptionRefundable] = useState(true);
 
   const { data: options = [], isLoading } = useQuery<RoomOption[]>({
     queryKey: ["/api/rooms", roomId, "options"],
   });
 
   const createOptionMutation = useMutation({
-    mutationFn: async (data: { name: string; priceAdjustment: string; inclusions?: string; refundable?: boolean }) => {
+    mutationFn: async (data: { name: string; priceAdjustment: string; inclusions?: string }) => {
       return apiRequest("POST", `/api/rooms/${roomId}/options`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId, "options"] });
       setShowAddOption(false);
+      setSelectedPreset("");
       setNewOptionName("");
       setNewOptionPrice("");
       setNewOptionInclusions("");
-      setNewOptionRefundable(true);
       toast({
-        title: "Option Added",
-        description: "Meal plan option has been added.",
+        title: "Plan Added",
+        description: "Meal plan has been added successfully.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to add option.",
+        description: "Failed to add meal plan.",
         variant: "destructive",
       });
     },
@@ -1305,18 +1312,34 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId, "options"] });
       toast({
-        title: "Option Deleted",
-        description: "Meal plan option has been removed.",
+        title: "Plan Removed",
+        description: "Meal plan has been removed.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to delete option.",
+        description: "Failed to remove meal plan.",
         variant: "destructive",
       });
     },
   });
+
+  const handlePresetSelect = (presetName: string) => {
+    setSelectedPreset(presetName);
+    if (presetName === "custom") {
+      setNewOptionName("");
+      setNewOptionPrice("");
+      setNewOptionInclusions("");
+    } else {
+      const preset = PRESET_MEAL_OPTIONS.find(p => p.name === presetName);
+      if (preset) {
+        setNewOptionName(preset.name);
+        setNewOptionPrice(preset.priceAdjustment);
+        setNewOptionInclusions(preset.inclusions);
+      }
+    }
+  };
 
   const handleAddOption = () => {
     if (!newOptionName.trim()) {
@@ -1332,7 +1355,14 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
       name: newOptionName.trim(),
       priceAdjustment: newOptionPrice || "0",
       inclusions: newOptionInclusions.trim() || undefined,
-      refundable: newOptionRefundable,
+    });
+  };
+
+  const handleQuickAdd = (preset: typeof PRESET_MEAL_OPTIONS[0]) => {
+    createOptionMutation.mutate({
+      name: preset.name,
+      priceAdjustment: preset.priceAdjustment,
+      inclusions: preset.inclusions,
     });
   };
 
@@ -1352,15 +1382,52 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
       </div>
 
       {showAddOption && (
-        <Card className="border-dashed">
+        <Card className="border-dashed border-primary/30">
           <CardContent className="pt-4 space-y-4">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Quick Add Preset Plans</Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {PRESET_MEAL_OPTIONS.map((preset) => {
+                  const alreadyExists = options.some(o => o.name === preset.name);
+                  return (
+                    <Button
+                      key={preset.name}
+                      type="button"
+                      variant={alreadyExists ? "secondary" : "outline"}
+                      size="sm"
+                      className="justify-start h-auto py-2 px-3"
+                      onClick={() => !alreadyExists && handleQuickAdd(preset)}
+                      disabled={alreadyExists || createOptionMutation.isPending}
+                      data-testid={`quick-add-${preset.name.toLowerCase().replace(/\s+/g, '-')}-${roomId}`}
+                    >
+                      <div className="text-left">
+                        <div className="font-medium text-xs">{preset.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {preset.priceAdjustment === "0" ? "Included" : `+₹${preset.priceAdjustment}`}
+                        </div>
+                      </div>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or add custom plan</span>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Plan Name</Label>
                 <Input
                   value={newOptionName}
                   onChange={(e) => setNewOptionName(e.target.value)}
-                  placeholder="e.g., Room Only, Breakfast Included"
+                  placeholder="e.g., Early Bird Breakfast"
                   data-testid={`input-option-name-${roomId}`}
                 />
               </div>
@@ -1370,46 +1437,43 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
                   type="number"
                   value={newOptionPrice}
                   onChange={(e) => setNewOptionPrice(e.target.value)}
-                  placeholder="0 for no change, 500 for extra"
+                  placeholder="0"
                   data-testid={`input-option-price-${roomId}`}
                 />
-                <p className="text-xs text-muted-foreground">Additional cost added to base room price</p>
+                <p className="text-xs text-muted-foreground">Additional cost per night</p>
               </div>
             </div>
             <div className="space-y-2">
               <Label>What's Included</Label>
-              <Textarea
+              <Input
                 value={newOptionInclusions}
                 onChange={(e) => setNewOptionInclusions(e.target.value)}
-                placeholder="e.g., Breakfast, Dinner, Welcome drink"
-                rows={2}
+                placeholder="e.g., Continental breakfast, Tea/coffee"
                 data-testid={`input-option-inclusions-${roomId}`}
               />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={newOptionRefundable}
-                onCheckedChange={setNewOptionRefundable}
-                data-testid={`input-option-refundable-${roomId}`}
-              />
-              <span className="text-sm">Refundable</span>
             </div>
             <div className="flex gap-2">
               <Button 
                 size="sm"
                 onClick={handleAddOption}
-                disabled={createOptionMutation.isPending}
+                disabled={createOptionMutation.isPending || !newOptionName.trim()}
                 data-testid={`save-option-${roomId}`}
               >
-                {createOptionMutation.isPending ? "Adding..." : "Add Plan"}
+                {createOptionMutation.isPending ? "Adding..." : "Add Custom Plan"}
               </Button>
               <Button 
                 size="sm"
                 variant="outline" 
-                onClick={() => setShowAddOption(false)}
+                onClick={() => {
+                  setShowAddOption(false);
+                  setSelectedPreset("");
+                  setNewOptionName("");
+                  setNewOptionPrice("");
+                  setNewOptionInclusions("");
+                }}
                 data-testid={`cancel-option-${roomId}`}
               >
-                Cancel
+                Done
               </Button>
             </div>
           </CardContent>
