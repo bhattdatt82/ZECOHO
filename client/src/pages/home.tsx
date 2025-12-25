@@ -10,7 +10,6 @@ import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Home as HomeIcon, MapPin, Calendar, Check, Shield, ShieldCheck, TrendingDown, Sparkles, Award, Handshake, Users, Hotel, Building, Waves, Mountain, TreePine, Wheat, Heart, BadgeCheck, Percent, HandCoins, FileCheck2, ThumbsUp, Star, Play, ArrowRight, ChevronRight, IndianRupee, Clock, MessageSquare, MessageCircle } from "lucide-react";
 import type { Property, Destination } from "@shared/schema";
-import heroImage from "@assets/generated_images/luxury_villa_hero_image.png";
 import { useEffect, useState } from "react";
 
 function AnimatedCounter({ end, duration = 2000, suffix = "" }: { end: number; duration?: number; suffix?: string }) {
@@ -76,39 +75,31 @@ export default function Home() {
       {/* Location Permission Dialog - appears after login */}
       <LocationPermissionDialog isAuthenticated={isAuthenticated} />
       
-      {/* Hero Section - Cinematic & Impressive */}
-      <div className="relative min-h-[600px] md:min-h-[680px] flex items-center justify-center overflow-hidden">
-        {/* Background with Parallax Effect */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center scale-105"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        />
-        {/* Dramatic Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-rose-900/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+      {/* Hero Section - Clean & Modern */}
+      <div className="relative min-h-[600px] md:min-h-[680px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
         
         <div className="relative z-10 container px-4 md:px-6 text-center py-12">
           {/* Premium Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6">
-            <Sparkles className="h-4 w-4 text-amber-400" />
-            <span className="text-white/90 text-sm font-medium">India's First Zero Commission Platform</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <span className="text-foreground/80 text-sm font-medium">India's First Zero Commission Platform</span>
           </div>
 
           {/* Main Headline - Responsive Typography */}
-          <h1 className="text-hero-title font-bold text-white mb-4 tracking-tight">
+          <h1 className="text-hero-title font-bold text-foreground mb-4 tracking-tight">
             Book Hotels at Guaranteed Lowest Prices{" "}
-            <span className="bg-gradient-to-r from-amber-400 via-rose-400 to-rose-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 bg-clip-text text-transparent">
               — Cheaper Than OTAs
             </span>
           </h1>
-          <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl mx-auto">
-            <span className="font-semibold text-white">Save 15–25% instantly.</span>{" "}
+          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+            <span className="font-semibold text-foreground">Save 15–25% instantly.</span>{" "}
             Zero commission. Zero convenience fees.
           </p>
 
-          {/* Glass Morphism Search Bar */}
+          {/* Search Bar */}
           <div className="max-w-4xl mx-auto mb-4">
-            <div className="bg-white/95 dark:bg-background/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 p-3 md:p-4">
+            <div className="bg-background rounded-2xl shadow-xl border p-3 md:p-4">
               <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
             </div>
           </div>
@@ -116,38 +107,35 @@ export default function Home() {
           {/* Trust Badges Under Search Bar */}
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
             <div className="flex items-center gap-1.5">
-              <BadgeCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">100% Verified Stays</span>
+              <BadgeCheck className="h-4 w-4 text-emerald-500" />
+              <span className="text-muted-foreground text-sm">100% Verified Stays</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Star className="h-4 w-4 text-amber-400" />
-              <span className="text-white/90 text-sm">Real Guest Ratings</span>
+              <Star className="h-4 w-4 text-amber-500" />
+              <span className="text-muted-foreground text-sm">Real Guest Ratings</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Hotel className="h-4 w-4 text-rose-400" />
-              <span className="text-white/90 text-sm">Direct Contact with Hotel</span>
+              <Hotel className="h-4 w-4 text-rose-500" />
+              <span className="text-muted-foreground text-sm">Direct Contact with Hotel</span>
             </div>
           </div>
 
           {/* Bottom Trust Icons */}
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <Hotel className="h-4 w-4 text-amber-400" />
-              <span className="text-white/90 text-sm">Direct from Hotel</span>
+            <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
+              <Hotel className="h-4 w-4 text-amber-500" />
+              <span className="text-foreground/80 text-sm">Direct from Hotel</span>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">No Hidden Fees</span>
+            <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              <span className="text-foreground/80 text-sm">No Hidden Fees</span>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
-              <MessageCircle className="h-4 w-4 text-green-400" />
-              <span className="text-white/90 text-sm">WhatsApp Confirmation</span>
+            <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
+              <MessageCircle className="h-4 w-4 text-green-500" />
+              <span className="text-foreground/80 text-sm">WhatsApp Confirmation</span>
             </div>
           </div>
         </div>
-        
-        {/* Bottom Fade for Smooth Transition */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </div>
 
       {/* List Your Property CTA Banner - Premium Design */}

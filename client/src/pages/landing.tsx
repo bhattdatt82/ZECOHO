@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Building, Home as HomeIcon, Hotel, Mountain, Waves, TreePine, Wheat, Heart, MapPin, Calendar, Handshake, TrendingDown, Shield, Sparkles, Check, Percent, BadgeCheck, HandCoins, FileCheck2, Star, ArrowRight, ChevronRight, MessageCircle, ShieldCheck } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import type { Property, Destination } from "@shared/schema";
-import heroImage from "@assets/stock_images/luxury_resort_infini_49df439c.jpg";
 import { useEffect, useState } from "react";
 
 function AnimatedCounter({ end, duration = 2000, suffix = "" }: { end: number; duration?: number; suffix?: string }) {
@@ -116,17 +115,17 @@ export default function Landing() {
                 <span className="text-white font-bold text-xl">Z</span>
               </div>
               <div className="flex items-baseline">
-                <span className="font-bold text-2xl text-white drop-shadow-md tracking-tight">
+                <span className="font-bold text-2xl text-foreground tracking-tight">
                   ZECOHO
                 </span>
-                <span className="font-bold text-lg bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent drop-shadow-md">.com</span>
+                <span className="font-bold text-lg bg-gradient-to-r from-rose-500 to-amber-500 bg-clip-text text-transparent">.com</span>
               </div>
             </div>
           </Link>
           <div className="flex items-center gap-3 md:gap-4">
             <Link href="/login?returnTo=/list-property">
               <span 
-                className="text-sm font-medium text-white/80 hover:text-white cursor-pointer hidden md:inline transition-colors"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer hidden md:inline transition-colors"
                 data-testid="link-own-property"
               >
                 Own a Property
@@ -134,8 +133,7 @@ export default function Landing() {
             </Link>
             <Button 
               size="default"
-              variant="outline" 
-              className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20"
+              variant="default" 
               onClick={() => setLocation("/login")}
               data-testid="button-login-hero"
             >
@@ -145,86 +143,69 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Premium High-Impact Design */}
-      <div className="relative min-h-[490px] md:min-h-[520px] flex items-center justify-center overflow-hidden">
-        {/* Background - Soft Blurred Luxury Resort Pool */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center scale-105"
-          style={{ 
-            backgroundImage: `url(${heroImage})`,
-            filter: 'blur(3px) brightness(1.06)',
-          }}
-        />
-        {/* 45% Black Overlay for text readability */}
-        <div className="absolute inset-0 bg-black/45" />
+      {/* Hero Section - Clean Modern Design */}
+      <div className="relative min-h-[490px] md:min-h-[520px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
         
         <div className="relative z-10 container px-4 md:px-6 text-center py-12 pt-24">
           {/* Premium Badge - Subtle */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-3">
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span className="text-white/90 text-xs font-medium">India's First Zero Commission Platform</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-3">
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-foreground/80 text-xs font-medium">India's First Zero Commission Platform</span>
           </div>
 
           {/* Main Headline - Responsive Typography */}
           <h1 
-            className="text-hero-title font-extrabold text-white tracking-tight mb-1" 
+            className="text-hero-title font-extrabold text-foreground tracking-tight mb-1" 
             data-testid="text-hero-title"
-            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}
           >
             Book Hotels at True Prices —
           </h1>
           <h1 
-            className="text-hero-subtitle font-extrabold tracking-tight mb-2.5 md:mb-3"
-            style={{ 
-              background: 'linear-gradient(90deg, #FF7A00, #FF2768)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              textShadow: 'none'
-            }}
+            className="text-hero-subtitle font-extrabold tracking-tight mb-2.5 md:mb-3 bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 bg-clip-text text-transparent"
           >
             Cheaper Than OTAs
           </h1>
           
           {/* Subheadline */}
           <p 
-            className="text-base md:text-xl text-white font-normal md:font-medium leading-[1.4] mb-7 md:mb-8 max-w-2xl mx-auto"
-            style={{ textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}
+            className="text-base md:text-xl text-muted-foreground font-normal md:font-medium leading-[1.4] mb-7 md:mb-8 max-w-2xl mx-auto"
           >
             Direct booking. Zero commission. Zero hidden fees. Save 15–25% instantly.
           </p>
 
           {/* Airbnb-Style Search Bar */}
           <div className="max-w-4xl mx-auto mb-6">
-            <SearchBar 
-              onSearch={handleSearch} 
-              compact={false} 
-              showDates={true} 
-              showGuests={true} 
-              ctaText="Find Lowest Direct Prices →"
-            />
+            <div className="bg-background rounded-2xl shadow-xl border p-3 md:p-4">
+              <SearchBar 
+                onSearch={handleSearch} 
+                compact={false} 
+                showDates={true} 
+                showGuests={true} 
+                ctaText="Find Lowest Direct Prices →"
+              />
+            </div>
           </div>
 
           {/* USPs Under Search Bar */}
           <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">Save ₹500–₹1500/night</span>
+              <Check className="h-4 w-4 text-emerald-500" />
+              <span className="text-muted-foreground text-sm">Save ₹500–₹1500/night</span>
             </div>
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">Direct hotel contact</span>
+              <Check className="h-4 w-4 text-emerald-500" />
+              <span className="text-muted-foreground text-sm">Direct hotel contact</span>
             </div>
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-400" />
-              <span className="text-white/90 text-sm">Zero convenience fees</span>
+              <Check className="h-4 w-4 text-emerald-500" />
+              <span className="text-muted-foreground text-sm">Zero convenience fees</span>
             </div>
           </div>
           
           {/* Property Owner CTA */}
           <div className="mt-4">
             <span 
-              className="text-white/80 text-sm hover:text-white cursor-pointer transition-colors"
+              className="text-muted-foreground text-sm hover:text-foreground cursor-pointer transition-colors"
               onClick={() => setLocation("/login?returnTo=/list-property")}
               data-testid="link-owner-cta-hero"
             >
@@ -232,9 +213,6 @@ export default function Landing() {
             </span>
           </div>
         </div>
-        
-        {/* Bottom Fade for Smooth Transition */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </div>
 
       {/* Popular Destinations Section - Single Grid */}
