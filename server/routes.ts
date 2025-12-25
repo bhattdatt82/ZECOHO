@@ -973,30 +973,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               
               // Create meal options for this room type
-              if (rt.mealOptions && Array.isArray(rt.mealOptions) && rt.mealOptions.length > 0) {
+              if (rt.mealOptions && Array.isArray(rt.mealOptions)) {
                 for (const mo of rt.mealOptions) {
                   await storage.createRoomOption({
                     roomTypeId: createdRoomType.id,
                     name: mo.name,
                     inclusions: mo.inclusions || null,
                     priceAdjustment: String(mo.priceAdjustment || 0),
-                    isActive: true,
-                  });
-                }
-              } else {
-                // Auto-create default meal options if none provided
-                const defaultMealOptions = [
-                  { name: "Room Only", priceAdjustment: "0", inclusions: "Room accommodation only" },
-                  { name: "Breakfast Included", priceAdjustment: "300", inclusions: "Breakfast included with stay" },
-                  { name: "Half Board", priceAdjustment: "600", inclusions: "Breakfast and dinner included" },
-                  { name: "Full Board", priceAdjustment: "900", inclusions: "All meals included (breakfast, lunch, dinner)" },
-                ];
-                for (const mo of defaultMealOptions) {
-                  await storage.createRoomOption({
-                    roomTypeId: createdRoomType.id,
-                    name: mo.name,
-                    inclusions: mo.inclusions,
-                    priceAdjustment: mo.priceAdjustment,
                     isActive: true,
                   });
                 }
@@ -1126,30 +1109,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             // Create meal options for this room type
-            if (rt.mealOptions && Array.isArray(rt.mealOptions) && rt.mealOptions.length > 0) {
+            if (rt.mealOptions && Array.isArray(rt.mealOptions)) {
               for (const mo of rt.mealOptions) {
                 await storage.createRoomOption({
                   roomTypeId: createdRoomType.id,
                   name: mo.name,
                   inclusions: mo.inclusions || null,
                   priceAdjustment: String(mo.priceAdjustment || 0),
-                  isActive: true,
-                });
-              }
-            } else {
-              // Auto-create default meal options if none provided
-              const defaultMealOptions = [
-                { name: "Room Only", priceAdjustment: "0", inclusions: "Room accommodation only" },
-                { name: "Breakfast Included", priceAdjustment: "300", inclusions: "Breakfast included with stay" },
-                { name: "Half Board", priceAdjustment: "600", inclusions: "Breakfast and dinner included" },
-                { name: "Full Board", priceAdjustment: "900", inclusions: "All meals included (breakfast, lunch, dinner)" },
-              ];
-              for (const mo of defaultMealOptions) {
-                await storage.createRoomOption({
-                  roomTypeId: createdRoomType.id,
-                  name: mo.name,
-                  inclusions: mo.inclusions,
-                  priceAdjustment: mo.priceAdjustment,
                   isActive: true,
                 });
               }
@@ -1190,13 +1156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error submitting combined application:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", error.message, error.stack);
-        if (error.name === "ZodError") {
-          return res.status(400).json({ message: "Invalid application data", error: error.message });
-        }
-        // Return more helpful error message
-        return res.status(500).json({ message: "Failed to submit application", error: error.message });
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ message: "Invalid application data", error: error.message });
       }
       res.status(500).json({ message: "Failed to submit application" });
     }
@@ -2167,20 +2128,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rooms routes
   app.get("/api/properties/:id/rooms", async (req, res) => {
     try {
-      const roomsList = await storage.getRoomsByProperty(req.params.id);
-      
-      // Fetch meal options for each room type and attach them
-      const roomsWithMealOptions = await Promise.all(
-        roomsList.map(async (room) => {
-          const mealOptions = await storage.getRoomOptions(room.id);
-          return {
-            ...room,
-            mealOptions: mealOptions,
-          };
-        })
-      );
-      
-      res.json(roomsWithMealOptions);
+      const rooms = await storage.getRoomsByProperty(req.params.id);
+      res.json(rooms);
     } catch (error) {
       console.error("Error fetching rooms:", error);
       res.status(500).json({ message: "Failed to fetch rooms" });

@@ -1279,12 +1279,6 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
   const [newOptionName, setNewOptionName] = useState("");
   const [newOptionPrice, setNewOptionPrice] = useState("");
   const [newOptionInclusions, setNewOptionInclusions] = useState("");
-  
-  // Edit state
-  const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
-  const [editOptionName, setEditOptionName] = useState("");
-  const [editOptionPrice, setEditOptionPrice] = useState("");
-  const [editOptionInclusions, setEditOptionInclusions] = useState("");
 
   const { data: options = [], isLoading } = useQuery<RoomOption[]>({
     queryKey: ["/api/rooms", roomId, "options"],
@@ -1315,27 +1309,6 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
     },
   });
 
-  const updateOptionMutation = useMutation({
-    mutationFn: async ({ optionId, data }: { optionId: string; data: { name?: string; priceAdjustment?: string; inclusions?: string } }) => {
-      return apiRequest("PATCH", `/api/rooms/${roomId}/options/${optionId}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId, "options"] });
-      setEditingOptionId(null);
-      toast({
-        title: "Plan Updated",
-        description: "Meal plan has been updated successfully.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update meal plan.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const deleteOptionMutation = useMutation({
     mutationFn: async (optionId: string) => {
       return apiRequest("DELETE", `/api/rooms/${roomId}/options/${optionId}`);
@@ -1355,32 +1328,6 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
       });
     },
   });
-
-  const handleStartEdit = (option: RoomOption) => {
-    setEditingOptionId(option.id);
-    setEditOptionName(option.name);
-    setEditOptionPrice(String(option.priceAdjustment || "0"));
-    setEditOptionInclusions(option.inclusions || "");
-  };
-
-  const handleSaveEdit = () => {
-    if (!editingOptionId || !editOptionName.trim()) return;
-    updateOptionMutation.mutate({
-      optionId: editingOptionId,
-      data: {
-        name: editOptionName.trim(),
-        priceAdjustment: editOptionPrice || "0",
-        inclusions: editOptionInclusions.trim() || undefined,
-      },
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingOptionId(null);
-    setEditOptionName("");
-    setEditOptionPrice("");
-    setEditOptionInclusions("");
-  };
 
   const handlePresetSelect = (presetName: string) => {
     setSelectedPreset(presetName);
@@ -1548,104 +1495,47 @@ function RoomOptionsSection({ roomId }: { roomId: string }) {
           {options.map((option) => (
             <div 
               key={option.id}
-              className="p-3 rounded-lg border bg-background"
+              className="flex items-center justify-between p-3 rounded-lg border bg-background"
               data-testid={`option-${option.id}`}
             >
-              {editingOptionId === option.id ? (
-                <div className="space-y-3">
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Plan Name</Label>
-                      <Input
-                        value={editOptionName}
-                        onChange={(e) => setEditOptionName(e.target.value)}
-                        placeholder="Plan name"
-                        data-testid={`edit-option-name-${option.id}`}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Price Adjustment (₹)</Label>
-                      <Input
-                        type="number"
-                        value={editOptionPrice}
-                        onChange={(e) => setEditOptionPrice(e.target.value)}
-                        placeholder="0"
-                        data-testid={`edit-option-price-${option.id}`}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">What's Included</Label>
-                      <Input
-                        value={editOptionInclusions}
-                        onChange={(e) => setEditOptionInclusions(e.target.value)}
-                        placeholder="Inclusions"
-                        data-testid={`edit-option-inclusions-${option.id}`}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      onClick={handleSaveEdit}
-                      disabled={updateOptionMutation.isPending || !editOptionName.trim()}
-                      data-testid={`save-edit-option-${option.id}`}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {updateOptionMutation.isPending ? "Saving..." : "Save"}
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={handleCancelEdit}
-                      data-testid={`cancel-edit-option-${option.id}`}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-medium">{option.name}</span>
-                    {Number(option.priceAdjustment) === 0 ? (
-                      <Badge variant="secondary" className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        Included
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-orange-500 text-white hover:bg-orange-600">
-                        +₹{option.priceAdjustment}
-                      </Badge>
-                    )}
-                    {option.isActive === false && (
-                      <Badge variant="destructive">Inactive</Badge>
-                    )}
-                    {option.inclusions && (
-                      <span className="text-sm text-muted-foreground">{option.inclusions}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => handleStartEdit(option)}
-                      data-testid={`edit-option-${option.id}`}
-                    >
-                      <Edit className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => deleteOptionMutation.mutate(option.id)}
-                      disabled={deleteOptionMutation.isPending}
-                      data-testid={`delete-option-${option.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-medium">{option.name}</span>
+                {Number(option.priceAdjustment) === 0 ? (
+                  <Badge variant="secondary" className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                    Included
+                  </Badge>
+                ) : (
+                  <Badge className="bg-orange-500 text-white hover:bg-orange-600">
+                    +₹{option.priceAdjustment}
+                  </Badge>
+                )}
+                {option.isActive === false && (
+                  <Badge variant="destructive">Inactive</Badge>
+                )}
+                {option.inclusions && (
+                  <span className="text-sm text-muted-foreground">{option.inclusions}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  data-testid={`edit-option-${option.id}`}
+                >
+                  <Edit className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => deleteOptionMutation.mutate(option.id)}
+                  disabled={deleteOptionMutation.isPending}
+                  data-testid={`delete-option-${option.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
