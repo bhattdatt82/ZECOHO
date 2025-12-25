@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { OwnerLayout } from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useKycGuard } from "@/hooks/useKycGuard";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -44,7 +45,7 @@ import {
   BedDouble,
   Utensils,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 interface Booking {
   id: string;
@@ -91,6 +92,8 @@ interface Booking {
 }
 
 export default function OwnerBookings() {
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("all");
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -101,6 +104,12 @@ export default function OwnerBookings() {
   const [extendStayDialogOpen, setExtendStayDialogOpen] = useState(false);
   const [extendStayBooking, setExtendStayBooking] = useState<Booking | null>(null);
   const [extendDate, setExtendDate] = useState<Date | undefined>(undefined);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setLocation("/login?returnTo=/owner/bookings");
+    }
+  }, [authLoading, isAuthenticated, setLocation]);
 
   const REJECTION_REASONS = [
     { value: "dates_unavailable", label: "Property is not available for the requested dates" },

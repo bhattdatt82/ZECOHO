@@ -12,7 +12,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { MessageSquare, Send, Search, XCircle, AlertTriangle, Paperclip, X, Image, FileText, Film, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,7 +40,8 @@ type MessageWithSender = BaseMessage & {
 };
 
 export default function OwnerMessagesPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const [, setRouteLocation] = useLocation();
   const { toast } = useToast();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
@@ -54,6 +55,12 @@ export default function OwnerMessagesPage() {
   const selectedConversationRef = useRef(selectedConversation);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef(user?.id);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setRouteLocation("/login?returnTo=/owner/messages");
+    }
+  }, [authLoading, isAuthenticated, setRouteLocation]);
 
   const isRejected = user?.kycStatus === "rejected";
   const isVerified = user?.kycStatus === "verified";

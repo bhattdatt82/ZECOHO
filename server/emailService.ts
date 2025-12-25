@@ -1,6 +1,10 @@
 // Referenced from connection:conn_resend_01KBVF5WVPAY4D2KC0ESJT2VAN
 import { Resend } from 'resend';
 
+function getAppBaseUrl(): string {
+  return process.env.APP_BASE_URL || 'https://zecoho.replit.app';
+}
+
 async function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'ZECOHO <onboarding@resend.dev>';
@@ -209,7 +213,7 @@ export async function sendKycApprovedEmail(email: string, firstName: string, pro
               </div>
               
               <div style="text-align: center;">
-                <a href="https://zecoho.replit.app/owner/dashboard" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/owner/dashboard" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   Go to Owner Dashboard
                 </a>
               </div>
@@ -286,7 +290,7 @@ export async function sendKycRejectedEmail(email: string, firstName: string, rej
               </p>
               
               <div style="text-align: center;">
-                <a href="https://zecoho.replit.app/owner/kyc" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/owner/kyc" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   Update Your Application
                 </a>
               </div>
@@ -457,7 +461,7 @@ export async function sendPropertyStatusEmail(
               </p>
               
               <div style="text-align: center;">
-                <a href="https://zecoho.replit.app/owner/dashboard" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/owner/dashboard" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   View Owner Dashboard
                 </a>
               </div>
@@ -551,8 +555,8 @@ export async function sendBookingConfirmationEmail(
               </div>
               
               <div style="text-align: center;">
-                <a href="https://zecoho.replit.app/${isOwner ? 'owner/dashboard' : 'my-bookings'}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
-                  ${isOwner ? 'View in Dashboard' : 'View Booking'}
+                <a href="${getAppBaseUrl()}/${isOwner ? 'owner/bookings' : 'my-bookings'}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                  ${isOwner ? 'View Booking Requests' : 'View Booking'}
                 </a>
               </div>
             </div>
@@ -630,7 +634,7 @@ export async function sendPropertyLiveEmail(email: string, firstName: string, pr
               </div>
               
               <div style="text-align: center;">
-                <a href="https://zecoho.replit.app/owner/dashboard" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/owner/dashboard" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   View Your Dashboard
                 </a>
               </div>
@@ -728,8 +732,8 @@ export async function sendBookingRequestToOwnerEmail(
               </p>
               
               <div style="text-align: center;">
-                <a href="https://zecoho.replit.app/owner/messages" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
-                  View Messages
+                <a href="${getAppBaseUrl()}/owner/bookings" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                  View Booking Requests
                 </a>
               </div>
             </div>
