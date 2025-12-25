@@ -2667,10 +2667,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(booking);
     } catch (error: any) {
       console.error("Error creating booking:", error);
+      console.error("Error details:", error.message, error.stack);
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Invalid booking data", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create booking" });
+      // Return more specific error message for debugging
+      res.status(500).json({ 
+        message: "Failed to create booking",
+        error: process.env.NODE_ENV !== 'production' ? error.message : undefined
+      });
     }
   });
 
