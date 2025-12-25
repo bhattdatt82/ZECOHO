@@ -712,6 +712,8 @@ export const insertRoomOptionSchema = createInsertSchema(roomOptions).omit({
   updatedAt: true,
 }).extend({
   priceAdjustment: z.string().or(z.number()).transform(v => String(v)),
+  refundable: z.boolean().optional().default(true),
+  isActive: z.boolean().optional().default(true),
 });
 
 export const insertWishlistSchema = createInsertSchema(wishlists).omit({
