@@ -154,7 +154,7 @@ export interface IStorage {
   getBookingsByProperty(propertyId: string): Promise<Booking[]>;
   getBookingsByGuest(guestId: string): Promise<Booking[]>;
   getPropertyBookedDates(propertyId: string, startDate: Date, endDate: Date, roomTypeId?: string | null): Promise<{ checkIn: Date; checkOut: Date }[]>;
-  updateBookingStatus(id: string, status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed", responseMessage?: string): Promise<Booking | undefined>;
+  updateBookingStatus(id: string, status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed", responseMessage?: string): Promise<Booking | undefined>;
   markCheckedIn(bookingId: string, userId: string): Promise<Booking | undefined>;
   markCheckedOut(bookingId: string, userId: string, isEarlyCheckout?: boolean): Promise<Booking | undefined>;
   deleteBooking(id: string): Promise<void>;
@@ -575,7 +575,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateBookingStatus(
     id: string,
-    status: "pending" | "confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed",
+    status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed",
     responseMessage?: string
   ): Promise<Booking | undefined> {
     const updateData: any = { status, updatedAt: new Date() };
