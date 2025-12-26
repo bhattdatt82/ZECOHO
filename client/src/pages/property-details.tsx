@@ -310,11 +310,15 @@ export default function PropertyDetails() {
 
   // Fetch real-time room inventory for selected dates
   const { data: roomInventory = [] } = useQuery<any[]>({
-    queryKey: ["/api/properties", propertyId, "room-inventory", checkIn?.toISOString(), checkOut?.toISOString()],
+    queryKey: ["/api/properties", propertyId, "room-inventory", checkIn, checkOut],
     queryFn: async () => {
       if (!propertyId || !checkIn || !checkOut) return [];
+      // checkIn/checkOut are stored as strings (YYYY-MM-DD format), convert to Date for API
+      const checkInDate = parseLocalDate(checkIn);
+      const checkOutDate = parseLocalDate(checkOut);
+      if (!checkInDate || !checkOutDate) return [];
       const response = await fetch(
-        `/api/properties/${propertyId}/room-inventory?startDate=${checkIn.toISOString()}&endDate=${checkOut.toISOString()}`
+        `/api/properties/${propertyId}/room-inventory?startDate=${checkInDate.toISOString()}&endDate=${checkOutDate.toISOString()}`
       );
       if (!response.ok) return [];
       return await response.json();
