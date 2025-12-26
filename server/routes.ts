@@ -1510,11 +1510,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
+        // Normalize and validate KYC data before syncing
+        const normalizedPhone = application.phone && application.phone.trim() ? application.phone.trim() : null;
+        const normalizedFirstName = application.firstName && application.firstName.trim() ? application.firstName.trim() : null;
+        const normalizedLastName = application.lastName && application.lastName.trim() ? application.lastName.trim() : null;
+        
         await storage.upsertUser({
           ...applicantUser,
           userRole: "owner",
           kycStatus: "verified",
           kycVerifiedAt: new Date(),
+          // Sync KYC data to user profile (only if KYC data is valid)
+          phone: normalizedPhone || applicantUser.phone,
+          firstName: normalizedFirstName || applicantUser.firstName,
+          lastName: normalizedLastName || applicantUser.lastName,
         });
       } catch (userUpdateError) {
         console.error("Error updating user role after KYC verification:", userUpdateError);
@@ -1637,6 +1646,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error revoking KYC verification:", error);
       res.status(500).json({ message: "Failed to revoke verification" });
+    }
+  });
+
+  // Admin endpoint to sync KYC data to user profiles for existing verified owners
+  app.post("/api/admin/sync-kyc-data", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Only admins can sync KYC data" });
+      }
+
+      // Get all verified KYC applications
+      const verifiedApplications = await storage.getKycApplicationsByStatus("verified");
+      let syncedCount = 0;
+      const syncResults: Array<{userId: string, email: string | null, phone: string | null, synced: boolean}> = [];
+
+      for (const application of verifiedApplications) {
+        const applicantUser = await storage.getUser(application.userId);
+        if (applicantUser) {
+          // Normalize KYC data
+          const normalizedPhone = application.phone && application.phone.trim() ? application.phone.trim() : null;
+          const normalizedFirstName = application.firstName && application.firstName.trim() ? application.firstName.trim() : null;
+          const normalizedLastName = application.lastName && application.lastName.trim() ? application.lastName.trim() : null;
+          const userPhone = applicantUser.phone && applicantUser.phone.trim() ? applicantUser.phone.trim() : null;
+          
+          // Only sync if user doesn't have valid phone but KYC application has valid phone
+          const needsSync = !userPhone && normalizedPhone;
+          
+          if (needsSync) {
+            await storage.upsertUser({
+              ...applicantUser,
+              phone: normalizedPhone,
+              firstName: normalizedFirstName || applicantUser.firstName,
+              lastName: normalizedLastName || applicantUser.lastName,
+            });
+            syncedCount++;
+          }
+          
+          syncResults.push({
+            userId: application.userId,
+            email: applicantUser.email,
+            phone: needsSync ? normalizedPhone : userPhone,
+            synced: !!needsSync,
+          });
+        }
+      }
+
+      res.json({ 
+        message: `Synced KYC data for ${syncedCount} users`,
+        totalVerified: verifiedApplications.length,
+        syncedCount,
+        results: syncResults,
+      });
+    } catch (error) {
+      console.error("Error syncing KYC data:", error);
+      res.status(500).json({ message: "Failed to sync KYC data" });
     }
   });
 
