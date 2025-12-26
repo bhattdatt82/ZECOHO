@@ -1,0 +1,89 @@
+@replit
+
+CONTEXT:
+After clicking "Reserve", users only see a small toast message.
+The Reserve button freezes and users do not know what to do next.
+
+GOAL:
+Replace the toast-only confirmation with a clear booking status flow
+using existing My Bookings and Messages features.
+
+--------------------------------
+TASKS (DO ALL)
+--------------------------------
+
+1. POST-RESERVE REDIRECT (CRITICAL)
+After a successful booking creation:
+
+- REMOVE reliance on small toast popup only
+- IMMEDIATELY redirect the user to:
+  /my-bookings/:bookingId
+
+If bookingId routing is not available,
+redirect to:
+  /my-bookings
+and auto-scroll to the latest booking.
+
+--------------------------------
+
+2. BOOKING STATUS CARD (CUSTOMER VIEW)
+On the booking details page (or booking card), show a full-width status section:
+
+Title:
+"Booking Request Sent"
+
+Subtitle:
+"Your booking request has been sent to the property owner.
+They usually respond within 24 hours."
+
+Status badge:
+🕒 Awaiting Owner Response
+
+--------------------------------
+
+3. CLEAR NEXT ACTIONS (IMPORTANT)
+Below the status, show action buttons based on booking state:
+
+IF status = Awaiting Owner Response:
+- Primary CTA: "Chat with Owner"
+- Secondary CTA: "Call Owner" (if available)
+
+IF status = Accepted (but not paid):
+- Primary CTA: "Confirm Booking"
+- Helper text: "Confirm to secure your stay"
+
+IF status = Confirmed:
+- CTA: "View Booking Details"
+
+--------------------------------
+
+4. RESERVE BUTTON FIX
+After Reserve is clicked:
+- Disable the button ONLY during API call
+- Re-enable or redirect after success
+- Do NOT leave the button frozen on the same page
+
+--------------------------------
+
+5. OPTIONAL VISUAL IMPROVEMENT (NO NEW FEATURES)
+Add an inline banner at top of booking details:
+
+"Next step: Wait for owner confirmation or message them to speed things up."
+
+--------------------------------
+
+RULES
+--------------------------------
+- Do NOT introduce payment logic yet
+- Do NOT copy FabHotels UI
+- Use existing booking + messaging system only
+- Do NOT add new APIs unless required
+
+--------------------------------
+
+SUCCESS CRITERIA
+--------------------------------
+- User always lands on My Bookings after Reserve
+- User clearly understands booking status
+- User sees an obvious next action
+- No frozen UI state

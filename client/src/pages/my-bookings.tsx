@@ -64,8 +64,22 @@ interface Booking {
 
 export default function MyBookings() {
   const [activeTab, setActiveTab] = useState("all");
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [showNewBookingBanner, setShowNewBookingBanner] = useState(false);
+
+  // Check if user just created a booking (via URL param)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") === "true") {
+      setShowNewBookingBanner(true);
+      // Clean up URL without triggering navigation
+      window.history.replaceState({}, "", "/my-bookings");
+      // Auto-hide banner after 10 seconds
+      const timer = setTimeout(() => setShowNewBookingBanner(false), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -78,6 +92,11 @@ export default function MyBookings() {
     queryKey: ["/api/bookings"],
     enabled: isAuthenticated && !authLoading, // Only fetch when authenticated
   });
+  
+  // Sort bookings by createdAt (newest first) so newly created booking appears at top
+  const sortedBookings = bookings?.slice().sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat("en-IN", {
@@ -108,15 +127,23 @@ export default function MyBookings() {
     );
   };
 
-  const filteredBookings = bookings?.filter((booking) => {
+  const filteredBookings = sortedBookings?.filter((booking) => {
     if (activeTab === "all") return true;
     if (activeTab === "upcoming") return booking.status === "pending" || booking.status === "confirmed" || booking.status === "checked_in";
     if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out";
     return true;
   });
 
-  const renderBookingCard = (booking: Booking) => (
-    <Card key={booking.id} data-testid={`booking-card-${booking.id}`} className="overflow-hidden">
+  const renderBookingCard = (booking: Booking, index: number) => {
+    // Highlight the newest booking when success banner is shown
+    const isNewestBooking = index === 0 && showNewBookingBanner;
+    
+    return (
+    <Card 
+      key={booking.id} 
+      data-testid={`booking-card-${booking.id}`} 
+      className={`overflow-hidden transition-all duration-500 ${isNewestBooking ? 'ring-2 ring-primary ring-offset-2 shadow-lg' : ''}`}
+    >
       <div className="flex flex-col md:flex-row">
         {booking.property?.images?.[0] && (
           <div className="w-full md:w-48 h-32 md:h-auto flex-shrink-0">
@@ -201,18 +228,53 @@ export default function MyBookings() {
             )}
 
             {booking.status === "pending" && (
-              <div className="text-sm p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md space-y-3">
-                <div>
-                  <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">What happens next?</p>
-                  <ul className="text-amber-700 dark:text-amber-300 space-y-1 text-xs">
-                    <li>1. The hotel will review and confirm your booking (usually within 24 hours)</li>
-                    <li>2. Once confirmed, you'll receive details about the token payment</li>
-                    <li>3. The remaining balance is paid directly at the hotel during check-in</li>
+              <div className="space-y-3">
+                {/* Booking Request Status Banner */}
+                <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-full">
+                      <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-amber-900 dark:text-amber-100 text-base">
+                        Booking Request Sent
+                      </h4>
+                      <p className="text-amber-700 dark:text-amber-300 text-sm mt-1">
+                        Your booking request has been sent to the property owner. They usually respond within 24 hours.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Next Steps Info */}
+                <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                  <p className="font-medium text-foreground mb-2 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                    Next step: Wait for owner confirmation or message them to speed things up
+                  </p>
+                  <ul className="text-muted-foreground space-y-1 text-xs pl-6">
+                    <li>• The hotel will review and confirm your booking</li>
+                    <li>• Once confirmed, you'll receive check-in details</li>
+                    <li>• Payment is settled directly at the hotel</li>
                   </ul>
                 </div>
-                <p className="text-amber-600 dark:text-amber-400 text-xs">
-                  No payment is required until the hotel confirms your booking.
-                </p>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3">
+                  <Link href="/messages">
+                    <Button size="sm" className="gap-2" data-testid={`btn-chat-owner-${booking.id}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      Chat with Owner
+                    </Button>
+                  </Link>
+                  {booking.property && (
+                    <Link href={`/properties/${booking.property.id}`}>
+                      <Button size="sm" variant="outline" data-testid={`btn-view-property-pending-${booking.id}`}>
+                        View Property
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
 
@@ -226,10 +288,39 @@ export default function MyBookings() {
             )}
 
             {booking.status === "confirmed" && (
-              <div className="text-sm p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md">
-                <p className="text-green-800 dark:text-green-200">
-                  Your booking is confirmed! You'll receive check-in details closer to your arrival date.
-                </p>
+              <div className="space-y-3">
+                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 border border-green-200 dark:border-green-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-full">
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-green-900 dark:text-green-100 text-base">
+                        Booking Confirmed
+                      </h4>
+                      <p className="text-green-700 dark:text-green-300 text-sm mt-1">
+                        Great news! Your booking is confirmed. You'll receive check-in details closer to your arrival date.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Buttons for Confirmed */}
+                <div className="flex items-center gap-3">
+                  {booking.property && (
+                    <Link href={`/properties/${booking.property.id}`}>
+                      <Button size="sm" data-testid={`btn-view-details-${booking.id}`}>
+                        View Booking Details
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href="/messages">
+                    <Button size="sm" variant="outline" className="gap-2" data-testid={`btn-message-confirmed-${booking.id}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      Message Owner
+                    </Button>
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -287,26 +378,30 @@ export default function MyBookings() {
               </div>
             )}
 
-            <div className="flex items-center gap-2 flex-wrap">
-              {booking.property && (
-                <Link href={`/properties/${booking.property.id}`}>
-                  <Button size="sm" variant="outline" data-testid={`view-property-${booking.id}`}>
-                    View Property
+            {/* Only show generic action buttons for statuses that don't have their own */}
+            {booking.status !== "pending" && booking.status !== "confirmed" && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {booking.property && (
+                  <Link href={`/properties/${booking.property.id}`}>
+                    <Button size="sm" variant="outline" data-testid={`view-property-${booking.id}`}>
+                      View Property
+                    </Button>
+                  </Link>
+                )}
+                <Link href="/messages">
+                  <Button size="sm" variant="ghost" data-testid={`message-owner-${booking.id}`}>
+                    <MessageSquare className="h-4 w-4 mr-1" />
+                    Message Owner
                   </Button>
                 </Link>
-              )}
-              <Link href="/messages">
-                <Button size="sm" variant="ghost" data-testid={`message-owner-${booking.id}`}>
-                  <MessageSquare className="h-4 w-4 mr-1" />
-                  Message Owner
-                </Button>
-              </Link>
-            </div>
+              </div>
+            )}
           </CardContent>
         </div>
       </div>
     </Card>
   );
+  };
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -343,6 +438,34 @@ export default function MyBookings() {
           <h1 className="text-3xl font-semibold">My Bookings</h1>
         </div>
 
+        {/* Success Banner for New Booking */}
+        {showNewBookingBanner && (
+          <Card className="mb-6 border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40">
+            <CardContent className="flex items-center gap-3 py-4" data-testid="new-booking-success-banner">
+              <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-full">
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-green-800 dark:text-green-200">
+                  Booking Request Created Successfully!
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Your latest booking is shown below. The property owner will review your request shortly.
+                </p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowNewBookingBanner(false)}
+                className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100"
+                data-testid="btn-dismiss-banner"
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Show error message with failsafe - never show "Not Found" */}
         {isError && (
           <Card className="mb-6">
@@ -370,7 +493,7 @@ export default function MyBookings() {
               </div>
             ) : filteredBookings && filteredBookings.length > 0 ? (
               <div className="space-y-4">
-                {filteredBookings.map(renderBookingCard)}
+                {filteredBookings.map((booking, index) => renderBookingCard(booking, index))}
               </div>
             ) : (
               <Card>

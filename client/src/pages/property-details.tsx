@@ -536,10 +536,8 @@ export default function PropertyDetails() {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
-      toast({
-        title: "Booking Created",
-        description: "Your booking request has been submitted successfully! Check your Messages or My Bookings in your profile to track the status.",
-      });
+      
+      // Reset form state
       setCheckIn("");
       setCheckOut("");
       setGuests(2);
@@ -548,6 +546,9 @@ export default function PropertyDetails() {
       setRooms(1);
       setSelectedRoomTypeId(null);
       setSelectedMealOptionId(null);
+      
+      // Redirect to My Bookings page immediately with success indicator
+      setLocation("/my-bookings?new=true");
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
