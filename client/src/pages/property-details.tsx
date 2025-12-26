@@ -308,11 +308,32 @@ export default function PropertyDetails() {
     enabled: !!propertyId,
   });
 
+  // Fetch real-time room inventory for selected dates
+  const { data: roomInventory = [] } = useQuery<any[]>({
+    queryKey: ["/api/properties", propertyId, "room-inventory", checkIn?.toISOString(), checkOut?.toISOString()],
+    queryFn: async () => {
+      if (!propertyId || !checkIn || !checkOut) return [];
+      const response = await fetch(
+        `/api/properties/${propertyId}/room-inventory?startDate=${checkIn.toISOString()}&endDate=${checkOut.toISOString()}`
+      );
+      if (!response.ok) return [];
+      return await response.json();
+    },
+    enabled: !!propertyId && !!checkIn && !!checkOut,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+  
   // Get selected room type data for auto-calculation
   const selectedRoomType = useMemo(() => {
     if (!selectedRoomTypeId) return null;
     return roomTypes.find((rt: any) => rt.id === selectedRoomTypeId) || null;
   }, [selectedRoomTypeId, roomTypes]);
+  
+  // Get real-time inventory for selected room type
+  const selectedRoomInventory = useMemo(() => {
+    if (!selectedRoomTypeId || !roomInventory.length) return null;
+    return roomInventory.find((ri: any) => ri.roomTypeId === selectedRoomTypeId) || null;
+  }, [selectedRoomTypeId, roomInventory]);
   
   // Calculate required rooms based on guest count and room type's maxGuests
   const requiredRooms = useMemo(() => {
@@ -325,11 +346,16 @@ export default function PropertyDetails() {
     return Math.ceil(guests / maxGuestsPerRoomType);
   }, [guests, selectedRoomType, property?.maxGuests]);
   
-  // Get available rooms for selected room type
+  // Get available rooms for selected room type (real-time if available, fallback to totalRooms)
   const availableRoomsForType = useMemo(() => {
     if (!selectedRoomType) return null;
+    // Use real-time inventory if available
+    if (selectedRoomInventory) {
+      return selectedRoomInventory.availableRooms;
+    }
+    // Fallback to static totalRooms when no date range selected
     return selectedRoomType.totalRooms || 1;
-  }, [selectedRoomType]);
+  }, [selectedRoomType, selectedRoomInventory]);
   
   // Check if we have enough rooms available
   const hasInsufficientRooms = useMemo(() => {
@@ -348,14 +374,14 @@ export default function PropertyDetails() {
     if (selectedRoomType && guests > 0) {
       const maxGuestsPerRoomType = selectedRoomType.maxGuests || 2;
       const neededRooms = Math.ceil(guests / maxGuestsPerRoomType);
-      const maxAvailable = selectedRoomType.totalRooms || 1;
+      const maxAvailable = availableRoomsForType || selectedRoomType.totalRooms || 1;
       
       // Only auto-adjust if needed rooms is different and within available limit
       if (neededRooms !== rooms && neededRooms >= 1) {
         setRooms(Math.min(neededRooms, maxAvailable));
       }
     }
-  }, [guests, selectedRoomType]);
+  }, [guests, selectedRoomType, availableRoomsForType]);
 
   const isWishlisted = wishlists.some((w: any) => w.propertyId === propertyId);
 

@@ -2125,6 +2125,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Room inventory check endpoint - get available rooms for a date range
+  app.get("/api/properties/:id/room-inventory", async (req, res) => {
+    try {
+      const { startDate, endDate, roomTypeId } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start date and end date are required" });
+      }
+      
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      
+      // Get all room types for this property
+      const roomTypes = await storage.getRoomsByProperty(req.params.id);
+      
+      // Get all bookings that overlap with the date range (only confirmed or customer_confirmed bookings)
+      const allBookings = await storage.getBookingsByProperty(req.params.id);
+      const overlappingBookings = allBookings.filter((booking: any) => {
+        if (booking.status !== 'confirmed' && booking.status !== 'customer_confirmed') return false;
+        const bookingStart = new Date(booking.checkIn);
+        const bookingEnd = new Date(booking.checkOut);
+        return bookingStart < end && bookingEnd > start;
+      });
+      
+      // Get availability overrides for the date range
+      const overrides = await storage.getAvailabilityOverrides(req.params.id);
+      const overlappingOverrides = overrides.filter((override: any) => {
+        const overrideStart = new Date(override.startDate);
+        const overrideEnd = new Date(override.endDate);
+        return overrideStart < end && overrideEnd > start;
+      });
+      
+      // Calculate available rooms for each room type
+      const roomInventory = roomTypes.map((roomType: any) => {
+        const totalRooms = roomType.totalRooms || 1;
+        
+        // Count rooms booked for this room type in the date range
+        const bookedRooms = overlappingBookings
+          .filter((booking: any) => booking.roomTypeId === roomType.id)
+          .reduce((sum: number, booking: any) => sum + (booking.rooms || 1), 0);
+        
+        // Check for sold_out overrides for this room type
+        const hasSoldOutOverride = overlappingOverrides.some((override: any) => 
+          override.overrideType === 'sold_out' && 
+          (override.roomTypeId === roomType.id || !override.roomTypeId)
+        );
+        
+        // Check for maintenance overrides for this room type
+        const hasMaintenanceOverride = overlappingOverrides.some((override: any) => 
+          override.overrideType === 'maintenance' && 
+          (override.roomTypeId === roomType.id || !override.roomTypeId)
+        );
+        
+        // Get any custom available rooms from overrides
+        const customAvailability = overlappingOverrides.find((override: any) =>
+          override.roomTypeId === roomType.id && override.availableRooms !== null
+        );
+        
+        let availableRooms = totalRooms - bookedRooms;
+        
+        // Apply custom availability if set
+        if (customAvailability && customAvailability.availableRooms !== null) {
+          availableRooms = Math.min(availableRooms, customAvailability.availableRooms);
+        }
+        
+        // If sold out or under maintenance, no rooms available
+        if (hasSoldOutOverride || hasMaintenanceOverride) {
+          availableRooms = 0;
+        }
+        
+        return {
+          roomTypeId: roomType.id,
+          roomTypeName: roomType.name,
+          totalRooms,
+          bookedRooms,
+          availableRooms: Math.max(0, availableRooms),
+          hasSoldOutOverride,
+          hasMaintenanceOverride,
+        };
+      });
+      
+      // If a specific room type was requested, filter to just that one
+      if (roomTypeId) {
+        const specific = roomInventory.find((r: any) => r.roomTypeId === roomTypeId);
+        return res.json(specific || { error: "Room type not found" });
+      }
+      
+      res.json(roomInventory);
+    } catch (error) {
+      console.error("Error checking room inventory:", error);
+      res.status(500).json({ message: "Failed to check room inventory" });
+    }
+  });
+
   // Rooms routes
   app.get("/api/properties/:id/rooms", async (req, res) => {
     try {
@@ -2585,6 +2679,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message = "This property is temporarily not accepting bookings for the selected dates.";
         }
         return res.status(400).json({ message });
+      }
+
+      // Validate room inventory availability (if room type selected)
+      if (validatedData.roomTypeId) {
+        const roomType = await storage.getRoomType(validatedData.roomTypeId);
+        if (!roomType) {
+          return res.status(400).json({ message: "Selected room type not found" });
+        }
+        
+        const totalRoomsAvailable = roomType.totalRooms || 1;
+        const requestedRooms = validatedData.rooms || 1;
+        
+        // Get all confirmed/customer_confirmed bookings for this room type in the date range
+        const allBookings = await storage.getBookingsByProperty(validatedData.propertyId);
+        const overlappingConfirmedBookings = allBookings.filter((booking: any) => {
+          if (booking.status !== 'confirmed' && booking.status !== 'customer_confirmed') return false;
+          if (booking.roomTypeId !== validatedData.roomTypeId) return false;
+          const bookingStart = new Date(booking.checkIn);
+          const bookingEnd = new Date(booking.checkOut);
+          return bookingStart < checkOut && bookingEnd > checkIn;
+        });
+        
+        const bookedRooms = overlappingConfirmedBookings.reduce(
+          (sum: number, booking: any) => sum + (booking.rooms || 1), 0
+        );
+        
+        const availableRooms = totalRoomsAvailable - bookedRooms;
+        
+        if (requestedRooms > availableRooms) {
+          return res.status(400).json({ 
+            message: `Only ${availableRooms} room${availableRooms !== 1 ? 's' : ''} available for the selected dates. Please reduce the number of rooms or select different dates.`,
+            availableRooms 
+          });
+        }
       }
 
       // Calculate total price server-side (don't trust client)
