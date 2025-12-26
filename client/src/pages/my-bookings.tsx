@@ -349,11 +349,33 @@ export default function MyBookings() {
             )}
 
             {booking.status === "rejected" && (
-              <div className="text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                <p className="text-destructive font-medium">Booking was declined by the owner</p>
-                {booking.ownerResponseMessage && (
-                  <p className="text-muted-foreground mt-1">{booking.ownerResponseMessage}</p>
-                )}
+              <div className="space-y-4">
+                <div className="text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <p className="text-destructive font-medium">Booking was declined by the owner</p>
+                  {booking.ownerResponseMessage && (
+                    <p className="text-muted-foreground mt-1">{booking.ownerResponseMessage}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Link href="/messages">
+                    <Button size="sm" variant="outline" className="gap-2" data-testid={`btn-chat-owner-rejected-${booking.id}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      Contact Owner
+                    </Button>
+                  </Link>
+                  {booking.ownerContact?.phone && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => window.location.href = `tel:${booking.ownerContact!.phone}`}
+                      data-testid={`btn-call-owner-rejected-${booking.id}`}
+                    >
+                      <Phone className="h-4 w-4" />
+                      Call Owner
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -502,15 +524,37 @@ export default function MyBookings() {
             )}
 
             {booking.status === "checked_in" && (
-              <div className="text-sm p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
-                <p className="text-blue-800 dark:text-blue-200">
-                  You're checked in! Enjoy your stay.
-                  {booking.checkInTime && (
-                    <span className="block text-xs mt-1">
-                      Checked in on {format(new Date(booking.checkInTime), "dd MMM yyyy 'at' HH:mm")}
-                    </span>
+              <div className="space-y-4">
+                <div className="text-sm p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
+                  <p className="text-blue-800 dark:text-blue-200">
+                    You're checked in! Enjoy your stay.
+                    {booking.checkInTime && (
+                      <span className="block text-xs mt-1">
+                        Checked in on {format(new Date(booking.checkInTime), "dd MMM yyyy 'at' HH:mm")}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Link href="/messages">
+                    <Button size="sm" className="gap-2" data-testid={`btn-chat-hotel-checked-in-${booking.id}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      Chat with Hotel
+                    </Button>
+                  </Link>
+                  {booking.ownerContact?.phone && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => window.location.href = `tel:${booking.ownerContact!.phone}`}
+                      data-testid={`btn-call-hotel-checked-in-${booking.id}`}
+                    >
+                      <Phone className="h-4 w-4" />
+                      Call Hotel
+                    </Button>
                   )}
-                </p>
+                </div>
               </div>
             )}
 
@@ -556,7 +600,7 @@ export default function MyBookings() {
             )}
 
             {/* Only show generic action buttons for statuses that don't have their own */}
-            {booking.status !== "pending" && booking.status !== "confirmed" && booking.status !== "customer_confirmed" && (
+            {booking.status !== "pending" && booking.status !== "confirmed" && booking.status !== "customer_confirmed" && booking.status !== "rejected" && booking.status !== "checked_in" && (
               <div className="flex items-center gap-2 flex-wrap">
                 {booking.property && (
                   <Link href={`/properties/${booking.property.id}`}>
@@ -571,6 +615,17 @@ export default function MyBookings() {
                     Message Owner
                   </Button>
                 </Link>
+                {booking.ownerContact?.phone && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => window.location.href = `tel:${booking.ownerContact!.phone}`}
+                    data-testid={`btn-call-owner-generic-${booking.id}`}
+                  >
+                    <Phone className="h-4 w-4 mr-1" />
+                    Call Owner
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>

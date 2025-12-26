@@ -2902,9 +2902,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (property?.ownerId) {
             const owner = await storage.getUser(property.ownerId);
             if (owner) {
+              const ownerPhone = owner.phone && owner.phone.trim() ? owner.phone.trim() : null;
               ownerContact = {
                 name: `${owner.firstName || ""} ${owner.lastName || ""}`.trim() || "Owner",
-                phone: owner.phone,
+                phone: ownerPhone,
               };
             }
           }
