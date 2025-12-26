@@ -1,0 +1,99 @@
+@replit
+
+CONTEXT:
+Owners can currently Accept or Decline bookings.
+The logic works, but the flow lacks clarity, confirmation, and post-accept guidance.
+This causes accidental accepts and owner confusion.
+
+GOAL:
+Improve owner confidence and clarity when accepting a booking,
+WITHOUT changing booking logic or payment flow.
+
+--------------------------------
+TASKS (DO ALL)
+--------------------------------
+
+1. PRE-ACCEPT MICRO-COPY (LOW EFFORT, HIGH IMPACT)
+Below the "Accept Booking" button in owner booking cards, add helper text:
+
+"Accepting will temporarily hold this room for the guest.
+Payment is not collected yet."
+
+This text should be visible before clicking Accept.
+
+--------------------------------
+
+2. ACCEPT CONFIRMATION MODAL (CRITICAL)
+When owner clicks "Accept", DO NOT accept immediately.
+
+Instead, show a confirmation modal:
+
+Title:
+"Confirm Booking Acceptance"
+
+Body text:
+- This booking will be marked as Accepted
+- The guest will be notified instantly
+- The room will be held for this guest
+- Payment is not collected yet
+
+Buttons:
+- Primary: "Confirm Acceptance"
+- Secondary: "Cancel"
+
+Only proceed with accept API call when owner confirms.
+
+--------------------------------
+
+3. POST-ACCEPT STATE (OWNER VIEW)
+After successful acceptance:
+
+- Remove Accept / Decline buttons
+- Replace with status badge:
+
+"Accepted – Awaiting Guest Confirmation"
+
+Below the badge, show helper text:
+"The guest has been notified.
+You’ll be informed once the guest confirms or completes payment."
+
+--------------------------------
+
+4. POST-ACCEPT PRIMARY CTA
+After acceptance, show a single primary action button:
+
+"Message Guest"
+
+This should open the existing message thread for the booking.
+
+--------------------------------
+
+5. BOOKING STATUS TIMELINE (LIGHTWEIGHT UI)
+Add a simple inline booking timeline (text-based, not complex UI):
+
+✔ Booking Requested  
+✔ Accepted by You  
+⏳ Awaiting Guest Confirmation  
+
+This should appear in both:
+- Owner booking details view
+- Booking card expanded view (if available)
+
+--------------------------------
+
+RULES (IMPORTANT)
+--------------------------------
+- Do NOT change booking creation logic
+- Do NOT introduce payment or token logic
+- Do NOT auto-accept bookings
+- Do NOT change decline behavior
+- Use existing APIs and message system only
+
+--------------------------------
+
+SUCCESS CRITERIA
+--------------------------------
+- Owner clearly understands what Accept means
+- Accidental accepts are prevented
+- Owner sees what happens after accepting
+- Owner always knows the next step

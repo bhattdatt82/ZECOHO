@@ -30,10 +30,13 @@ import {
   CheckCircle,
   XCircle,
   Bed,
+  MessageSquare,
+  AlertCircle,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 interface Booking {
   id: string;
@@ -71,6 +74,7 @@ export function BookingActionCard({
   onStatusChange 
 }: BookingActionCardProps) {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [selectedRejectionReason, setSelectedRejectionReason] = useState("");
   const [customRejectionReason, setCustomRejectionReason] = useState("");
   const { toast } = useToast();
@@ -118,7 +122,12 @@ export function BookingActionCard({
   });
 
   const handleAccept = () => {
+    setAcceptDialogOpen(true);
+  };
+
+  const confirmAccept = () => {
     updateStatusMutation.mutate({ status: "confirmed" });
+    setAcceptDialogOpen(false);
   };
 
   const handleReject = () => {
@@ -136,20 +145,52 @@ export function BookingActionCard({
   };
 
   const getStatusBadge = () => {
-    const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: any }> = {
-      pending: { variant: "outline", label: "Awaiting Hotel Confirmation", icon: Clock },
-      confirmed: { variant: "default", label: "Confirmed", icon: CheckCircle },
+    const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; ownerLabel?: string; icon: any }> = {
+      pending: { variant: "outline", label: "Awaiting Hotel Confirmation", ownerLabel: "Pending Your Response", icon: Clock },
+      confirmed: { variant: "default", label: "Confirmed", ownerLabel: "Accepted – Awaiting Guest Confirmation", icon: CheckCircle },
       rejected: { variant: "destructive", label: "Declined", icon: XCircle },
       completed: { variant: "secondary", label: "Completed", icon: CheckCircle },
       cancelled: { variant: "destructive", label: "Cancelled", icon: XCircle },
     };
     const config = statusConfig[booking.status] || { variant: "secondary", label: booking.status, icon: Clock };
     const Icon = config.icon;
+    const displayLabel = isOwner && config.ownerLabel ? config.ownerLabel : config.label;
     return (
       <Badge variant={config.variant} className="flex items-center gap-1">
         <Icon className="h-3 w-3" />
-        {config.label}
+        {displayLabel}
       </Badge>
+    );
+  };
+
+  const renderBookingTimeline = () => {
+    const steps = [
+      { label: "Booking Requested", completed: true },
+      { label: isOwner ? "Accepted by You" : "Accepted by Hotel", completed: booking.status === "confirmed" || booking.status === "completed" },
+      { label: "Awaiting Guest Confirmation", pending: booking.status === "confirmed", completed: booking.status === "completed" },
+    ];
+
+    if (booking.status === "rejected" || booking.status === "cancelled") {
+      return null;
+    }
+
+    return (
+      <div className="text-xs space-y-1 pt-2 border-t border-border/50" data-testid="booking-timeline">
+        {steps.map((step, index) => (
+          <div key={index} className="flex items-center gap-2">
+            {step.completed ? (
+              <CheckCircle className="h-3 w-3 text-green-500" />
+            ) : step.pending ? (
+              <Clock className="h-3 w-3 text-amber-500" />
+            ) : (
+              <div className="h-3 w-3 rounded-full border border-muted-foreground/30" />
+            )}
+            <span className={step.completed ? "text-foreground" : step.pending ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}>
+              {step.label}
+            </span>
+          </div>
+        ))}
+      </div>
     );
   };
 
@@ -217,41 +258,77 @@ export function BookingActionCard({
           )}
 
           {isOwner && booking.status === "pending" && (
-            <div className="flex items-center gap-2 pt-2">
-              <Button
-                size="sm"
-                onClick={handleAccept}
-                disabled={updateStatusMutation.isPending}
-                className="flex-1"
-                data-testid={`accept-booking-chat-${booking.id}`}
-              >
-                <Check className="h-4 w-4 mr-1" />
-                Accept
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setRejectDialogOpen(true)}
-                disabled={updateStatusMutation.isPending}
-                className="flex-1"
-                data-testid={`decline-booking-chat-${booking.id}`}
-              >
-                <X className="h-4 w-4 mr-1" />
-                Decline
-              </Button>
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleAccept}
+                  disabled={updateStatusMutation.isPending}
+                  className="flex-1"
+                  data-testid={`accept-booking-chat-${booking.id}`}
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  Accept Booking
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRejectDialogOpen(true)}
+                  disabled={updateStatusMutation.isPending}
+                  className="flex-1"
+                  data-testid={`decline-booking-chat-${booking.id}`}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Decline
+                </Button>
+              </div>
+              <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Accepting will temporarily hold this room for the guest. Payment is not collected yet.
+                </p>
+              </div>
+              {renderBookingTimeline()}
             </div>
           )}
 
           {!isOwner && booking.status === "pending" && (
-            <p className="text-xs text-muted-foreground pt-2">
-              The property owner typically responds within 24 hours.
-            </p>
+            <div className="space-y-2 pt-2">
+              <p className="text-xs text-muted-foreground">
+                The property owner typically responds within 24 hours.
+              </p>
+              {renderBookingTimeline()}
+            </div>
           )}
 
-          {booking.status === "confirmed" && (
-            <p className="text-xs text-green-600 dark:text-green-400 pt-2">
-              This booking has been confirmed!
-            </p>
+          {isOwner && booking.status === "confirmed" && (
+            <div className="space-y-3 pt-2">
+              <div className="p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md">
+                <p className="text-xs text-green-700 dark:text-green-300">
+                  The guest has been notified. You'll be informed once the guest confirms or completes payment.
+                </p>
+              </div>
+              <Link href="/messages">
+                <Button
+                  size="sm"
+                  className="w-full"
+                  data-testid={`message-guest-${booking.id}`}
+                >
+                  <MessageSquare className="h-4 w-4 mr-1" />
+                  Message Guest
+                </Button>
+              </Link>
+              {renderBookingTimeline()}
+            </div>
+          )}
+
+          {!isOwner && booking.status === "confirmed" && (
+            <div className="space-y-2 pt-2">
+              <p className="text-xs text-green-600 dark:text-green-400">
+                This booking has been confirmed! Complete your payment to secure your stay.
+              </p>
+              {renderBookingTimeline()}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -308,6 +385,49 @@ export function BookingActionCard({
               data-testid="btn-confirm-reject-chat"
             >
               {updateStatusMutation.isPending ? "Declining..." : "Decline Booking"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Booking Acceptance</DialogTitle>
+            <DialogDescription>
+              Please review the following before accepting this booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <span>This booking will be marked as Accepted</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <span>The guest will be notified instantly</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <span>The room will be held for this guest</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <span className="text-amber-700 dark:text-amber-300">Payment is not collected yet</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)} data-testid="btn-cancel-accept">
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmAccept}
+              disabled={updateStatusMutation.isPending}
+              data-testid="btn-confirm-accept"
+            >
+              {updateStatusMutation.isPending ? "Accepting..." : "Confirm Acceptance"}
             </Button>
           </DialogFooter>
         </DialogContent>
