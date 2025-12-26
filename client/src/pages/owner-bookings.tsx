@@ -44,6 +44,8 @@ import {
   AlertTriangle,
   BedDouble,
   Utensils,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -104,6 +106,8 @@ export default function OwnerBookings() {
   const [extendStayDialogOpen, setExtendStayDialogOpen] = useState(false);
   const [extendStayBooking, setExtendStayBooking] = useState<Booking | null>(null);
   const [extendDate, setExtendDate] = useState<Date | undefined>(undefined);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [bookingToAccept, setBookingToAccept] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -274,6 +278,49 @@ export default function OwnerBookings() {
     setRejectDialogOpen(true);
   };
 
+  const openAcceptDialog = (booking: Booking) => {
+    setBookingToAccept(booking);
+    setAcceptDialogOpen(true);
+  };
+
+  const confirmAccept = () => {
+    if (!bookingToAccept) return;
+    updateStatusMutation.mutate({ id: bookingToAccept.id, status: "confirmed" });
+    setAcceptDialogOpen(false);
+    setBookingToAccept(null);
+  };
+
+  const renderBookingTimeline = (status: string) => {
+    const steps = [
+      { label: "Booking Requested", completed: true },
+      { label: "Accepted by You", completed: status === "confirmed" || status === "checked_in" || status === "checked_out" || status === "completed" },
+      { label: "Awaiting Guest Confirmation", pending: status === "confirmed", completed: status === "checked_in" || status === "checked_out" || status === "completed" },
+    ];
+
+    if (status === "rejected" || status === "cancelled") {
+      return null;
+    }
+
+    return (
+      <div className="text-xs space-y-1 pt-3 border-t border-border/50" data-testid="booking-timeline">
+        {steps.map((step, index) => (
+          <div key={index} className="flex items-center gap-2">
+            {step.completed ? (
+              <CheckCircle className="h-3 w-3 text-green-500" />
+            ) : step.pending ? (
+              <Clock className="h-3 w-3 text-amber-500" />
+            ) : (
+              <div className="h-3 w-3 rounded-full border border-muted-foreground/30" />
+            )}
+            <span className={step.completed ? "text-foreground" : step.pending ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}>
+              {step.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -285,8 +332,8 @@ export default function OwnerBookings() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-      pending: { variant: "outline", label: "Pending Review" },
-      confirmed: { variant: "default", label: "Confirmed" },
+      pending: { variant: "outline", label: "Pending Your Response" },
+      confirmed: { variant: "default", label: "Accepted – Awaiting Guest Confirmation" },
       rejected: { variant: "destructive", label: "Declined" },
       checked_in: { variant: "default", label: "Checked In" },
       checked_out: { variant: "secondary", label: "Checked Out" },
@@ -457,12 +504,12 @@ export default function OwnerBookings() {
           </Badge>
         )}
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {booking.status === "pending" && (
-            <>
+        {booking.status === "pending" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 size="sm"
-                onClick={() => updateStatusMutation.mutate({ id: booking.id, status: "confirmed" })}
+                onClick={() => openAcceptDialog(booking)}
                 disabled={updateStatusMutation.isPending}
                 data-testid={`confirm-booking-${booking.id}`}
               >
@@ -479,26 +526,55 @@ export default function OwnerBookings() {
                 <X className="h-4 w-4 mr-1" />
                 Decline
               </Button>
-            </>
-          )}
-          {booking.status === "confirmed" && canCheckIn(booking) && (
-            <Button
-              size="sm"
-              onClick={() => checkInMutation.mutate(booking.id)}
-              disabled={checkInMutation.isPending}
-              data-testid={`check-in-booking-${booking.id}`}
-            >
-              <Check className="h-4 w-4 mr-1" />
-              Mark Checked-in
-            </Button>
-          )}
-          {booking.status === "confirmed" && !canCheckIn(booking) && (
-            <Badge variant="outline" className="text-xs">
-              Check-in available from {format(new Date(booking.checkIn), "dd MMM")}
-            </Badge>
-          )}
-          {booking.status === "checked_in" && (
-            <>
+            </div>
+            <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Accepting will temporarily hold this room for the guest. Payment is not collected yet.
+              </p>
+            </div>
+            {renderBookingTimeline(booking.status)}
+          </div>
+        )}
+
+        {booking.status === "confirmed" && (
+          <div className="space-y-3">
+            <div className="p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md">
+              <p className="text-xs text-green-700 dark:text-green-300">
+                The guest has been notified. You'll be informed once the guest confirms or completes payment.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {canCheckIn(booking) && (
+                <Button
+                  size="sm"
+                  onClick={() => checkInMutation.mutate(booking.id)}
+                  disabled={checkInMutation.isPending}
+                  data-testid={`check-in-booking-${booking.id}`}
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  Mark Checked-in
+                </Button>
+              )}
+              {!canCheckIn(booking) && (
+                <Badge variant="outline" className="text-xs">
+                  Check-in available from {format(new Date(booking.checkIn), "dd MMM")}
+                </Badge>
+              )}
+              <Link href="/owner/messages">
+                <Button size="sm" data-testid={`message-guest-confirmed-${booking.id}`}>
+                  <MessageSquare className="h-4 w-4 mr-1" />
+                  Message Guest
+                </Button>
+              </Link>
+            </div>
+            {renderBookingTimeline(booking.status)}
+          </div>
+        )}
+
+        {booking.status === "checked_in" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 size="sm"
                 onClick={() => handleCheckOut(booking)}
@@ -518,25 +594,40 @@ export default function OwnerBookings() {
                 <CalendarPlus className="h-4 w-4 mr-1" />
                 Extend Stay
               </Button>
-            </>
-          )}
-          {booking.checkInTime && (
-            <span className="text-xs text-muted-foreground">
-              Checked in: {format(new Date(booking.checkInTime), "dd MMM HH:mm")}
-            </span>
-          )}
-          {booking.checkOutTime && (
-            <span className="text-xs text-muted-foreground">
-              Checked out: {format(new Date(booking.checkOutTime), "dd MMM HH:mm")}
-            </span>
-          )}
+              <Link href="/owner/messages">
+                <Button size="sm" variant="ghost" data-testid={`message-guest-${booking.id}`}>
+                  <MessageSquare className="h-4 w-4 mr-1" />
+                  Message Guest
+                </Button>
+              </Link>
+            </div>
+            {booking.checkInTime && (
+              <span className="text-xs text-muted-foreground">
+                Checked in: {format(new Date(booking.checkInTime), "dd MMM HH:mm")}
+              </span>
+            )}
+          </div>
+        )}
+
+        {(booking.status === "completed" || booking.status === "checked_out") && (
+          <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
+            {booking.checkInTime && (
+              <span>Checked in: {format(new Date(booking.checkInTime), "dd MMM HH:mm")}</span>
+            )}
+            {booking.checkOutTime && (
+              <span>Checked out: {format(new Date(booking.checkOutTime), "dd MMM HH:mm")}</span>
+            )}
+          </div>
+        )}
+
+        {(booking.status === "rejected" || booking.status === "cancelled") && (
           <Link href="/owner/messages">
             <Button size="sm" variant="ghost" data-testid={`message-guest-${booking.id}`}>
               <MessageSquare className="h-4 w-4 mr-1" />
               Message Guest
             </Button>
           </Link>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -775,6 +866,57 @@ export default function OwnerBookings() {
               data-testid="btn-confirm-extend"
             >
               {extendStayMutation.isPending ? "Extending..." : "Confirm Extension"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accept Confirmation Dialog */}
+      <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Booking Acceptance</DialogTitle>
+            <DialogDescription>
+              Please review the following before accepting this booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <span>This booking will be marked as Accepted</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <span>The guest will be notified instantly</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <span>The room will be held for this guest</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <span className="text-amber-700 dark:text-amber-300">Payment is not collected yet</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setAcceptDialogOpen(false);
+                setBookingToAccept(null);
+              }}
+              data-testid="btn-cancel-accept"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmAccept}
+              disabled={updateStatusMutation.isPending}
+              data-testid="btn-confirm-accept"
+            >
+              {updateStatusMutation.isPending ? "Accepting..." : "Confirm Acceptance"}
             </Button>
           </DialogFooter>
         </DialogContent>
