@@ -844,7 +844,7 @@ export async function sendBookingCreatedGuestEmail(
               </div>
               
               <div style="text-align: center;">
-                <a href="${getAppBaseUrl()}/my-bookings" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/my-bookings?bookingRef=${data.bookingCode}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   Track Your Booking
                 </a>
               </div>
@@ -950,7 +950,7 @@ export async function sendBookingOwnerAcceptedEmail(
               </div>
               
               <div style="text-align: center;">
-                <a href="${getAppBaseUrl()}/my-bookings" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                <a href="${getAppBaseUrl()}/my-bookings?bookingRef=${data.bookingCode}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   Confirm Your Booking
                 </a>
               </div>
@@ -1048,7 +1048,7 @@ export async function sendBookingConfirmedGuestEmail(
               </div>
               
               <div style="text-align: center;">
-                <a href="${getAppBaseUrl()}/my-bookings" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/my-bookings?bookingRef=${data.bookingCode}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   View Your Booking
                 </a>
               </div>
@@ -1271,7 +1271,7 @@ export async function sendBookingDeclinedEmail(
               </div>
               
               <div style="text-align: center;">
-                <a href="${getAppBaseUrl()}/my-bookings" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/my-bookings?bookingRef=${data.bookingCode}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   View My Bookings
                 </a>
               </div>
