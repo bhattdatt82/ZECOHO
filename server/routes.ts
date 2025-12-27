@@ -4292,6 +4292,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get date-wise room utilization for a specific room type
+  app.get("/api/owner/properties/:propertyId/rooms/:roomTypeId/utilization", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can view room utilization" });
+      }
+
+      const { propertyId, roomTypeId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      // Verify owner owns this property
+      const property = await storage.getProperty(propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "You don't own this property" });
+      }
+
+      // Default date range: today through 30 days from now
+      const start = startDate ? new Date(startDate as string) : new Date();
+      const end = endDate ? new Date(endDate as string) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      const utilization = await storage.getRoomUtilizationByDate(propertyId, roomTypeId, start, end);
+      
+      res.json({
+        propertyId,
+        roomTypeId,
+        dateRange: { startDate: start.toISOString(), endDate: end.toISOString() },
+        dates: utilization,
+      });
+    } catch (error) {
+      console.error("Error fetching date-wise room utilization:", error);
+      res.status(500).json({ message: "Failed to fetch date-wise room utilization" });
+    }
+  });
+
   // Get owner's bookings with filters
   app.get("/api/owner/bookings", isAuthenticated, async (req: any, res) => {
     try {

@@ -28,7 +28,12 @@ import {
   BedDouble,
   Clock,
   Check,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { useState } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { format } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +70,144 @@ interface RoomUtilization {
   }[];
 }
 
+interface DateUtilization {
+  propertyId: string;
+  roomTypeId: string;
+  dateRange: { startDate: string; endDate: string };
+  dates: {
+    date: string;
+    confirmedRooms: number;
+    pendingRooms: number;
+    availableRooms: number;
+    totalRooms: number;
+  }[];
+}
+
+function RoomTypeUtilizationRow({ 
+  propertyId, 
+  rt 
+}: { 
+  propertyId: string; 
+  rt: { roomTypeId: string; roomTypeName: string; totalRooms: number; confirmedRooms: number; pendingRooms: number; availableRooms: number }
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const { data: dateUtilization, isLoading: dateLoading } = useQuery<DateUtilization>({
+    queryKey: ["/api/owner/properties", propertyId, "rooms", rt.roomTypeId, "utilization"],
+    queryFn: async () => {
+      const response = await fetch(`/api/owner/properties/${propertyId}/rooms/${rt.roomTypeId}/utilization`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch date utilization");
+      return response.json();
+    },
+    enabled: isOpen,
+  });
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div
+        className="p-3 rounded-md border space-y-2"
+        data-testid={`room-utilization-${rt.roomTypeId}`}
+      >
+        <CollapsibleTrigger className="w-full">
+          <div className="flex items-center justify-between gap-2 cursor-pointer hover-elevate rounded p-1 -m-1">
+            <div className="flex items-center gap-2">
+              {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              <span className="font-medium truncate" data-testid={`text-roomtype-${rt.roomTypeId}`}>
+                {rt.roomTypeName}
+              </span>
+            </div>
+            <Badge variant="secondary" data-testid={`badge-total-${rt.roomTypeId}`}>
+              {rt.totalRooms} total
+            </Badge>
+          </div>
+        </CollapsibleTrigger>
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <div
+            className="flex items-center gap-1 px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+            data-testid={`badge-confirmed-${rt.roomTypeId}`}
+          >
+            <Check className="h-3 w-3" />
+            <span>{rt.confirmedRooms} Booked</span>
+          </div>
+          <div
+            className="flex items-center gap-1 px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+            data-testid={`badge-pending-${rt.roomTypeId}`}
+          >
+            <Clock className="h-3 w-3" />
+            <span>{rt.pendingRooms} Pending</span>
+          </div>
+          <div
+            className="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+            data-testid={`badge-available-${rt.roomTypeId}`}
+          >
+            <BedDouble className="h-3 w-3" />
+            <span>{rt.availableRooms} Available</span>
+          </div>
+        </div>
+        <CollapsibleContent>
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs text-muted-foreground mb-2 font-medium">Date-wise Availability</p>
+            {dateLoading ? (
+              <div className="space-y-1">
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+              </div>
+            ) : dateUtilization?.dates && dateUtilization.dates.length > 0 ? (
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                <div className="grid grid-cols-5 gap-2 text-xs font-medium text-muted-foreground pb-1 border-b sticky top-0 bg-background">
+                  <span>Date</span>
+                  <span className="text-center">Booked</span>
+                  <span className="text-center">Pending</span>
+                  <span className="text-center">Available</span>
+                  <span className="text-center">Status</span>
+                </div>
+                {dateUtilization.dates.map((d) => {
+                  const isFull = d.availableRooms === 0;
+                  const hasBookings = d.confirmedRooms > 0 || d.pendingRooms > 0;
+                  return (
+                    <div 
+                      key={d.date} 
+                      className={`grid grid-cols-5 gap-2 text-xs py-1 ${isFull ? 'bg-red-50 dark:bg-red-900/20' : hasBookings ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}`}
+                      data-testid={`date-row-${d.date}`}
+                    >
+                      <span className="font-medium">
+                        {format(new Date(d.date), "EEE, MMM d")}
+                      </span>
+                      <span className={`text-center ${d.confirmedRooms > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}`}>
+                        {d.confirmedRooms}
+                      </span>
+                      <span className={`text-center ${d.pendingRooms > 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground'}`}>
+                        {d.pendingRooms}
+                      </span>
+                      <span className={`text-center ${d.availableRooms > 0 ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}`}>
+                        {d.availableRooms}
+                      </span>
+                      <span className="text-center">
+                        {isFull ? (
+                          <Badge variant="destructive" className="text-[10px] px-1 py-0">Full</Badge>
+                        ) : d.availableRooms < d.totalRooms ? (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">Partial</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">Open</Badge>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data available</p>
+            )}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
 function RoomUtilizationCard({ propertyId }: { propertyId: string }) {
   const { data: utilization, isLoading } = useQuery<RoomUtilization>({
     queryKey: ["/api/owner/properties", propertyId, "utilization"],
@@ -99,43 +242,7 @@ function RoomUtilizationCard({ propertyId }: { propertyId: string }) {
   return (
     <div className="space-y-3" data-testid="room-utilization-list">
       {utilization.roomTypes.map((rt) => (
-        <div
-          key={rt.roomTypeId}
-          className="p-3 rounded-md border space-y-2"
-          data-testid={`room-utilization-${rt.roomTypeId}`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-medium truncate" data-testid={`text-roomtype-${rt.roomTypeId}`}>
-              {rt.roomTypeName}
-            </span>
-            <Badge variant="secondary" data-testid={`badge-total-${rt.roomTypeId}`}>
-              {rt.totalRooms} total
-            </Badge>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <div
-              className="flex items-center gap-1 px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-              data-testid={`badge-confirmed-${rt.roomTypeId}`}
-            >
-              <Check className="h-3 w-3" />
-              <span>{rt.confirmedRooms} Booked</span>
-            </div>
-            <div
-              className="flex items-center gap-1 px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
-              data-testid={`badge-pending-${rt.roomTypeId}`}
-            >
-              <Clock className="h-3 w-3" />
-              <span>{rt.pendingRooms} Pending</span>
-            </div>
-            <div
-              className="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-              data-testid={`badge-available-${rt.roomTypeId}`}
-            >
-              <BedDouble className="h-3 w-3" />
-              <span>{rt.availableRooms} Available</span>
-            </div>
-          </div>
-        </div>
+        <RoomTypeUtilizationRow key={rt.roomTypeId} propertyId={propertyId} rt={rt} />
       ))}
     </div>
   );

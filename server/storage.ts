@@ -229,6 +229,13 @@ export interface IStorage {
     pendingRooms: number;
     availableRooms: number;
   }[]>;
+  getRoomUtilizationByDate(propertyId: string, roomTypeId: string, startDate: Date, endDate: Date): Promise<{
+    date: string;
+    confirmedRooms: number;
+    pendingRooms: number;
+    availableRooms: number;
+    totalRooms: number;
+  }[]>;
 
   // Availability Override operations
   getAvailabilityOverrides(propertyId: string): Promise<AvailabilityOverride[]>;
@@ -1353,6 +1360,92 @@ export class DatabaseStorage implements IStorage {
         availableRooms,
       };
     });
+  }
+
+  async getRoomUtilizationByDate(propertyId: string, roomTypeId: string, startDate: Date, endDate: Date): Promise<{
+    date: string;
+    confirmedRooms: number;
+    pendingRooms: number;
+    availableRooms: number;
+    totalRooms: number;
+  }[]> {
+    // Get the room type to get total rooms
+    const [roomType] = await db
+      .select()
+      .from(roomTypes)
+      .where(and(eq(roomTypes.propertyId, propertyId), eq(roomTypes.id, roomTypeId)));
+    
+    if (!roomType) return [];
+    
+    const totalRooms = roomType.totalRooms || 1;
+    
+    // Get all bookings that overlap with the date range for this room type
+    const overlappingBookings = await db
+      .select()
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          eq(bookings.roomTypeId, roomTypeId),
+          lt(bookings.checkIn, endDate),
+          gt(bookings.checkOut, startDate)
+        )
+      );
+    
+    const CONFIRMED_STATUSES = ['confirmed', 'customer_confirmed', 'checked_in'];
+    const PENDING_STATUSES = ['pending'];
+    
+    // Generate date-by-date utilization
+    const result: {
+      date: string;
+      confirmedRooms: number;
+      pendingRooms: number;
+      availableRooms: number;
+      totalRooms: number;
+    }[] = [];
+    
+    const currentDate = new Date(startDate);
+    currentDate.setHours(0, 0, 0, 0); // Normalize to start of day
+    
+    while (currentDate < endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const dayStart = new Date(currentDate);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      
+      // Find bookings that overlap with this specific day/night
+      // A booking occupies the night if checkIn < dayEnd (next day start) AND checkOut > dayStart
+      // This correctly counts a room as "occupied" for the night of dayStart
+      const dayBookings = overlappingBookings.filter(b => {
+        const checkIn = new Date(b.checkIn);
+        const checkOut = new Date(b.checkOut);
+        checkIn.setHours(0, 0, 0, 0);
+        checkOut.setHours(0, 0, 0, 0);
+        return checkIn < dayEnd && checkOut > dayStart;
+      });
+      
+      const confirmedRooms = dayBookings
+        .filter(b => CONFIRMED_STATUSES.includes(b.status))
+        .reduce((sum, b) => sum + (b.rooms || 1), 0);
+      
+      const pendingRooms = dayBookings
+        .filter(b => PENDING_STATUSES.includes(b.status))
+        .reduce((sum, b) => sum + (b.rooms || 1), 0);
+      
+      const availableRooms = Math.max(0, totalRooms - confirmedRooms);
+      
+      result.push({
+        date: dateStr,
+        confirmedRooms,
+        pendingRooms,
+        availableRooms,
+        totalRooms,
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return result;
   }
 
   // Availability Override operations
