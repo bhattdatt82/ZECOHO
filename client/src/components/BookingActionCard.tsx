@@ -295,7 +295,10 @@ export function BookingActionCard({
           {!isOwner && booking.status === "pending" && (
             <div className="space-y-2 pt-2">
               <p className="text-xs text-muted-foreground">
-                The property owner typically responds within 24 hours.
+                The property owner typically responds within 15–30 minutes.
+              </p>
+              <p className="text-xs text-muted-foreground/80">
+                You'll be notified instantly once the owner responds.
               </p>
               {renderBookingTimeline()}
             </div>

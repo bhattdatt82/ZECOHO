@@ -351,7 +351,10 @@ export default function MyBookings() {
                         Booking Request Sent
                       </h4>
                       <p className="text-amber-700 dark:text-amber-300 text-sm mt-1">
-                        Your booking request has been sent to the property owner. They usually respond within 24 hours.
+                        Your booking request has been sent to the property owner. The property owner typically responds within 15–30 minutes.
+                      </p>
+                      <p className="text-amber-600 dark:text-amber-400 text-xs mt-1">
+                        You'll be notified instantly once the owner responds.
                       </p>
                     </div>
                   </div>
@@ -361,7 +364,7 @@ export default function MyBookings() {
                 <div className="p-3 bg-muted/50 rounded-lg text-sm">
                   <p className="font-medium text-foreground mb-2 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                    Next step: Wait for owner confirmation or message them to speed things up
+                    Next step: Wait for owner confirmation or message them for quick updates
                   </p>
                   <ul className="text-muted-foreground space-y-1 text-xs pl-6">
                     <li>• The hotel will review and confirm your booking</li>

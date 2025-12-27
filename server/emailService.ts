@@ -842,7 +842,10 @@ export async function sendBookingCreatedGuestEmail(
               <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #f59e0b;">
                 <p style="color: #92400e; margin: 0; font-weight: 500;">What's Next?</p>
                 <p style="color: #a16207; margin: 8px 0 0 0; font-size: 14px;">
-                  The property owner will review your request and respond within 24-48 hours. You'll receive an email when they respond.
+                  The property owner typically responds within 15–30 minutes.
+                </p>
+                <p style="color: #a16207; margin: 4px 0 0 0; font-size: 13px;">
+                  You'll be notified instantly once the owner responds.
                 </p>
               </div>
               
