@@ -19,6 +19,7 @@ import type { Property, Amenity } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { useKycGuard } from "@/hooks/useKycGuard";
 import { RestrictedAccess } from "@/components/RestrictedAccess";
+import { MultiSelectFilter } from "@/components/MultiSelectFilter";
 
 export default function Search() {
   const { user, isOwner } = useAuth();
@@ -30,15 +31,16 @@ export default function Search() {
     return <RestrictedAccess description="Your KYC has been rejected. Please fix your KYC to access search." />;
   }
   
-  // Filter states
-  const [selectedType, setSelectedType] = useState<string>(""); // No default - show all property types
-  const [selectedBudget, setSelectedBudget] = useState<string>("");
-  const [selectedRating, setSelectedRating] = useState<string>("");
-  const [selectedAmenity, setSelectedAmenity] = useState<string>("");
+  // Filter states - multi-select arrays
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedBudgets, setSelectedBudgets] = useState<string[]>([]);
+  const [selectedRatings, setSelectedRatings] = useState<string[]>([]);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [selectedStarRatings, setSelectedStarRatings] = useState<string[]>([]);
+  // Single select filters (boolean options)
   const [coupleFriendly, setCoupleFriendly] = useState<string>("");
   const [hourlyAvailability, setHourlyAvailability] = useState<string>("");
   const [localIdAllowed, setLocalIdAllowed] = useState<string>("");
-  const [selectedStarRating, setSelectedStarRating] = useState<string>("");
   const [selectedLocality, setSelectedLocality] = useState<string>("");
   
   const [showFilters, setShowFilters] = useState(true);
@@ -157,7 +159,6 @@ export default function Search() {
       const titleLower = (property.title || "").toLowerCase();
       const cityLower = (property.propCity || "").toLowerCase();
       const stateLower = (property.propState || "").toLowerCase();
-      // Match destination, property title, city, or state
       if (!destinationLower.includes(searchLower) && 
           !titleLower.includes(searchLower) &&
           !cityLower.includes(searchLower) &&
@@ -166,26 +167,35 @@ export default function Search() {
       }
     }
     
-    // Property type filter
-    if (selectedType && property.propertyType !== selectedType) {
+    // Property type filter (multi-select - match ANY selected type)
+    if (selectedTypes.length > 0 && !selectedTypes.includes(property.propertyType || "")) {
       return false;
     }
     
-    // Budget filter
-    if (selectedBudget) {
+    // Budget filter (multi-select - match ANY selected budget range)
+    if (selectedBudgets.length > 0) {
       const price = Number(property.pricePerNight);
-      const [min, max] = selectedBudget.split("-").map(Number);
-      if (price < min) return false;
-      if (max > 0 && price > max) return false;
+      const matchesBudget = selectedBudgets.some((budget) => {
+        const [min, max] = budget.split("-").map(Number);
+        if (price < min) return false;
+        if (max > 0 && price > max) return false;
+        return true;
+      });
+      if (!matchesBudget) return false;
     }
     
-    // Rating filter
-    if (selectedRating) {
+    // Rating filter (multi-select - match ANY selected minimum rating)
+    if (selectedRatings.length > 0) {
       const rating = Number(property.rating) || 0;
-      if (rating < Number(selectedRating)) {
-        return false;
-      }
+      const matchesRating = selectedRatings.some((minRating) => rating >= Number(minRating));
+      if (!matchesRating) return false;
     }
+    
+    // Star rating filter - currently not implemented as property doesn't have starRating field
+    // TODO: Add starRating field to properties schema when hotel brands feature is ready
+    
+    // Amenities filter - currently not implemented as requires junction table lookup
+    // TODO: Implement amenities filtering with property amenities relationship
     
     // Locality filter
     if (selectedLocality && property.propLocality !== selectedLocality) {
@@ -196,21 +206,22 @@ export default function Search() {
   });
 
   const clearAllFilters = () => {
-    setSelectedType("");
-    setSelectedBudget("");
-    setSelectedRating("");
-    setSelectedAmenity("");
+    setSelectedTypes([]);
+    setSelectedBudgets([]);
+    setSelectedRatings([]);
+    setSelectedAmenities([]);
+    setSelectedStarRatings([]);
     setCoupleFriendly("");
     setHourlyAvailability("");
     setLocalIdAllowed("");
-    setSelectedStarRating("");
     setSelectedLocality("");
     setSearchDestination("");
   };
 
-  const hasActiveFilters = selectedType || selectedBudget || selectedRating || 
-    selectedAmenity || coupleFriendly || hourlyAvailability || localIdAllowed || 
-    selectedStarRating || selectedLocality || searchDestination;
+  const hasActiveFilters = selectedTypes.length > 0 || selectedBudgets.length > 0 || 
+    selectedRatings.length > 0 || selectedAmenities.length > 0 || selectedStarRatings.length > 0 ||
+    coupleFriendly || hourlyAvailability || localIdAllowed || 
+    selectedLocality || searchDestination;
 
   return (
     <div className="min-h-screen bg-background">
@@ -252,93 +263,57 @@ export default function Search() {
             {/* Primary Filters Row */}
             <div className="flex flex-wrap items-end gap-4 mb-4">
               {/* Property Type Filter */}
-              <div className="min-w-[160px]">
-                <Label className="text-sm font-medium mb-2 block">Property Type</Label>
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger data-testid="select-property-type" className="w-full">
-                    <SelectValue placeholder="All types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {propertyTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value} data-testid={`select-type-${type.value}`}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <MultiSelectFilter
+                label="Property Type"
+                options={propertyTypes}
+                selectedValues={selectedTypes}
+                onSelectionChange={setSelectedTypes}
+                placeholder="All types"
+                testId="filter-property-type"
+              />
 
               {/* Budget Filter */}
-              <div className="min-w-[160px]">
-                <Label className="text-sm font-medium mb-2 block">Budget</Label>
-                <Select value={selectedBudget} onValueChange={setSelectedBudget}>
-                  <SelectTrigger data-testid="select-budget" className="w-full">
-                    <SelectValue placeholder="Any budget" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {budgetOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} data-testid={`select-budget-${option.value}`}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <MultiSelectFilter
+                label="Budget"
+                options={budgetOptions}
+                selectedValues={selectedBudgets}
+                onSelectionChange={setSelectedBudgets}
+                placeholder="Any budget"
+                testId="filter-budget"
+              />
 
               {/* User Rating Filter */}
-              <div className="min-w-[160px]">
-                <Label className="text-sm font-medium mb-2 block">User Rating</Label>
-                <Select value={selectedRating} onValueChange={setSelectedRating}>
-                  <SelectTrigger data-testid="select-rating" className="w-full">
-                    <SelectValue placeholder="Any rating" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ratingOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} data-testid={`select-rating-${option.value}`}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <MultiSelectFilter
+                label="User Rating"
+                options={ratingOptions}
+                selectedValues={selectedRatings}
+                onSelectionChange={setSelectedRatings}
+                placeholder="Any rating"
+                testId="filter-rating"
+              />
 
               {/* Amenities Filter */}
-              <div className="min-w-[180px]">
-                <Label className="text-sm font-medium mb-2 block">Amenities</Label>
-                <Select value={selectedAmenity} onValueChange={setSelectedAmenity}>
-                  <SelectTrigger data-testid="select-amenity" className="w-full">
-                    <SelectValue placeholder="All amenities" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {amenities.length > 0 ? (
-                      amenities.map((amenity) => (
-                        <SelectItem key={amenity.id} value={amenity.id} data-testid={`select-amenity-${amenity.id}`}>
-                          {amenity.name} {amenity.category ? `(${amenity.category})` : ""}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="wifi">WiFi</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+              <MultiSelectFilter
+                label="Amenities"
+                options={amenities.length > 0 
+                  ? amenities.map((a) => ({ value: a.id, label: `${a.name}${a.category ? ` (${a.category})` : ""}` }))
+                  : [{ value: "wifi", label: "WiFi" }]
+                }
+                selectedValues={selectedAmenities}
+                onSelectionChange={setSelectedAmenities}
+                placeholder="All amenities"
+                testId="filter-amenity"
+              />
 
               {/* Hotel Star Rating Filter */}
-              <div className="min-w-[140px]">
-                <Label className="text-sm font-medium mb-2 block">Hotel Star Rating</Label>
-                <Select value={selectedStarRating} onValueChange={setSelectedStarRating}>
-                  <SelectTrigger data-testid="select-star-rating" className="w-full">
-                    <SelectValue placeholder="Any stars" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {starRatingOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} data-testid={`select-star-${option.value}`}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <MultiSelectFilter
+                label="Hotel Star Rating"
+                options={starRatingOptions}
+                selectedValues={selectedStarRatings}
+                onSelectionChange={setSelectedStarRatings}
+                placeholder="Any stars"
+                testId="filter-star-rating"
+              />
 
               {/* Show More Filters Button */}
               <Button
