@@ -9,7 +9,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
-import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail } from "./emailService";
+import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { WebSocketServer, WebSocket } from "ws";
@@ -3007,36 +3007,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPrice: totalPrice.toString(),
       });
       
-      // Send booking confirmation emails
+      // STATE: CREATED - Send state-driven booking emails
       const guest = await storage.getUser(userId);
       // owner already fetched above for KYC check
       const checkInFormatted = checkIn.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
       const checkOutFormatted = checkOut.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
       
-      // Email to guest
+      const bookingEmailData = {
+        bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
+        propertyName: property.title,
+        checkIn: checkInFormatted,
+        checkOut: checkOutFormatted,
+        guests: validatedData.guests || 1,
+        rooms: roomsCount,
+        totalPrice: totalPrice.toString(),
+        guestName: guest?.firstName && guest?.lastName 
+          ? `${guest.firstName} ${guest.lastName}` 
+          : guest?.email || 'Guest',
+        guestEmail: guest?.email || '',
+      };
+      
+      // Email to guest: "Reservation Requested"
       if (guest?.email) {
-        sendBookingConfirmationEmail(
+        sendBookingCreatedGuestEmail(
           guest.email, 
           guest.firstName || '', 
-          property.title, 
-          checkInFormatted, 
-          checkOutFormatted, 
-          totalPrice.toString(), 
-          false
+          bookingEmailData
         ).catch(console.error);
       }
       
-      // Email to owner with full details
-      const guestName = guest?.firstName && guest?.lastName 
-        ? `${guest.firstName} ${guest.lastName}` 
-        : guest?.email || 'Guest';
-      
+      // Email to owner: "New Booking Request"
       if (owner?.email) {
         sendBookingRequestToOwnerEmail(
           owner.email,
           owner.firstName || '',
           property.title,
-          guestName,
+          bookingEmailData.guestName,
           guest?.email || '',
           checkInFormatted,
           checkOutFormatted,
