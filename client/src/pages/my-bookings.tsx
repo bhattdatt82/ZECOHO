@@ -78,13 +78,32 @@ export default function MyBookings() {
   const [highlightedBookingCode, setHighlightedBookingCode] = useState<string | null>(null);
   const [bookingNotFound, setBookingNotFound] = useState<string | null>(null);
 
-  // Check if user just created a booking (via URL param) or came from email link with bookingRef
-  useEffect(() => {
+  // Read URL params once on mount, before any cleanup
+  const [initialBookingRef] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const newParam = params.get("new");
-    const bookingRef = params.get("bookingRef");
+    return params.get("bookingRef");
+  });
+  const [initialNewParam] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("new");
+  });
+
+  // Redirect to login if not authenticated, preserving bookingRef for return
+  // This must run BEFORE URL cleanup
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      const returnUrl = initialBookingRef 
+        ? `/my-bookings?bookingRef=${initialBookingRef}` 
+        : "/my-bookings";
+      setLocation(`/login?returnTo=${encodeURIComponent(returnUrl)}`);
+    }
+  }, [authLoading, isAuthenticated, setLocation, initialBookingRef]);
+
+  // Handle URL params for authenticated users only
+  useEffect(() => {
+    if (!isAuthenticated || authLoading) return;
     
-    if (newParam === "true") {
+    if (initialNewParam === "true") {
       setShowNewBookingBanner(true);
       // Clean up URL without triggering navigation
       window.history.replaceState({}, "", "/my-bookings");
@@ -93,24 +112,12 @@ export default function MyBookings() {
       return () => clearTimeout(timer);
     }
     
-    if (bookingRef) {
-      setHighlightedBookingCode(bookingRef);
+    if (initialBookingRef) {
+      setHighlightedBookingCode(initialBookingRef);
       // Clean up URL without triggering navigation but preserve the booking highlight state
       window.history.replaceState({}, "", "/my-bookings");
     }
-  }, []);
-
-  // Redirect to login if not authenticated, preserving bookingRef for return
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      const params = new URLSearchParams(window.location.search);
-      const bookingRef = params.get("bookingRef");
-      const returnUrl = bookingRef 
-        ? `/my-bookings?bookingRef=${bookingRef}` 
-        : "/my-bookings";
-      setLocation(`/login?returnTo=${encodeURIComponent(returnUrl)}`);
-    }
-  }, [authLoading, isAuthenticated, setLocation]);
+  }, [isAuthenticated, authLoading, initialNewParam, initialBookingRef]);
 
   const { data: bookings, isLoading, isError, error } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
