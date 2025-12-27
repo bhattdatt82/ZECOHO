@@ -25,6 +25,9 @@ import {
   Pause,
   Power,
   Play,
+  BedDouble,
+  Clock,
+  Check,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,6 +49,96 @@ interface OwnerStats {
   properties: { id: string; title: string; status: string; pricePerNight: string }[];
   hasDraftProperty?: boolean;
   draftPropertyId?: string;
+}
+
+interface RoomUtilization {
+  propertyId: string;
+  propertyTitle: string;
+  dateRange: { startDate: string; endDate: string };
+  roomTypes: {
+    roomTypeId: string;
+    roomTypeName: string;
+    totalRooms: number;
+    confirmedRooms: number;
+    pendingRooms: number;
+    availableRooms: number;
+  }[];
+}
+
+function RoomUtilizationCard({ propertyId }: { propertyId: string }) {
+  const { data: utilization, isLoading } = useQuery<RoomUtilization>({
+    queryKey: ["/api/owner/properties", propertyId, "utilization"],
+    queryFn: async () => {
+      const response = await fetch(`/api/owner/properties/${propertyId}/utilization`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch utilization");
+      return response.json();
+    },
+    enabled: !!propertyId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </div>
+    );
+  }
+
+  if (!utilization?.roomTypes || utilization.roomTypes.length === 0) {
+    return (
+      <div className="text-center py-4 text-muted-foreground" data-testid="no-room-types">
+        <BedDouble className="mx-auto h-8 w-8 mb-2" />
+        <p className="text-sm">No room types configured</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3" data-testid="room-utilization-list">
+      {utilization.roomTypes.map((rt) => (
+        <div
+          key={rt.roomTypeId}
+          className="p-3 rounded-md border space-y-2"
+          data-testid={`room-utilization-${rt.roomTypeId}`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium truncate" data-testid={`text-roomtype-${rt.roomTypeId}`}>
+              {rt.roomTypeName}
+            </span>
+            <Badge variant="secondary" data-testid={`badge-total-${rt.roomTypeId}`}>
+              {rt.totalRooms} total
+            </Badge>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+              data-testid={`badge-confirmed-${rt.roomTypeId}`}
+            >
+              <Check className="h-3 w-3" />
+              <span>{rt.confirmedRooms} Booked</span>
+            </div>
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+              data-testid={`badge-pending-${rt.roomTypeId}`}
+            >
+              <Clock className="h-3 w-3" />
+              <span>{rt.pendingRooms} Pending</span>
+            </div>
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+              data-testid={`badge-available-${rt.roomTypeId}`}
+            >
+              <BedDouble className="h-3 w-3" />
+              <span>{rt.availableRooms} Available</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function OwnerDashboard() {
@@ -419,6 +512,32 @@ export default function OwnerDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {stats?.properties && stats.properties.length > 0 && (
+          <Card data-testid="card-room-utilization">
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <BedDouble className="h-5 w-5" />
+                Room Utilization
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">Next 30 days</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {stats.properties.map((property) => (
+                  <div key={property.id} data-testid={`utilization-property-${property.id}`}>
+                    {stats.properties.length > 1 && (
+                      <h4 className="font-medium text-sm mb-2 text-muted-foreground">
+                        {property.title}
+                      </h4>
+                    )}
+                    <RoomUtilizationCard propertyId={property.id} />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </OwnerLayout>
   );

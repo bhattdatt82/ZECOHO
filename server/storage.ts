@@ -220,6 +220,14 @@ export interface IStorage {
   getOwnerProperties(userId: string): Promise<Property[]>;
   getBookingsForProperties(propertyIds: string[]): Promise<Booking[]>;
   getReviewsForProperties(propertyIds: string[]): Promise<(Review & { guest: User })[]>;
+  getRoomUtilization(propertyId: string, startDate: Date, endDate: Date): Promise<{
+    roomTypeId: string;
+    roomTypeName: string;
+    totalRooms: number;
+    confirmedRooms: number;
+    pendingRooms: number;
+    availableRooms: number;
+  }[]>;
 
   // Availability Override operations
   getAvailabilityOverrides(propertyId: string): Promise<AvailabilityOverride[]>;
@@ -1280,6 +1288,66 @@ export class DatabaseStorage implements IStorage {
       ...r.review,
       guest: r.guest as User,
     }));
+  }
+
+  async getRoomUtilization(propertyId: string, startDate: Date, endDate: Date): Promise<{
+    roomTypeId: string;
+    roomTypeName: string;
+    totalRooms: number;
+    confirmedRooms: number;
+    pendingRooms: number;
+    availableRooms: number;
+  }[]> {
+    // Get all room types for this property
+    const propertyRoomTypes = await db
+      .select()
+      .from(roomTypes)
+      .where(eq(roomTypes.propertyId, propertyId));
+    
+    if (propertyRoomTypes.length === 0) return [];
+    
+    // Get all bookings that overlap with the date range
+    // Overlap: booking.checkIn < endDate AND booking.checkOut > startDate
+    const overlappingBookings = await db
+      .select()
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          lt(bookings.checkIn, endDate),
+          gt(bookings.checkOut, startDate)
+        )
+      );
+    
+    // CONFIRMED statuses: confirmed (owner_accepted), customer_confirmed, checked_in
+    const CONFIRMED_STATUSES = ['confirmed', 'customer_confirmed', 'checked_in'];
+    // PENDING statuses: pending (awaiting owner response)
+    const PENDING_STATUSES = ['pending'];
+    
+    return propertyRoomTypes.map(rt => {
+      const roomTypeBookings = overlappingBookings.filter(b => b.roomTypeId === rt.id);
+      
+      const confirmedRooms = roomTypeBookings
+        .filter(b => CONFIRMED_STATUSES.includes(b.status))
+        .reduce((sum, b) => sum + (b.rooms || 1), 0);
+      
+      const pendingRooms = roomTypeBookings
+        .filter(b => PENDING_STATUSES.includes(b.status))
+        .reduce((sum, b) => sum + (b.rooms || 1), 0);
+      
+      const totalRooms = rt.totalRooms || 1;
+      // Available = Total - Confirmed (pending does NOT reduce available)
+      const availableRooms = Math.max(0, totalRooms - confirmedRooms);
+      
+      return {
+        roomTypeId: rt.id,
+        roomTypeName: rt.name,
+        totalRooms,
+        confirmedRooms,
+        pendingRooms,
+        availableRooms,
+      };
+    });
   }
 
   // Availability Override operations

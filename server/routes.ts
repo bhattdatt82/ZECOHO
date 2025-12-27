@@ -4181,6 +4181,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get room utilization for owner's property
+  app.get("/api/owner/properties/:propertyId/utilization", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can view room utilization" });
+      }
+
+      const { propertyId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      // Verify owner owns this property
+      const property = await storage.getProperty(propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "You don't own this property" });
+      }
+
+      // Default date range: today through 30 days from now
+      const start = startDate ? new Date(startDate as string) : new Date();
+      const end = endDate ? new Date(endDate as string) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      const utilization = await storage.getRoomUtilization(propertyId, start, end);
+      
+      res.json({
+        propertyId,
+        propertyTitle: property.title,
+        dateRange: { startDate: start.toISOString(), endDate: end.toISOString() },
+        roomTypes: utilization,
+      });
+    } catch (error) {
+      console.error("Error fetching room utilization:", error);
+      res.status(500).json({ message: "Failed to fetch room utilization" });
+    }
+  });
+
   // Get owner's bookings with filters
   app.get("/api/owner/bookings", isAuthenticated, async (req: any, res) => {
     try {
