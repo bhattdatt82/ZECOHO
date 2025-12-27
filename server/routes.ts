@@ -3916,7 +3916,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cityProperties = allProperties
         .filter((p: any) => 
           p.status === "published" && 
-          p.availability === "active" &&
           p.propCity?.toLowerCase() === cityLower
         );
       
