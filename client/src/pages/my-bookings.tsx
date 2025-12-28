@@ -24,6 +24,7 @@ import {
   Utensils,
   PartyPopper,
   Phone,
+  Home,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -228,26 +229,80 @@ export default function MyBookings() {
     );
   };
 
+  // Helper to check if a booking is currently ongoing (checked in and between check-in/check-out dates)
+  const isOngoingBooking = (booking: Booking): boolean => {
+    const now = new Date();
+    const checkInDate = new Date(booking.checkIn);
+    const checkOutDate = new Date(booking.checkOut);
+    
+    // Booking is ongoing if:
+    // 1. Status is checked_in, OR
+    // 2. Has checkInTime set and current date is between check-in and check-out
+    if (booking.status === "checked_in") return true;
+    if (booking.checkInTime && now >= checkInDate && now < checkOutDate) return true;
+    return false;
+  };
+
+  // Helper to check if a booking is upcoming (confirmed but not yet checked in, check-in in future)
+  const isUpcomingBooking = (booking: Booking): boolean => {
+    const now = new Date();
+    const checkInDate = new Date(booking.checkIn);
+    
+    // Upcoming = pending, confirmed, or customer_confirmed where check-in is in the future and not checked in
+    const upcomingStatuses = ["pending", "confirmed", "customer_confirmed"];
+    return upcomingStatuses.includes(booking.status) && checkInDate > now;
+  };
+
+  // Helper to check if a booking is past
+  const isPastBooking = (booking: Booking): boolean => {
+    const now = new Date();
+    const checkOutDate = new Date(booking.checkOut);
+    
+    // Past = check-out date has passed OR status is completed, cancelled, rejected, checked_out, or no_show
+    const pastStatuses = ["completed", "cancelled", "rejected", "checked_out", "no_show"];
+    return pastStatuses.includes(booking.status) || checkOutDate < now;
+  };
+
   const filteredBookings = sortedBookings?.filter((booking) => {
     if (activeTab === "all") return true;
-    if (activeTab === "upcoming") return booking.status === "pending" || booking.status === "confirmed" || booking.status === "customer_confirmed" || booking.status === "checked_in";
-    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out" || booking.status === "no_show";
+    if (activeTab === "upcoming") return isUpcomingBooking(booking);
+    if (activeTab === "ongoing") return isOngoingBooking(booking);
+    if (activeTab === "past") return isPastBooking(booking) && !isOngoingBooking(booking);
     return true;
   });
+
+  // Calculate counts for each tab
+  const upcomingCount = sortedBookings?.filter(isUpcomingBooking).length || 0;
+  const ongoingCount = sortedBookings?.filter(isOngoingBooking).length || 0;
+  const pastCount = sortedBookings?.filter(b => isPastBooking(b) && !isOngoingBooking(b)).length || 0;
 
   const renderBookingCard = (booking: Booking, index: number) => {
     // Highlight the newest booking when success banner is shown
     const isNewestBooking = index === 0 && showNewBookingBanner;
     // Highlight booking from email deep link
     const isHighlightedFromEmail = highlightedBookingCode && booking.bookingCode === highlightedBookingCode;
+    // Check if this is an ongoing booking
+    const isOngoing = isOngoingBooking(booking);
     
     return (
     <Card 
       key={booking.id} 
       data-testid={`booking-card-${booking.id}`}
       data-booking-code={booking.bookingCode || undefined}
-      className={`overflow-hidden transition-all duration-500 ${isNewestBooking || isHighlightedFromEmail ? 'ring-2 ring-primary ring-offset-2 shadow-lg' : ''}`}
+      className={`overflow-hidden transition-all duration-500 ${isNewestBooking || isHighlightedFromEmail ? 'ring-2 ring-primary ring-offset-2 shadow-lg' : ''} ${isOngoing ? 'border-green-300 dark:border-green-700 bg-green-50/30 dark:bg-green-950/20' : ''}`}
     >
+      {/* Currently Staying Banner for Ongoing Bookings */}
+      {isOngoing && (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 flex items-center gap-2" data-testid={`currently-staying-${booking.id}`}>
+          <Home className="h-4 w-4" />
+          <span className="font-semibold text-sm">Currently Staying</span>
+          {booking.checkInTime && (
+            <span className="text-xs opacity-90 ml-auto">
+              Checked in {format(new Date(booking.checkInTime), "dd MMM 'at' h:mm a")}
+            </span>
+          )}
+        </div>
+      )}
       <div className="flex flex-col md:flex-row">
         {booking.property?.images?.[0] && (
           <div className="w-full md:w-48 h-32 md:h-auto flex-shrink-0">
@@ -888,9 +943,14 @@ export default function MyBookings() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3" data-testid="booking-tabs">
+          <TabsList className="grid w-full grid-cols-4" data-testid="booking-tabs">
             <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
-            <TabsTrigger value="upcoming" data-testid="tab-upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="upcoming" data-testid="tab-upcoming">
+              Upcoming {upcomingCount > 0 && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{upcomingCount}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="ongoing" data-testid="tab-ongoing">
+              Ongoing {ongoingCount > 0 && <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs">{ongoingCount}</Badge>}
+            </TabsTrigger>
             <TabsTrigger value="past" data-testid="tab-past">Past</TabsTrigger>
           </TabsList>
 
