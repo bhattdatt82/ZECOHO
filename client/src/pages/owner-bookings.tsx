@@ -372,14 +372,14 @@ export default function OwnerBookings() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  // Helper to check if no-show can be marked (guest-confirmed, check-in date has passed)
+  // Helper to check if no-show can be marked (guest-confirmed, past check-in time 12 PM)
   const canMarkNoShow = (booking: Booking) => {
     if (booking.status !== "customer_confirmed") return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
     const checkInDate = new Date(booking.checkIn);
-    checkInDate.setHours(0, 0, 0, 0);
-    return today > checkInDate; // Check-in date must have passed
+    // Set check-in cutoff to 12 PM (noon) on the check-in date
+    checkInDate.setHours(12, 0, 0, 0);
+    return now > checkInDate; // Past 12 PM on check-in date
   };
 
   const openNoShowDialog = (booking: Booking) => {
@@ -714,7 +714,7 @@ export default function OwnerBookings() {
               <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
                 <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Guest was expected to check in on {format(new Date(booking.checkIn), "dd MMM")} but has not arrived. If the guest did not show up, you can mark this booking as a no-show.
+                  Guest was expected to check in by 12 PM on {format(new Date(booking.checkIn), "dd MMM")} but has not arrived. If the guest did not show up, you can mark this booking as a no-show.
                 </p>
               </div>
             )}
