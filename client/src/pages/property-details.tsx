@@ -383,11 +383,11 @@ export default function PropertyDetails() {
     return requiredRooms > availableRoomsForType;
   }, [requiredRooms, availableRoomsForType]);
   
-  // Low inventory warning (≤5 rooms left)
+  // Low inventory warning - use API's isLowStock flag (calculated as: min(5, 20% of totalRooms))
   const isLowInventory = useMemo(() => {
-    if (availableRoomsForType === null) return false;
-    return availableRoomsForType <= 5 && availableRoomsForType > 0;
-  }, [availableRoomsForType]);
+    if (!selectedRoomInventory) return false;
+    return selectedRoomInventory.isLowStock === true;
+  }, [selectedRoomInventory]);
   
   // Auto-adjust rooms when guest count changes (both adults and children affect room count)
   useEffect(() => {
@@ -1845,7 +1845,8 @@ export default function PropertyDetails() {
                               </div>
                             )}
                           </div>
-                        ))}
+                        );
+                        })}
                       </div>
                     </div>
                   )}
