@@ -1310,3 +1310,131 @@ export async function sendBookingDeclinedEmail(
     return false;
   }
 }
+
+// NO-SHOW STATE: Email to Guest/Owner - "Booking Marked as No-Show"
+export async function sendBookingNoShowEmail(
+  recipientEmail: string,
+  recipientFirstName: string,
+  data: {
+    bookingCode: string;
+    propertyTitle: string;
+    checkIn: string;
+    guests: number;
+    rooms: number;
+    totalPrice: string;
+    guestName?: string;
+    bookedOn?: string;
+  },
+  recipientType: 'guest' | 'owner'
+): Promise<boolean> {
+  try {
+    console.log(`[BOOKING:NO_SHOW] Sending no-show email to ${recipientType}:`, recipientEmail);
+    const { client, fromEmail } = await getResendClient();
+    
+    const isGuest = recipientType === 'guest';
+    const subject = isGuest 
+      ? `Booking Marked as No-Show - ${data.propertyTitle}`
+      : `Guest No-Show Recorded - ${data.propertyTitle}`;
+    
+    const heading = isGuest ? 'Booking Closed - No Show' : 'Guest No-Show Recorded';
+    const mainMessage = isGuest
+      ? 'Your booking has been marked as a no-show because you did not check in on the scheduled date.'
+      : `The guest (${data.guestName || 'Guest'}) did not check in for their booking. The booking has been marked as a no-show.`;
+    
+    const { error, data: emailData } = await client.emails.send({
+      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      to: [recipientEmail],
+      subject: subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+          <div style="max-width: 480px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">ZECOHO</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Your Journey, Our Passion</p>
+            </div>
+            
+            <div style="padding: 32px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <div style="width: 64px; height: 64px; background: #fef2f2; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px; color: #dc2626;">&#128683;</span>
+                </div>
+              </div>
+              
+              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">${heading}</h2>
+              <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
+                Hi ${recipientFirstName || 'there'},
+              </p>
+              <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
+                ${mainMessage}
+              </p>
+              
+              <div style="background: #fef2f2; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #dc2626;">
+                <p style="color: #991b1b; margin: 0; font-weight: 500;">Status: No-Show</p>
+                <p style="color: #dc2626; margin: 8px 0 0 0; font-size: 14px;">
+                  Guest did not check in on the scheduled date. This booking is now closed.
+                </p>
+              </div>
+              
+              <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #1f2937; margin: 0 0 12px 0; font-weight: 600;">Booking Details:</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Reference:</strong> ${data.bookingCode}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Property:</strong> ${data.propertyTitle}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in Date:</strong> ${data.checkIn}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Rooms:</strong> ${data.rooms} | <strong>Guests:</strong> ${data.guests}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Total Amount:</strong> Rs. ${data.totalPrice}</p>
+                ${data.bookedOn ? `<p style="color: #6b7280; margin: 0;"><strong>Booked On:</strong> ${data.bookedOn}</p>` : ''}
+              </div>
+              
+              ${isGuest ? `
+              <div style="background: #fffbeb; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #f59e0b;">
+                <p style="color: #92400e; margin: 0; font-weight: 500;">About Refunds</p>
+                <p style="color: #b45309; margin: 8px 0 0 0; font-size: 14px;">
+                  Refund policies vary by property. Please contact the property directly to discuss any refund options.
+                </p>
+              </div>
+              ` : `
+              <div style="background: #f0fdf4; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #10b981;">
+                <p style="color: #166534; margin: 0; font-weight: 500;">Next Steps</p>
+                <p style="color: #15803d; margin: 8px 0 0 0; font-size: 14px;">
+                  The room inventory remains as consumed. If the guest contacts you regarding refunds, please handle according to your cancellation policy.
+                </p>
+              </div>
+              `}
+              
+              <div style="text-align: center;">
+                <a href="${getAppBaseUrl()}/${isGuest ? 'my-bookings' : 'owner/bookings'}?bookingRef=${data.bookingCode}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                  View Booking Details
+                </a>
+              </div>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                ZECOHO - Zero Commission Hotel Booking<br>
+                Questions? Contact support@zecoho.com
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error(`[BOOKING:NO_SHOW] Failed to send ${recipientType} email:`, error);
+      return false;
+    }
+
+    console.log(`[BOOKING:NO_SHOW] ${recipientType} email sent successfully:`, emailData?.id);
+    return true;
+  } catch (error: any) {
+    console.error(`[BOOKING:NO_SHOW] Exception sending ${recipientType} email:`, error?.message || error);
+    return false;
+  }
+}

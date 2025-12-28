@@ -155,9 +155,11 @@ export interface IStorage {
   getBookingsByProperty(propertyId: string): Promise<Booking[]>;
   getBookingsByGuest(guestId: string): Promise<Booking[]>;
   getPropertyBookedDates(propertyId: string, startDate: Date, endDate: Date, roomTypeId?: string | null): Promise<{ checkIn: Date; checkOut: Date }[]>;
-  updateBookingStatus(id: string, status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed", responseMessage?: string): Promise<Booking | undefined>;
+  updateBookingStatus(id: string, status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed" | "no_show", responseMessage?: string): Promise<Booking | undefined>;
   markCheckedIn(bookingId: string, userId: string): Promise<Booking | undefined>;
   markCheckedOut(bookingId: string, userId: string, isEarlyCheckout?: boolean): Promise<Booking | undefined>;
+  markNoShow(bookingId: string, userId: string, markedBy: "owner" | "admin"): Promise<Booking | undefined>;
+  adminUnmarkNoShow(bookingId: string, userId: string): Promise<Booking | undefined>;
   deleteBooking(id: string): Promise<void>;
 
   // Conversation operations
@@ -646,6 +648,40 @@ export class DatabaseStorage implements IStorage {
         checkedOutBy: userId,
         actualCheckOutDate: now,
         earlyCheckout: isEarlyCheckout || false,
+        updatedAt: now,
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    return updated;
+  }
+
+  async markNoShow(bookingId: string, userId: string, markedBy: "owner" | "admin"): Promise<Booking | undefined> {
+    const now = new Date();
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "no_show",
+        noShow: true,
+        noShowMarkedAt: now,
+        noShowMarkedBy: markedBy,
+        noShowMarkedByUserId: userId,
+        updatedAt: now,
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    return updated;
+  }
+
+  async adminUnmarkNoShow(bookingId: string, userId: string): Promise<Booking | undefined> {
+    const now = new Date();
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "customer_confirmed",
+        noShow: false,
+        noShowMarkedAt: null,
+        noShowMarkedBy: null,
+        noShowMarkedByUserId: null,
         updatedAt: now,
       })
       .where(eq(bookings.id, bookingId))

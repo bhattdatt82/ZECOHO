@@ -9,7 +9,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
-import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail } from "./emailService";
+import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { WebSocketServer, WebSocket } from "ws";
@@ -4204,6 +4204,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Mark booking as no-show
+  app.patch("/api/admin/bookings/:id/no-show", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Only admins can mark no-show" });
+      }
+
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Allow admin to mark no-show from customer_confirmed status
+      if (booking.status !== "customer_confirmed") {
+        return res.status(400).json({ message: "Can only mark no-show for guest-confirmed bookings" });
+      }
+
+      // Verify check-in date has passed
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkInDate = new Date(booking.checkIn);
+      checkInDate.setHours(0, 0, 0, 0);
+      
+      if (today <= checkInDate) {
+        return res.status(400).json({ message: "Cannot mark no-show before the check-in date has passed" });
+      }
+
+      const updated = await storage.markNoShow(req.params.id, userId, "admin");
+      
+      // Send emails to both guest and owner
+      const property = await storage.getProperty(booking.propertyId);
+      const guest = await storage.getUser(booking.guestId);
+      
+      if (property && guest?.email) {
+        const checkInFormatted = new Date(booking.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        sendBookingNoShowEmail(
+          guest.email,
+          guest.firstName || '',
+          {
+            bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
+            propertyTitle: property.title,
+            checkIn: checkInFormatted,
+            guests: booking.guests,
+            rooms: booking.rooms || 1,
+            totalPrice: booking.totalPrice,
+          },
+          'guest'
+        ).catch(console.error);
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error admin marking no-show:", error);
+      res.status(500).json({ message: "Failed to mark no-show" });
+    }
+  });
+
+  // Admin: Unmark no-show (reverse to customer_confirmed)
+  app.patch("/api/admin/bookings/:id/unmark-no-show", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Only admins can unmark no-show" });
+      }
+
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Only allow unmarking no-show status
+      if (booking.status !== "no_show") {
+        return res.status(400).json({ message: "Can only unmark bookings with no-show status" });
+      }
+
+      const updated = await storage.adminUnmarkNoShow(req.params.id, userId);
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error admin unmarking no-show:", error);
+      res.status(500).json({ message: "Failed to unmark no-show" });
+    }
+  });
+
   // Search history routes
   app.post("/api/search-history", isAuthenticated, async (req: any, res) => {
     try {
@@ -4901,6 +4990,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking check-out:", error);
       res.status(500).json({ message: "Failed to mark check-out" });
+    }
+  });
+
+  // Mark booking as no-show (owner only)
+  // Can only mark as no-show if: status is customer_confirmed, current date > check-in date, not checked in
+  app.patch("/api/owner/bookings/:id/no-show", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "owner")) {
+        return res.status(403).json({ message: "Only owners can mark no-show" });
+      }
+
+      const booking = await storage.getBooking(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Verify owner owns the property
+      const property = await storage.getProperty(booking.propertyId);
+      if (!property || property.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this booking" });
+      }
+
+      // Only allow no-show from customer_confirmed status
+      if (booking.status !== "customer_confirmed") {
+        return res.status(400).json({ message: "Can only mark no-show for guest-confirmed bookings" });
+      }
+
+      // Verify check-in date has passed (current date > check-in date)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkInDate = new Date(booking.checkIn);
+      checkInDate.setHours(0, 0, 0, 0);
+      
+      if (today <= checkInDate) {
+        return res.status(400).json({ message: "Cannot mark no-show before the check-in date has passed" });
+      }
+
+      const updated = await storage.markNoShow(req.params.id, userId, "owner");
+      
+      // Notify guest via WebSocket
+      const guest = await storage.getUser(booking.guestId);
+      if (wss && guest) {
+        const notification = {
+          type: "booking_status_update",
+          bookingId: booking.id,
+          status: "no_show",
+          message: `Your booking at ${property.title} has been marked as a no-show. Please contact the property for any queries.`,
+          propertyTitle: property.title,
+        };
+        broadcastToUser(guest.id, notification);
+      }
+
+      // Send no-show emails
+      if (guest?.email) {
+        const checkInFormatted = new Date(booking.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const bookingEmailData = {
+          bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
+          propertyTitle: property.title,
+          checkIn: checkInFormatted,
+          guests: booking.guests,
+          rooms: booking.rooms || 1,
+          totalPrice: booking.totalPrice,
+          bookedOn: booking.bookingCreatedAt ? new Date(booking.bookingCreatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined,
+        };
+        sendBookingNoShowEmail(
+          guest.email,
+          guest.firstName || '',
+          bookingEmailData,
+          'guest'
+        ).catch(console.error);
+      }
+
+      // Send email to owner
+      const owner = await storage.getUser(property.ownerId);
+      if (owner?.email) {
+        const checkInFormatted = new Date(booking.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const bookingEmailData = {
+          bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
+          propertyTitle: property.title,
+          checkIn: checkInFormatted,
+          guests: booking.guests,
+          rooms: booking.rooms || 1,
+          totalPrice: booking.totalPrice,
+          guestName: guest ? `${guest.firstName || ''} ${guest.lastName || ''}`.trim() : 'Guest',
+          bookedOn: booking.bookingCreatedAt ? new Date(booking.bookingCreatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined,
+        };
+        sendBookingNoShowEmail(
+          owner.email,
+          owner.firstName || '',
+          bookingEmailData,
+          'owner'
+        ).catch(console.error);
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error marking no-show:", error);
+      res.status(500).json({ message: "Failed to mark no-show" });
     }
   });
 
