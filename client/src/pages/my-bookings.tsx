@@ -30,6 +30,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useBookingUpdates } from "@/hooks/useBookingUpdates";
 
 interface Booking {
   id: string;
@@ -75,8 +76,11 @@ interface Booking {
 export default function MyBookings() {
   const [activeTab, setActiveTab] = useState("all");
   const [location, setLocation] = useLocation();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [showNewBookingBanner, setShowNewBookingBanner] = useState(false);
+  
+  // Subscribe to real-time booking updates via WebSocket with polling fallback
+  useBookingUpdates({ userId: user?.id });
   const [highlightedBookingCode, setHighlightedBookingCode] = useState<string | null>(null);
   const [bookingNotFound, setBookingNotFound] = useState<string | null>(null);
 
