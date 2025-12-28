@@ -92,7 +92,11 @@ export const bookingStatusEnum = pgEnum("booking_status", [
   "checked_in",         // Guest has checked in (owner marked)
   "checked_out",        // Guest has checked out (owner marked)
   "completed",          // Stay completed
+  "no_show",            // Guest did not check in (marked by owner/admin)
 ]);
+
+// No-show marked by enum
+export const noShowMarkedByEnum = pgEnum("no_show_marked_by", ["owner", "admin"]);
 
 // Booking type enum - for tracking standard vs extension bookings
 export const bookingTypeEnum = pgEnum("booking_type", [

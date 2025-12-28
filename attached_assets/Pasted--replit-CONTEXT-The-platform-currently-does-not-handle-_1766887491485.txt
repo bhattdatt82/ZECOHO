@@ -1,0 +1,134 @@
+@replit
+
+CONTEXT:
+The platform currently does not handle "No-Show" cases.
+A No-Show occurs when a booking is confirmed but the guest does not check in.
+
+GOAL:
+Implement No-Show logic across the platform with proper database tracking,
+owner/admin controls, and customer visibility.
+
+--------------------------------
+DATABASE CHANGES
+--------------------------------
+
+1. Update the bookings table to add the following fields:
+
+- noShow (boolean, default false)
+- noShowMarkedAt (timestamp, nullable)
+- noShowMarkedBy (enum: 'OWNER', 'ADMIN', nullable)
+
+Ensure these fields are persisted and queryable.
+
+--------------------------------
+NO-SHOW DEFINITION (AUTHORITATIVE)
+--------------------------------
+
+A booking qualifies as NO-SHOW if ALL conditions are met:
+
+- booking.status === CUSTOMER_CONFIRMED
+- current time is AFTER check-in date
+- booking has NOT been marked as CHECKED_IN
+- booking has NOT been cancelled
+
+--------------------------------
+BOOKING STATUS UPDATE
+--------------------------------
+
+2. Add a new booking status:
+   NO_SHOW
+
+3. Once marked as NO_SHOW:
+- booking.status must change to NO_SHOW
+- booking.noShow = true
+- booking.noShowMarkedAt = current timestamp
+- booking.noShowMarkedBy = OWNER or ADMIN
+
+--------------------------------
+OWNER PORTAL CHANGES
+--------------------------------
+
+4. In Owner Dashboard → Booking Detail page:
+
+If booking status is CUSTOMER_CONFIRMED
+AND current time > check-in date
+AND not checked-in:
+
+- Show a CTA button:
+  "Mark as No-Show"
+
+5. On click:
+- Show confirmation modal:
+  "Are you sure the guest did not check in?"
+
+6. On confirm:
+- Update booking status to NO_SHOW
+- Save noShow fields in database
+- Lock booking (no further actions allowed)
+
+--------------------------------
+ADMIN OVERRIDE (OPTIONAL BUT REQUIRED)
+--------------------------------
+
+7. In Admin panel:
+- Allow admin to mark or unmark No-Show
+- Log admin action in noShowMarkedBy
+
+--------------------------------
+CUSTOMER VISIBILITY
+--------------------------------
+
+8. In Customer Booking Details:
+- If booking is NO_SHOW:
+  Display status label:
+  "No-Show (Guest did not check in)"
+
+- Disable all actions
+- Make status read-only
+
+--------------------------------
+INVENTORY HANDLING
+--------------------------------
+
+9. Inventory behavior on NO-SHOW:
+- Do NOT restore rooms automatically
+- Inventory remains consumed
+- (Future automation can change this later)
+
+--------------------------------
+EMAIL / NOTIFICATION
+--------------------------------
+
+10. Trigger notifications:
+
+- Owner:
+  "Booking marked as No-Show"
+
+- Customer:
+  "Booking closed as No-Show"
+
+Email must clearly state:
+- Booking ID
+- Property name
+- Check-in date
+- No refund implied unless policy says otherwise
+
+--------------------------------
+RULES & SAFETY
+--------------------------------
+
+- No-Show can only be marked AFTER check-in date
+- No-Show cannot be reversed by owner once marked
+- Only admin can reverse No-Show (if needed)
+- No-Show logic must not affect confirmed bookings before check-in
+
+--------------------------------
+SUCCESS CRITERIA
+--------------------------------
+
+- No-Show is a first-class booking state
+- No-Show is stored in database
+- Owners can mark No-Show correctly
+- Customers see clear status
+- No booking can proceed after No-Show
+- Data is available for reports and audits
