@@ -182,14 +182,14 @@ export default function MyBookings() {
 
   // Cancel booking mutation
   const cancelBookingMutation = useMutation({
-    mutationFn: async (bookingId: string) => {
-      return await apiRequest("PATCH", `/api/bookings/${bookingId}/status`, { status: "cancelled" });
+    mutationFn: async ({ bookingId, reason }: { bookingId: string; reason?: string }) => {
+      return await apiRequest("POST", `/api/bookings/${bookingId}/cancel`, { reason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       toast({
         title: "Booking Cancelled",
-        description: "Your booking request has been cancelled.",
+        description: "Your booking has been cancelled. The property owner has been notified.",
       });
     },
     onError: (error: any) => {
@@ -401,6 +401,17 @@ export default function MyBookings() {
                       </Button>
                     </Link>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30"
+                    onClick={() => cancelBookingMutation.mutate({ bookingId: booking.id, reason: "Cancelled by guest while pending" })}
+                    disabled={cancelBookingMutation.isPending}
+                    data-testid={`btn-cancel-pending-${booking.id}`}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    {cancelBookingMutation.isPending ? "Cancelling..." : "Cancel Booking"}
+                  </Button>
                 </div>
               </div>
             )}
@@ -527,7 +538,7 @@ export default function MyBookings() {
                           size="lg"
                           variant="outline" 
                           className="flex-1 sm:flex-none text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30"
-                          onClick={() => cancelBookingMutation.mutate(booking.id)}
+                          onClick={() => cancelBookingMutation.mutate({ bookingId: booking.id, reason: "Cancelled by guest before confirming" })}
                           disabled={cancelBookingMutation.isPending}
                           data-testid={`btn-cancel-request-${booking.id}`}
                         >
@@ -612,7 +623,23 @@ export default function MyBookings() {
                       </Button>
                     </Link>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30"
+                    onClick={() => cancelBookingMutation.mutate({ bookingId: booking.id, reason: "Cancelled by guest" })}
+                    disabled={cancelBookingMutation.isPending}
+                    data-testid={`btn-cancel-confirmed-${booking.id}`}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    {cancelBookingMutation.isPending ? "Cancelling..." : "Cancel Booking"}
+                  </Button>
                 </div>
+                
+                {/* Cancellation Policy Info */}
+                <p className="text-xs text-muted-foreground">
+                  Cancellation is subject to the property's cancellation policy. Please review terms before cancelling.
+                </p>
               </div>
             )}
 
