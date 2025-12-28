@@ -9,10 +9,11 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
-import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail } from "./emailService";
+import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail, sendBookingCancelledOwnerEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { WebSocketServer, WebSocket } from "ws";
+import { format } from "date-fns";
 
 // WebSocket connections map: userId -> Set of WebSocket connections
 const userConnections = new Map<string, Set<WebSocket>>();
@@ -3557,6 +3558,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error confirming booking:", error);
       res.status(500).json({ message: "Failed to confirm booking" });
+    }
+  });
+
+  // Guest cancels their own booking
+  app.post("/api/bookings/:id/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const bookingId = req.params.id;
+      const { reason } = req.body;
+      
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
+      // Only the guest can cancel their own booking
+      if (booking.guestId !== userId) {
+        return res.status(403).json({ message: "You can only cancel your own bookings" });
+      }
+      
+      // Check if booking can be cancelled based on status
+      const cancellableStatuses = ["pending", "confirmed", "customer_confirmed"];
+      if (!cancellableStatuses.includes(booking.status)) {
+        return res.status(400).json({ 
+          message: `Cannot cancel a booking with status '${booking.status}'. Only pending or confirmed bookings can be cancelled.` 
+        });
+      }
+      
+      // Check cancellation policy based on check-in date
+      const checkInDate = new Date(booking.checkIn);
+      const now = new Date();
+      const hoursUntilCheckIn = (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      // Get property to check cancellation policy
+      const property = await storage.getProperty(booking.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      // Parse cancellation policy - default to 24 hours before check-in
+      // Policies: "flexible" = 24h, "moderate" = 48h, "strict" = 72h, "non-refundable" = no cancellation
+      let minHoursBeforeCheckIn = 24;
+      let refundPercentage = 100;
+      const policy = property.cancellationPolicy?.toLowerCase() || "flexible";
+      
+      if (policy === "moderate") {
+        minHoursBeforeCheckIn = 48;
+        refundPercentage = 100;
+      } else if (policy === "strict") {
+        minHoursBeforeCheckIn = 72;
+        refundPercentage = 50;
+      } else if (policy === "non-refundable" || policy === "non_refundable") {
+        return res.status(400).json({ 
+          message: "This booking has a non-refundable cancellation policy and cannot be cancelled online. Please contact the property directly." 
+        });
+      }
+      
+      // Check if check-in has already passed
+      if (hoursUntilCheckIn < 0) {
+        return res.status(400).json({ 
+          message: "Cannot cancel a booking after the check-in date has passed." 
+        });
+      }
+      
+      // Check if within cancellation window
+      if (hoursUntilCheckIn < minHoursBeforeCheckIn) {
+        return res.status(400).json({ 
+          message: `This booking cannot be cancelled within ${minHoursBeforeCheckIn} hours of check-in per the ${policy} cancellation policy. Check-in is in ${Math.floor(hoursUntilCheckIn)} hours.` 
+        });
+      }
+      
+      // Update booking to cancelled
+      const updated = await storage.cancelBooking(bookingId, "guest", reason || "Cancelled by guest");
+      
+      // Get guest info for emails
+      const guest = await storage.getUser(userId);
+      const checkInFormatted = format(checkInDate, "MMM d, yyyy");
+      const checkOutFormatted = format(new Date(booking.checkOut), "MMM d, yyyy");
+      
+      // Send email to guest
+      if (guest?.email) {
+        sendBookingDeclinedEmail(
+          guest.email,
+          guest.firstName || '',
+          {
+            bookingCode: booking.bookingCode || bookingId,
+            propertyName: property.title,
+            checkIn: checkInFormatted,
+            checkOut: checkOutFormatted,
+            totalPrice: booking.totalPrice?.toString() || '0',
+            guests: booking.guests,
+            rooms: booking.rooms || 1,
+          },
+          'cancelled'
+        ).catch(console.error);
+      }
+      
+      // Send email to owner
+      const owner = await storage.getUser(property.ownerId);
+      if (owner?.email) {
+        sendBookingCancelledOwnerEmail(
+          owner.email,
+          owner.firstName || '',
+          {
+            bookingCode: booking.bookingCode || bookingId,
+            propertyName: property.title,
+            checkIn: checkInFormatted,
+            checkOut: checkOutFormatted,
+            totalPrice: booking.totalPrice?.toString() || '0',
+            guests: booking.guests,
+            rooms: booking.rooms || 1,
+            guestName: guest?.firstName && guest?.lastName 
+              ? `${guest.firstName} ${guest.lastName}` 
+              : guest?.email || 'Guest',
+            cancellationReason: reason || 'No reason provided',
+          }
+        ).catch(console.error);
+      }
+      
+      console.log(`[BOOKING:CANCELLED] Guest ${userId} cancelled booking ${bookingId}`);
+      
+      res.json({ 
+        ...updated, 
+        message: "Booking cancelled successfully.",
+        refundPercentage,
+      });
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      res.status(500).json({ message: "Failed to cancel booking" });
     }
   });
 

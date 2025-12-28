@@ -160,6 +160,7 @@ export interface IStorage {
   markCheckedOut(bookingId: string, userId: string, isEarlyCheckout?: boolean): Promise<Booking | undefined>;
   markNoShow(bookingId: string, userId: string, markedBy: "owner" | "admin", reason?: string): Promise<Booking | undefined>;
   adminUnmarkNoShow(bookingId: string, userId: string): Promise<Booking | undefined>;
+  cancelBooking(bookingId: string, cancelledBy: "guest" | "owner" | "admin", reason?: string): Promise<Booking | undefined>;
   deleteBooking(id: string): Promise<void>;
 
   // Conversation operations
@@ -666,6 +667,22 @@ export class DatabaseStorage implements IStorage {
         noShowMarkedBy: markedBy,
         noShowMarkedByUserId: userId,
         noShowReason: reason || null,
+        updatedAt: now,
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    return updated;
+  }
+
+  async cancelBooking(bookingId: string, cancelledBy: "guest" | "owner" | "admin", reason?: string): Promise<Booking | undefined> {
+    const now = new Date();
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "cancelled",
+        cancelledAt: now,
+        cancelledBy: cancelledBy,
+        cancellationReason: reason || null,
         updatedAt: now,
       })
       .where(eq(bookings.id, bookingId))
