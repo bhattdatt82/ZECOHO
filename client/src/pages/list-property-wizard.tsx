@@ -993,6 +993,11 @@ export default function ListPropertyWizard() {
         throw new Error("Please upload at least one property image");
       }
 
+      // Validate geo coordinates
+      if (!propertyLatitude || !propertyLongitude) {
+        throw new Error("Please set your property location on the map");
+      }
+
       // Submit as draft property
       const response = await apiRequest("POST", "/api/properties/create-draft", {
         firstName: data.firstName,
@@ -1007,6 +1012,10 @@ export default function ListPropertyWizard() {
         pricePerNight: data.pricePerNight,
         images: allImages,
         categorizedImages: categorizedImages,
+        latitude: propertyLatitude,
+        longitude: propertyLongitude,
+        geoVerified: true,
+        geoSource: geoSource || "manual_pin",
       });
       return await response.json();
     },
@@ -1064,6 +1073,16 @@ export default function ListPropertyWizard() {
       toast({
         title: "Photos Required",
         description: "Please upload at least one property photo",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check location
+    if (!propertyLatitude || !propertyLongitude) {
+      toast({
+        title: "Location Required",
+        description: "Please set your property location on the map",
         variant: "destructive"
       });
       return;
@@ -2034,6 +2053,32 @@ export default function ListPropertyWizard() {
                     />
                     {getTotalImageCount() === 0 && (
                       <p className="text-sm text-destructive mt-2">Please upload at least one photo</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      Property Location
+                    </CardTitle>
+                    <CardDescription>
+                      Set your property's exact location on the map
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <PropertyLocationPicker
+                      latitude={propertyLatitude}
+                      longitude={propertyLongitude}
+                      onLocationChange={(lat, lng, source) => {
+                        setPropertyLatitude(lat);
+                        setPropertyLongitude(lng);
+                        setGeoSource(source || null);
+                      }}
+                    />
+                    {(!propertyLatitude || !propertyLongitude) && (
+                      <p className="text-sm text-destructive mt-2">Please set your property location on the map</p>
                     )}
                   </CardContent>
                 </Card>

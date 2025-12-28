@@ -1175,7 +1175,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { 
         firstName, lastName, email, phone,
         propertyTitle, propCity, propState, propDistrict, propertyType, pricePerNight,
-        images, categorizedImages, description
+        images, categorizedImages, description,
+        latitude, longitude, geoVerified, geoSource
       } = req.body;
       
       // Validate required fields
@@ -1193,6 +1194,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (!images || !Array.isArray(images) || images.length === 0) {
         return res.status(400).json({ message: "At least one property image is required" });
+      }
+      if (!latitude || !longitude) {
+        return res.status(400).json({ message: "Property location (GPS coordinates) is required. Please use the map picker to set your property's location." });
       }
       
       // Update user info if provided, and promote to owner role
@@ -1223,6 +1227,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         propCity: propCity,
         propState: propState || null,
         propDistrict: propDistrict || null,
+        latitude: latitude ? String(latitude) : null,
+        longitude: longitude ? String(longitude) : null,
+        geoVerified: geoVerified || false,
+        geoSource: geoSource || null,
         images: images,
         categorizedImages: categorizedImages || null,
         pricePerNight: String(pricePerNight),
