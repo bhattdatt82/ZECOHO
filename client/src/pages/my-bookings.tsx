@@ -38,7 +38,7 @@ interface Booking {
   checkOut: string;
   guests: number;
   totalPrice: string;
-  status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed";
+  status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed" | "no_show";
   ownerResponseMessage?: string;
   respondedAt?: string;
   checkInTime?: string;
@@ -211,6 +211,7 @@ export default function MyBookings() {
       checked_out: { variant: "secondary", label: "Checked Out", icon: CheckCircle },
       completed: { variant: "secondary", label: "Completed", icon: CheckCircle },
       cancelled: { variant: "destructive", label: "Cancelled", icon: XCircle },
+      no_show: { variant: "destructive", label: "No-Show", icon: AlertTriangle },
     };
     const config = statusConfig[status] || { variant: "secondary", label: status, icon: Clock };
     const Icon = config.icon;
@@ -230,7 +231,7 @@ export default function MyBookings() {
   const filteredBookings = sortedBookings?.filter((booking) => {
     if (activeTab === "all") return true;
     if (activeTab === "upcoming") return booking.status === "pending" || booking.status === "confirmed" || booking.status === "customer_confirmed" || booking.status === "checked_in";
-    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out";
+    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out" || booking.status === "no_show";
     return true;
   });
 
@@ -426,6 +427,42 @@ export default function MyBookings() {
                       className="gap-2"
                       onClick={() => window.location.href = `tel:${booking.ownerContact!.phone}`}
                       data-testid={`btn-call-owner-rejected-${booking.id}`}
+                    >
+                      <Phone className="h-4 w-4" />
+                      Call Owner
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {booking.status === "no_show" && (
+              <div className="space-y-4">
+                <div className="text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-destructive font-medium">Marked as No-Show</p>
+                      <p className="text-muted-foreground mt-1">
+                        This booking was marked as a no-show because check-in did not occur on the scheduled date ({format(new Date(booking.checkIn), "dd MMM yyyy")}).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Link href="/messages">
+                    <Button size="sm" variant="outline" className="gap-2" data-testid={`btn-chat-owner-noshow-${booking.id}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      Contact Owner
+                    </Button>
+                  </Link>
+                  {booking.ownerContact?.phone && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => window.location.href = `tel:${booking.ownerContact!.phone}`}
+                      data-testid={`btn-call-owner-noshow-${booking.id}`}
                     >
                       <Phone className="h-4 w-4" />
                       Call Owner
@@ -656,7 +693,7 @@ export default function MyBookings() {
             )}
 
             {/* Only show generic action buttons for statuses that don't have their own */}
-            {booking.status !== "pending" && booking.status !== "confirmed" && booking.status !== "customer_confirmed" && booking.status !== "rejected" && booking.status !== "checked_in" && (
+            {booking.status !== "pending" && booking.status !== "confirmed" && booking.status !== "customer_confirmed" && booking.status !== "rejected" && booking.status !== "checked_in" && booking.status !== "no_show" && (
               <div className="flex items-center gap-2 flex-wrap">
                 {booking.property && (
                   <Link href={`/properties/${booking.property.id}`}>

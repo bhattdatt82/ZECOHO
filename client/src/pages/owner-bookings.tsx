@@ -58,7 +58,7 @@ interface Booking {
   checkOut: string;
   guests: number;
   totalPrice: string;
-  status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed";
+  status: "pending" | "confirmed" | "customer_confirmed" | "rejected" | "cancelled" | "checked_in" | "checked_out" | "completed" | "no_show";
   ownerResponseMessage?: string;
   respondedAt?: string;
   checkInTime?: string;
@@ -110,6 +110,8 @@ export default function OwnerBookings() {
   const [extendDate, setExtendDate] = useState<Date | undefined>(undefined);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [bookingToAccept, setBookingToAccept] = useState<Booking | null>(null);
+  const [noShowDialogOpen, setNoShowDialogOpen] = useState(false);
+  const [bookingToMarkNoShow, setBookingToMarkNoShow] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -257,6 +259,28 @@ export default function OwnerBookings() {
     },
   });
 
+  const noShowMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("PATCH", `/api/owner/bookings/${id}/no-show`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
+      setNoShowDialogOpen(false);
+      setBookingToMarkNoShow(null);
+      toast({
+        title: "Booking Marked as No-Show",
+        description: "The guest has been notified that they did not check in.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Mark No-Show",
+        description: error?.message || "Failed to mark booking as no-show.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleReject = () => {
     if (!selectedBooking) return;
     let finalReason = "";
@@ -342,9 +366,30 @@ export default function OwnerBookings() {
       checked_out: { variant: "secondary", label: "Checked Out" },
       completed: { variant: "secondary", label: "Completed" },
       cancelled: { variant: "destructive", label: "Cancelled" },
+      no_show: { variant: "destructive", label: "No-Show" },
     };
     const config = statusConfig[status] || { variant: "secondary", label: status };
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  // Helper to check if no-show can be marked (guest-confirmed, check-in date has passed)
+  const canMarkNoShow = (booking: Booking) => {
+    if (booking.status !== "customer_confirmed") return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDate = new Date(booking.checkIn);
+    checkInDate.setHours(0, 0, 0, 0);
+    return today > checkInDate; // Check-in date must have passed
+  };
+
+  const openNoShowDialog = (booking: Booking) => {
+    setBookingToMarkNoShow(booking);
+    setNoShowDialogOpen(true);
+  };
+
+  const confirmNoShow = () => {
+    if (!bookingToMarkNoShow) return;
+    noShowMutation.mutate(bookingToMarkNoShow.id);
   };
 
   // Helper to check if check-in is allowed (today >= check-in date)
@@ -407,7 +452,7 @@ export default function OwnerBookings() {
   const filteredBookings = bookings?.filter((booking) => {
     if (activeTab === "all") return true;
     if (activeTab === "upcoming") return booking.status === "confirmed" || booking.status === "customer_confirmed" || booking.status === "checked_in";
-    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out";
+    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out" || booking.status === "no_show";
     if (activeTab === "pending") return booking.status === "pending";
     return true;
   });
@@ -652,7 +697,27 @@ export default function OwnerBookings() {
                   Call Guest
                 </Button>
               )}
+              {canMarkNoShow(booking) && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => openNoShowDialog(booking)}
+                  disabled={noShowMutation.isPending}
+                  data-testid={`mark-no-show-${booking.id}`}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  Mark No-Show
+                </Button>
+              )}
             </div>
+            {canMarkNoShow(booking) && (
+              <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Guest was expected to check in on {format(new Date(booking.checkIn), "dd MMM")} but has not arrived. If the guest did not show up, you can mark this booking as a no-show.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1025,6 +1090,59 @@ export default function OwnerBookings() {
               data-testid="btn-confirm-accept"
             >
               {updateStatusMutation.isPending ? "Accepting..." : "Confirm Acceptance"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* No-Show Confirmation Dialog */}
+      <Dialog open={noShowDialogOpen} onOpenChange={setNoShowDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Booking as No-Show</DialogTitle>
+            <DialogDescription>
+              Confirm that the guest did not check in for this booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            {bookingToMarkNoShow && (
+              <div className="p-3 bg-muted rounded-md space-y-2 text-sm">
+                <p><strong>Guest:</strong> {bookingToMarkNoShow.guest?.name}</p>
+                <p><strong>Property:</strong> {bookingToMarkNoShow.property?.title}</p>
+                <p><strong>Check-in Date:</strong> {format(new Date(bookingToMarkNoShow.checkIn), "dd MMM yyyy")}</p>
+                <p><strong>Amount:</strong> {formatCurrency(bookingToMarkNoShow.totalPrice)}</p>
+              </div>
+            )}
+            <div className="space-y-2 text-sm">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                <span>This booking will be marked as No-Show</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                <span>The guest will be notified via email</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <span className="text-amber-700 dark:text-amber-300">This action cannot be undone by you</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setNoShowDialogOpen(false)}
+              data-testid="btn-cancel-no-show"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={confirmNoShow}
+              disabled={noShowMutation.isPending}
+              data-testid="btn-confirm-no-show"
+            >
+              {noShowMutation.isPending ? "Marking..." : "Confirm No-Show"}
             </Button>
           </DialogFooter>
         </DialogContent>
