@@ -1,0 +1,138 @@
+@replit
+
+FIX GEO-TAGGING IN OWNER ONBOARDING
+Add current-location support and enforce completion before approval.
+
+--------------------------------------------------
+PROBLEM STATEMENT
+--------------------------------------------------
+
+Geo-tagging exists but:
+- Not part of owner onboarding flow
+- Owners can skip it
+- No "Use Current Location" option
+- Properties can reach approval without precise coordinates
+
+--------------------------------------------------
+SOLUTION OVERVIEW
+--------------------------------------------------
+
+1. Embed geo-tagging step into onboarding
+2. Add "Use My Current Location" button
+3. Make geo-tagging mandatory before:
+   - KYC submission completion
+   - Property publish
+4. Persist lat/lng reliably in DB
+
+--------------------------------------------------
+ONBOARDING FLOW CHANGES
+--------------------------------------------------
+
+STEP ORDER (OWNER ONBOARDING):
+
+1. Basic Property Details
+2. Address Details
+3. 📍 Property Location (NEW — MANDATORY)
+4. Room & Pricing
+5. KYC Upload
+6. Review & Submit
+
+--------------------------------------------------
+PROPERTY LOCATION STEP (NEW)
+--------------------------------------------------
+
+UI COMPONENTS:
+
+- Google Map / Mapbox map
+- Search address input
+- 📍 "Use My Current Location" button
+- Draggable map pin
+- Read-only latitude & longitude preview
+
+--------------------------------------------------
+CURRENT LOCATION LOGIC
+--------------------------------------------------
+
+On clicking "Use My Current Location":
+
+- Request browser permission via:
+  navigator.geolocation.getCurrentPosition
+
+- If allowed:
+  - Auto-center map
+  - Drop pin at detected coordinates
+  - Populate latitude & longitude
+  - Reverse-geocode address (optional)
+  - Set geoVerified = true
+
+- If denied:
+  - Show message:
+    "Please allow location access or manually pin your property"
+
+--------------------------------------------------
+VALIDATION RULES (STRICT)
+--------------------------------------------------
+
+Block NEXT button unless:
+- latitude != null
+- longitude != null
+- geoVerified === true
+
+Show inline error:
+"Property location is required to continue"
+
+--------------------------------------------------
+DATABASE UPDATES
+--------------------------------------------------
+
+Ensure Property table has:
+
+- latitude FLOAT (required post-onboarding)
+- longitude FLOAT (required post-onboarding)
+- geoVerified BOOLEAN DEFAULT false
+- geoSource ENUM ('manual_pin', 'current_location')
+
+Save geoSource based on selection.
+
+--------------------------------------------------
+APPROVAL & PUBLISH GUARDS
+--------------------------------------------------
+
+BLOCK the following if geoVerified === false:
+
+- Property publish
+- Booking acceptance
+- Listing visibility in search
+
+--------------------------------------------------
+OWNER DASHBOARD UX
+--------------------------------------------------
+
+If geo missing:
+- Show red banner:
+  ⚠ Property location not set
+- CTA button:
+  "Set Location Now"
+
+--------------------------------------------------
+CUSTOMER SIDE RULE
+--------------------------------------------------
+
+Do NOT show properties without geoVerified = true
+in:
+- City search
+- Nearby hotels
+- Booking flow
+
+--------------------------------------------------
+SUCCESS CRITERIA
+--------------------------------------------------
+
+- Geo-tagging is unavoidable
+- Owners can use current GPS
+- Coordinates are accurate
+- No ghost / fake locations
+- Strong trust signal for ZECOHO
+
+Implement without removing existing geo-tag logic.
+Extend and enforce it.

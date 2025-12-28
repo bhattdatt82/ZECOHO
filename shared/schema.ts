@@ -122,6 +122,9 @@ export const kycStatusEnum = pgEnum("kyc_status", [
 // Listing mode enum - for owner onboarding flow
 export const listingModeEnum = pgEnum("listing_mode", ["not_selected", "quick", "full"]);
 
+// Geo source enum - for tracking how property location was set
+export const geoSourceEnum = pgEnum("geo_source", ["manual_pin", "current_location"]);
+
 // User storage table - supports both Replit Auth and local registration
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
