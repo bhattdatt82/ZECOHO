@@ -1,0 +1,88 @@
+Fix and fully enforce property geo-location across ZECOHO.
+
+PROBLEM SUMMARY:
+- Owner onboarding does not strictly enforce location capture
+- “Use my current location” is unreliable
+- Manual pin drop / map click does not persist
+- Address and lat/lng are not tightly linked
+- Guest property page does not show full address or correct map
+- Old location UI still renders even after updates
+
+REQUIRED CHANGES:
+
+1. MANDATORY LOCATION ENFORCEMENT
+- Make property location mandatory for:
+  a) Owner onboarding
+  b) Property edit (Owner Portal → Location tab)
+- Block property publishing if latitude OR longitude is missing
+- Show a blocking error banner: “Property location is required to publish”
+
+2. LOCATION INPUT METHODS (ALL MUST WORK)
+Implement all three and keep them in sync:
+- “Use my current location” button
+  - Use browser geolocation API
+  - On success, set latitude & longitude
+  - Immediately reverse-geocode to fetch full address
+- Address search input
+  - Autocomplete via Google Maps Places
+  - Selecting an address updates lat/lng
+- Manual map interaction
+  - Allow clicking or dragging the pin
+  - On pin move, update lat/lng
+  - Reverse-geocode pin position to update address
+
+3. TIGHT ADDRESS ↔ COORDINATE LINKING
+Any change must update the other:
+- Address change → updates lat/lng
+- Pin move → updates address fields
+- Current location → updates both
+
+Persist the following fields:
+- latitude
+- longitude
+- full_address
+- locality / area
+- city
+- state
+- country
+- pincode
+
+4. DATABASE & API FIXES
+- Ensure property.location is saved correctly on update
+- Invalidate and refetch property queries after save
+- Fix any stale cache causing old UI to appear
+- Add validation at API level:
+  - Reject save if lat/lng missing
+
+5. OWNER UI FIX
+- Replace old location UI completely
+- Show:
+  - Address search bar
+  - “Use my current location” button
+  - Interactive Google Map with draggable pin
+- Show success toast: “Location saved successfully”
+- Show error toast if save fails
+
+6. GUEST PROPERTY PAGE FIX
+- Display full readable address (not just city)
+- Render map centered on saved coordinates
+- If location missing (legacy data):
+  - Hide map
+  - Show “Location unavailable” message
+
+7. PUBLISHING GUARD
+- Prevent publishing if:
+  - latitude OR longitude is null
+- Show inline warning explaining why publish is blocked
+
+8. BACKWARD COMPATIBILITY
+- For existing properties without coordinates:
+  - Force owner to update location on next edit
+  - Show persistent warning banner
+
+EXPECTED RESULT:
+- Owners must set exact location before publishing
+- Location can be set via GPS, search, or pin drop
+- Address and map always stay in sync
+- Guests see correct map + address
+- Old broken location flow is fully removed

@@ -1116,19 +1116,45 @@ export default function PropertyDetails() {
             </div>
 
             {/* Location Map */}
-            {property.latitude && property.longitude && (
-              <div>
-                <h2 className="text-xl font-semibold mb-2">Where you'll be</h2>
-                <p className="text-muted-foreground mb-4">{property.destination}</p>
-                <div className="rounded-xl overflow-hidden border" data-testid="property-map-container">
-                  <PropertyMap 
-                    latitude={Number(property.latitude)} 
-                    longitude={Number(property.longitude)}
-                    title={property.title}
-                  />
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Where you'll be</h2>
+              {property.latitude && property.longitude ? (
+                <>
+                  <div className="mb-4 space-y-1">
+                    {(property.propStreetAddress || property.propLocality || property.propCity) && (
+                      <p className="text-foreground" data-testid="text-property-address">
+                        {[
+                          property.propStreetAddress,
+                          property.propLocality,
+                          property.propCity,
+                          property.propState,
+                          property.propPincode
+                        ].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    <p className="text-muted-foreground" data-testid="text-property-destination">
+                      {property.destination}
+                    </p>
+                  </div>
+                  <div className="rounded-xl overflow-hidden border" data-testid="property-map-container">
+                    <PropertyMap 
+                      latitude={Number(property.latitude)} 
+                      longitude={Number(property.longitude)}
+                      title={property.title}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="p-6 bg-muted/50 rounded-lg border text-center" data-testid="location-unavailable">
+                  <p className="text-muted-foreground">
+                    Exact location will be provided after booking confirmation.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {property.destination}
+                  </p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Things to Know */}
             {(property.policies || property.checkInTime || property.checkOutTime || 

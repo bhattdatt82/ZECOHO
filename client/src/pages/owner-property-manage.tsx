@@ -36,7 +36,7 @@ import {
   ChevronUp,
   MapPin,
 } from "lucide-react";
-import { AddressInput, type AddressDetails } from "@/components/AddressInput";
+import { PropertyLocationPicker, type AddressData } from "@/components/PropertyLocationPicker";
 import { PropertyMap } from "@/components/PropertyMap";
 import type { Property, AvailabilityOverride, RoomType, RoomOption } from "@shared/schema";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -190,19 +190,16 @@ function PropertyStatusBadge({ status }: { status: string }) {
 function LocationSection({ property }: { property: Property }) {
   const { toast } = useToast();
   const propertyIdStr = String(property.id);
-  const [address, setAddress] = useState<AddressDetails>({
-    fullAddress: property.address || "",
-    streetAddress: property.propStreet || "",
-    locality: property.propLocality || "",
-    city: property.propCity || "",
-    state: property.propState || "",
-    pincode: property.propPincode || "",
-    landmark: property.propLandmark || "",
-    latitude: property.latitude ? Number(property.latitude) : undefined,
-    longitude: property.longitude ? Number(property.longitude) : undefined,
-  });
+  const [latitude, setLatitude] = useState<number | null>(
+    property.latitude ? Number(property.latitude) : null
+  );
+  const [longitude, setLongitude] = useState<number | null>(
+    property.longitude ? Number(property.longitude) : null
+  );
+  const [addressData, setAddressData] = useState<AddressData | null>(null);
+  const [geoSource, setGeoSource] = useState<"manual_pin" | "current_location" | null>(null);
 
-  const hasLocation = address.latitude && address.longitude;
+  const hasLocation = latitude && longitude;
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Record<string, any>) => {
@@ -211,54 +208,70 @@ function LocationSection({ property }: { property: Property }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyIdStr] });
       toast({
-        title: "Location Updated",
-        description: "Your property location has been saved.",
+        title: "Location Saved Successfully",
+        description: "Your property location and address have been updated.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to update location.",
+        description: "Failed to update location. Please try again.",
         variant: "destructive",
       });
     },
   });
 
+  const handleLocationChange = (
+    lat: number, 
+    lng: number, 
+    source: "manual_pin" | "current_location",
+    address?: AddressData
+  ) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setGeoSource(source);
+    if (address) {
+      setAddressData(address);
+    }
+  };
+
   const handleSaveLocation = () => {
-    if (!address.latitude || !address.longitude) {
+    if (!latitude || !longitude) {
       toast({
         title: "Location Required",
-        description: "Please set the property location using the map picker or by searching for the address.",
+        description: "Please set the property location using the map picker, address search, or your current location.",
         variant: "destructive",
       });
       return;
     }
 
     updateMutation.mutate({
-      address: address.fullAddress || null,
-      propStreet: address.streetAddress || null,
-      propLocality: address.locality || null,
-      propCity: address.city || null,
-      propState: address.state || null,
-      propPincode: address.pincode || null,
-      propLandmark: address.landmark || null,
-      latitude: address.latitude,
-      longitude: address.longitude,
+      latitude: latitude,
+      longitude: longitude,
+      geoSource: geoSource || "manual_pin",
+      geoVerified: true,
+      address: addressData?.fullAddress || null,
+      propStreetAddress: addressData?.streetAddress || null,
+      propLocality: addressData?.locality || null,
+      propCity: addressData?.city || null,
+      propDistrict: addressData?.district || null,
+      propState: addressData?.state || null,
+      propPincode: addressData?.pincode || null,
     });
   };
 
   return (
     <div className="space-y-6">
       {!hasLocation && (
-        <Card className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+        <Card className="border-destructive bg-destructive/10">
           <CardContent className="pt-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-amber-800 dark:text-amber-200">Location Not Set</p>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                  Your property doesn't have GPS coordinates set. Properties without location data cannot be approved for publishing.
-                  Please use the address search or map picker below to set your property's exact location.
+                <p className="font-medium text-destructive">Property Location Required</p>
+                <p className="text-sm text-destructive/80 mt-1">
+                  Your property cannot be published without GPS coordinates. 
+                  Please use the address search, click on the map, or use your current location to set the property's exact position.
                 </p>
               </div>
             </div>
@@ -274,41 +287,31 @@ function LocationSection({ property }: { property: Property }) {
           </CardTitle>
           <CardDescription>
             Set your property's exact location for guests to find you easily. 
-            Search for your address or click on the map to pin your location.
+            You can search for an address, use your current location, or click/drag on the map.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <AddressInput
-            value={address}
-            onChange={setAddress}
-            placeholder="Search for your property address..."
-            testIdPrefix="location"
+          <PropertyLocationPicker
+            latitude={latitude}
+            longitude={longitude}
+            onLocationChange={handleLocationChange}
+            initialAddress={{
+              fullAddress: property.address || "",
+              streetAddress: property.propStreetAddress || "",
+              locality: property.propLocality || "",
+              city: property.propCity || "",
+              district: property.propDistrict || "",
+              state: property.propState || "",
+              pincode: property.propPincode || "",
+              country: "India",
+            }}
           />
 
-          {hasLocation && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>
-                  Location set: {address.latitude?.toFixed(6)}, {address.longitude?.toFixed(6)}
-                </span>
-              </div>
-              
-              <div className="rounded-xl overflow-hidden border h-[300px]">
-                <PropertyMap 
-                  latitude={address.latitude!} 
-                  longitude={address.longitude!}
-                  title={property.title}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button
               onClick={handleSaveLocation}
-              disabled={updateMutation.isPending}
-              data-testid="save-location"
+              disabled={updateMutation.isPending || !hasLocation}
+              data-testid="button-save-location"
             >
               <Save className="h-4 w-4 mr-2" />
               {updateMutation.isPending ? "Saving..." : "Save Location"}
