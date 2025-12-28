@@ -319,6 +319,10 @@ export const bookings = pgTable("bookings", {
   noShowMarkedBy: noShowMarkedByEnum("no_show_marked_by"),
   noShowMarkedByUserId: varchar("no_show_marked_by_user_id").references(() => users.id),
   noShowReason: text("no_show_reason"),
+  // Cancellation tracking
+  cancelledAt: timestamp("cancelled_at"),
+  cancelledBy: varchar("cancelled_by", { length: 20 }), // 'guest' or 'owner' or 'admin'
+  cancellationReason: text("cancellation_reason"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
