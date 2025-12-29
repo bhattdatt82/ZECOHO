@@ -30,6 +30,14 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  UserCheck,
+  LogIn,
+  LogOut,
+  AlertTriangle,
+  MapPin,
+  Package,
+  ClipboardList,
+  XCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -54,6 +62,21 @@ interface OwnerStats {
   properties: { id: string; title: string; status: string; pricePerNight: string }[];
   hasDraftProperty?: boolean;
   draftPropertyId?: string;
+  // Action-focused stats
+  pendingRequests: number;
+  ongoingStays: number;
+  todaysCheckIns: number;
+  todaysCheckOuts: number;
+  monthlySummary: {
+    confirmed: number;
+    completed: number;
+    cancelled: number;
+    rejected: number;
+    noShow: number;
+    pending: number;
+    totalRevenue: number;
+  };
+  alerts: { type: string; message: string; link: string }[];
 }
 
 interface RoomUtilization {
@@ -370,125 +393,196 @@ export default function OwnerDashboard() {
           </Alert>
         )}
 
+        {/* Dynamic Alerts from API */}
+        {stats?.alerts && stats.alerts.length > 0 && (
+          <div className="space-y-2">
+            {stats.alerts.map((alert, index) => (
+              <Alert 
+                key={`${alert.type}-${index}`}
+                variant={alert.type === "kyc" ? "destructive" : "default"}
+                className={
+                  alert.type === "location" 
+                    ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                    : alert.type === "inventory"
+                    ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+                    : ""
+                }
+                data-testid={`alert-${alert.type}-${index}`}
+              >
+                {alert.type === "location" && <MapPin className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
+                {alert.type === "inventory" && <Package className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+                {alert.type === "kyc" && <AlertTriangle className="h-4 w-4" />}
+                <AlertDescription className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className={
+                    alert.type === "location" ? "text-orange-700 dark:text-orange-300" 
+                    : alert.type === "inventory" ? "text-amber-700 dark:text-amber-300" 
+                    : ""
+                  }>
+                    {alert.message}
+                  </span>
+                  {alert.link && (
+                    <Link href={alert.link}>
+                      <Button size="sm" variant="outline" className="hover-elevate" data-testid={`btn-fix-${alert.type}-${index}`}>
+                        Fix Now <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+                  )}
+                </AlertDescription>
+              </Alert>
+            ))}
+          </div>
+        )}
+
+        {/* Action-focused Summary Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card data-testid="card-bookings">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Bookings</CardTitle>
-              <CalendarCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Skeleton className="h-8 w-20" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold" data-testid="bookings-today">
-                    {stats?.bookingsToday || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      {stats?.bookingsThisMonth || 0} this month
-                    </span>
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <Link href="/owner/bookings?tab=pending">
+            <Card className="hover-elevate cursor-pointer transition-all" data-testid="card-pending-requests">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+                <Clock className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold" data-testid="count-pending-requests">
+                      {stats?.pendingRequests || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Awaiting your response
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card data-testid="card-revenue">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-              <IndianRupee className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold" data-testid="revenue-today">
-                    {formatCurrency(stats?.revenueToday || 0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      {formatCurrency(stats?.revenueThisMonth || 0)} this month
-                    </span>
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <Link href="/owner/bookings?tab=ongoing">
+            <Card className="hover-elevate cursor-pointer transition-all" data-testid="card-ongoing-stays">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ongoing Stays</CardTitle>
+                <UserCheck className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold" data-testid="count-ongoing-stays">
+                      {stats?.ongoingStays || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Currently checked in
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card data-testid="card-property-status">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Property Status</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold" data-testid="property-count">
-                    {stats?.properties?.length || 0}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {(() => {
-                      const statusCounts: Record<string, number> = {};
-                      stats?.properties?.forEach(p => {
-                        statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
-                      });
-                      const statusOrder = ["published", "paused", "pending", "draft", "deactivated"];
-                      return statusOrder
-                        .filter(status => statusCounts[status])
-                        .map(status => {
-                          const count = statusCounts[status];
-                          const config: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-                            published: { variant: "default", label: "Published" },
-                            draft: { variant: "secondary", label: "Draft" },
-                            pending: { variant: "outline", label: "Pending" },
-                            paused: { variant: "outline", label: "Paused" },
-                            deactivated: { variant: "destructive", label: "Deactivated" },
-                          };
-                          const { variant, label } = config[status] || { variant: "secondary", label: status };
-                          return (
-                            <Badge key={status} variant={variant} data-testid={`status-badge-${status}`}>
-                              {count} {label}
-                            </Badge>
-                          );
-                        });
-                    })()}
-                    {(!stats?.properties || stats.properties.length === 0) && (
-                      <Badge variant="secondary">No Property</Badge>
-                    )}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <Link href="/owner/bookings?tab=upcoming&filter=today-checkin">
+            <Card className="hover-elevate cursor-pointer transition-all" data-testid="card-todays-checkins">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Today's Check-ins</CardTitle>
+                <LogIn className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold" data-testid="count-todays-checkins">
+                      {stats?.todaysCheckIns || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Guests arriving today
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card data-testid="card-rating">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Rating</CardTitle>
-              <Star className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold flex items-center gap-1" data-testid="avg-rating">
-                    {stats?.avgRating?.toFixed(1) || "0.0"}
-                    <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats?.reviewCount || 0} review{stats?.reviewCount !== 1 ? "s" : ""}
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <Link href="/owner/bookings?tab=ongoing&filter=today-checkout">
+            <Card className="hover-elevate cursor-pointer transition-all" data-testid="card-todays-checkouts">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Today's Check-outs</CardTitle>
+                <LogOut className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold" data-testid="count-todays-checkouts">
+                      {stats?.todaysCheckOuts || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Guests departing today
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
         </div>
+
+        {/* Monthly Booking Summary */}
+        <Card data-testid="card-monthly-summary">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Monthly Booking Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+                {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-16" />)}
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                  <div className="text-lg font-bold text-green-700 dark:text-green-300" data-testid="monthly-confirmed">
+                    {stats?.monthlySummary?.confirmed || 0}
+                  </div>
+                  <p className="text-xs text-green-600 dark:text-green-400">Confirmed</p>
+                </div>
+                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <div className="text-lg font-bold text-blue-700 dark:text-blue-300" data-testid="monthly-completed">
+                    {stats?.monthlySummary?.completed || 0}
+                  </div>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">Completed</p>
+                </div>
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <div className="text-lg font-bold text-amber-700 dark:text-amber-300" data-testid="monthly-pending">
+                    {stats?.monthlySummary?.pending || 0}
+                  </div>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">Pending</p>
+                </div>
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-700">
+                  <div className="text-lg font-bold text-gray-700 dark:text-gray-300" data-testid="monthly-cancelled">
+                    {stats?.monthlySummary?.cancelled || 0}
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Cancelled</p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <div className="text-lg font-bold text-red-700 dark:text-red-300" data-testid="monthly-noshow">
+                    {(stats?.monthlySummary?.noShow || 0) + (stats?.monthlySummary?.rejected || 0)}
+                  </div>
+                  <p className="text-xs text-red-600 dark:text-red-400">No-show/Rejected</p>
+                </div>
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="text-lg font-bold text-primary" data-testid="monthly-revenue">
+                    {formatCurrency(stats?.monthlySummary?.totalRevenue || 0)}
+                  </div>
+                  <p className="text-xs text-primary/70">Total Revenue</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card data-testid="quick-actions">

@@ -4665,7 +4665,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      endOfMonth.setHours(23, 59, 59, 999);
       
       // Calculate KPIs
       let bookingsToday = 0;
@@ -4673,11 +4677,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let revenueToday = 0;
       let revenueThisMonth = 0;
       
+      // NEW: Action-focused counts
+      let pendingRequests = 0;
+      let ongoingStays = 0;
+      let todaysCheckIns = 0;
+      let todaysCheckOuts = 0;
+      
+      // Monthly summary breakdown
+      const monthlySummary = {
+        confirmed: 0,
+        completed: 0,
+        cancelled: 0,
+        rejected: 0,
+        noShow: 0,
+        pending: 0,
+        totalRevenue: 0,
+      };
+      
       for (const booking of allBookings) {
         const bookingDate = new Date(booking.createdAt || booking.checkIn);
         bookingDate.setHours(0, 0, 0, 0);
+        const checkInDate = new Date(booking.checkIn);
+        checkInDate.setHours(0, 0, 0, 0);
+        const checkOutDate = new Date(booking.checkOut);
+        checkOutDate.setHours(0, 0, 0, 0);
         
-        if (booking.status === "confirmed" || booking.status === "completed") {
+        // Count pending requests (awaiting owner response)
+        if (booking.status === "pending") {
+          pendingRequests++;
+        }
+        
+        // Count ongoing stays (checked in guests)
+        if (booking.status === "checked_in") {
+          ongoingStays++;
+        }
+        
+        // Count today's check-ins (customer_confirmed bookings where check-in is today)
+        if (booking.status === "customer_confirmed" && checkInDate.getTime() === today.getTime()) {
+          todaysCheckIns++;
+        }
+        
+        // Count today's check-outs (checked_in bookings where check-out is today)
+        if (booking.status === "checked_in" && checkOutDate.getTime() === today.getTime()) {
+          todaysCheckOuts++;
+        }
+        
+        // Monthly summary (bookings created or with check-in in current month)
+        if (checkInDate >= startOfMonth && checkInDate <= endOfMonth) {
+          const price = parseFloat(booking.totalPrice as string) || 0;
+          switch (booking.status) {
+            case "confirmed":
+            case "customer_confirmed":
+            case "checked_in":
+              monthlySummary.confirmed++;
+              monthlySummary.totalRevenue += price;
+              break;
+            case "completed":
+            case "checked_out":
+              monthlySummary.completed++;
+              monthlySummary.totalRevenue += price;
+              break;
+            case "cancelled":
+              monthlySummary.cancelled++;
+              break;
+            case "rejected":
+              monthlySummary.rejected++;
+              break;
+            case "no_show":
+              monthlySummary.noShow++;
+              break;
+            case "pending":
+              monthlySummary.pending++;
+              break;
+          }
+        }
+        
+        if (booking.status === "confirmed" || booking.status === "completed" || 
+            booking.status === "customer_confirmed" || booking.status === "checked_in" || 
+            booking.status === "checked_out") {
           const price = parseFloat(booking.totalPrice as string) || 0;
           
           if (bookingDate.getTime() === today.getTime()) {
@@ -4690,6 +4767,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
             revenueThisMonth += price;
           }
         }
+      }
+      
+      // Check for alerts
+      const alerts: { type: string; message: string; link: string }[] = [];
+      
+      for (const prop of properties) {
+        // Location incomplete check
+        if (!prop.latitude || !prop.longitude) {
+          alerts.push({
+            type: "location",
+            message: `"${prop.title}" is missing location coordinates`,
+            link: `/owner/property/${prop.id}?tab=location`,
+          });
+        }
+        
+        // Check for room types (inventory)
+        const roomTypes = await storage.getRoomTypes(prop.id);
+        if (roomTypes.length === 0 && prop.status === "published") {
+          alerts.push({
+            type: "inventory",
+            message: `"${prop.title}" has no room types configured`,
+            link: `/owner/property/${prop.id}?tab=rooms`,
+          });
+        }
+      }
+      
+      // KYC pending check
+      if (user.kycStatus !== "verified") {
+        alerts.push({
+          type: "kyc",
+          message: user.kycStatus === "pending" 
+            ? "Your KYC verification is pending review"
+            : user.kycStatus === "rejected"
+            ? "Your KYC was rejected - please resubmit"
+            : "Complete KYC to receive bookings",
+          link: "/owner/kyc",
+        });
       }
 
       // Property status - prioritize the "best" status across all properties
@@ -4736,6 +4850,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: p.status,
           pricePerNight: p.pricePerNight,
         })),
+        // NEW: Action-focused stats
+        pendingRequests,
+        ongoingStays,
+        todaysCheckIns,
+        todaysCheckOuts,
+        monthlySummary,
+        alerts,
       });
     } catch (error) {
       console.error("Error fetching owner stats:", error);

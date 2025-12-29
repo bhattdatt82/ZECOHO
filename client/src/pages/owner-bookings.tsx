@@ -99,8 +99,25 @@ interface Booking {
 
 export default function OwnerBookings() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("all");
+  const [location, setLocation] = useLocation();
+  
+  // Derive active tab from URL query params
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    return tabParam && ["pending", "upcoming", "ongoing", "past", "cancelled"].includes(tabParam) 
+      ? tabParam 
+      : "pending";
+  });
+  
+  // Sync tab state when URL changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && ["pending", "upcoming", "ongoing", "past", "cancelled"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
   
   // Subscribe to real-time booking updates via WebSocket with polling fallback
   useBookingUpdates({ userId: user?.id });
@@ -496,11 +513,60 @@ export default function OwnerBookings() {
     });
   };
 
+  // Helper to check if a booking is ongoing (checked-in, between check-in and check-out dates)
+  const isOngoing = (booking: Booking) => {
+    if (booking.status === "checked_in") return true;
+    if (booking.checkInTime) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkIn = new Date(booking.checkIn);
+      checkIn.setHours(0, 0, 0, 0);
+      const checkOut = new Date(booking.checkOut);
+      checkOut.setHours(0, 0, 0, 0);
+      return today >= checkIn && today < checkOut;
+    }
+    return false;
+  };
+
+  // Helper to check if check-in is in the future (upcoming)
+  const isUpcoming = (booking: Booking) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkIn = new Date(booking.checkIn);
+    checkIn.setHours(0, 0, 0, 0);
+    return checkIn > today || (checkIn.getTime() === today.getTime() && !booking.checkInTime);
+  };
+
+  // Helper to check if booking is in the past (check-out date has passed)
+  const isPast = (booking: Booking) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkOut = new Date(booking.checkOut);
+    checkOut.setHours(0, 0, 0, 0);
+    return checkOut < today || booking.status === "completed" || booking.status === "checked_out";
+  };
+
   const filteredBookings = bookings?.filter((booking) => {
-    if (activeTab === "all") return true;
-    if (activeTab === "upcoming") return booking.status === "confirmed" || booking.status === "customer_confirmed" || booking.status === "checked_in";
-    if (activeTab === "past") return booking.status === "completed" || booking.status === "cancelled" || booking.status === "rejected" || booking.status === "checked_out" || booking.status === "no_show";
-    if (activeTab === "pending") return booking.status === "pending";
+    if (activeTab === "pending") {
+      return booking.status === "pending";
+    }
+    if (activeTab === "upcoming") {
+      // Confirmed/customer_confirmed bookings with check-in in the future or today (not checked-in yet)
+      return (booking.status === "confirmed" || booking.status === "customer_confirmed") && isUpcoming(booking);
+    }
+    if (activeTab === "ongoing") {
+      // Currently checked-in guests - aligned with backend which counts only checked_in status
+      return booking.status === "checked_in";
+    }
+    if (activeTab === "past") {
+      // Completed, checked_out, or check-out date passed (excluding cancelled/no-show)
+      return (booking.status === "completed" || booking.status === "checked_out" || 
+              (isPast(booking) && !["pending", "cancelled", "rejected", "no_show"].includes(booking.status)));
+    }
+    if (activeTab === "cancelled") {
+      // Cancelled, rejected, or no-show
+      return booking.status === "cancelled" || booking.status === "rejected" || booking.status === "no_show";
+    }
     return true;
   });
 
@@ -880,11 +946,12 @@ export default function OwnerBookings() {
     <OwnerLayout>
       <div className="space-y-6" data-testid="owner-bookings">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4" data-testid="booking-tabs">
-            <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5" data-testid="booking-tabs">
             <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
-            <TabsTrigger value="upcoming" data-testid="tab-upcoming">Confirmed</TabsTrigger>
+            <TabsTrigger value="upcoming" data-testid="tab-upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="ongoing" data-testid="tab-ongoing">Ongoing</TabsTrigger>
             <TabsTrigger value="past" data-testid="tab-past">Past</TabsTrigger>
+            <TabsTrigger value="cancelled" data-testid="tab-cancelled">Cancelled</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
