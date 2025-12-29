@@ -1731,7 +1731,12 @@ export default function PropertyDetails() {
                           <div className="flex items-center justify-between border-t pt-4">
                             <div>
                               <div className="font-medium">Rooms</div>
-                              <div className="text-xs text-muted-foreground">Number of rooms</div>
+                              <div className="text-xs text-muted-foreground">
+                                {requiredRooms > 1 
+                                  ? `Min ${requiredRooms} for ${guests} guests`
+                                  : "Number of rooms"
+                                }
+                              </div>
                             </div>
                             <div className="flex items-center gap-3">
                               <button
@@ -1739,9 +1744,10 @@ export default function PropertyDetails() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  setRooms(Math.max(1, rooms - 1));
+                                  // Cannot reduce below requiredRooms
+                                  setRooms(Math.max(requiredRooms, rooms - 1));
                                 }}
-                                disabled={rooms <= 1}
+                                disabled={rooms <= requiredRooms}
                                 className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 data-testid="button-rooms-minus"
                               >
