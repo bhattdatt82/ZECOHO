@@ -2807,6 +2807,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const totalRoomsDefault = roomType.totalRooms || 1;
         const requestedRooms = validatedData.rooms || 1;
+        const guests = validatedData.guests || 1;
+        
+        // SERVER-SIDE VALIDATION: Enforce minimum rooms based on guest count
+        // Calculate required rooms: ceil(guests / max_guests_per_room)
+        const maxGuestsPerRoom = roomType.maxGuests || property?.maxGuests || 2;
+        const requiredRooms = Math.ceil(guests / maxGuestsPerRoom);
+        
+        if (requestedRooms < requiredRooms) {
+          return res.status(400).json({ 
+            message: `You need at least ${requiredRooms} room${requiredRooms > 1 ? 's' : ''} for ${guests} guest${guests > 1 ? 's' : ''} (max ${maxGuestsPerRoom} per room)`,
+            code: "INSUFFICIENT_ROOMS",
+            requiredRooms,
+            requestedRooms,
+            maxGuestsPerRoom
+          });
+        }
         
         // ONLY count ACTIVE bookings: confirmed (owner_accepted), customer_confirmed, checked_in
         // Do NOT count: pending, rejected, cancelled, checked_out, completed
