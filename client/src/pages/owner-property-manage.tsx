@@ -932,7 +932,139 @@ function StatusSection({ property }: { property: Property }) {
           </div>
         </CardContent>
       </Card>
+      
+      <GuestPoliciesCard property={property} />
     </div>
+  );
+}
+
+function GuestPoliciesCard({ property }: { property: Property }) {
+  const { toast } = useToast();
+  const [localIdAllowed, setLocalIdAllowed] = useState(property.localIdAllowed ?? true);
+  const [hourlyBookingAllowed, setHourlyBookingAllowed] = useState(property.hourlyBookingAllowed ?? false);
+  const [foreignGuestsAllowed, setForeignGuestsAllowed] = useState(property.foreignGuestsAllowed ?? true);
+  const [coupleFriendly, setCoupleFriendly] = useState(property.coupleFriendly ?? true);
+  
+  const updatePoliciesMutation = useMutation({
+    mutationFn: async (data: {
+      localIdAllowed?: boolean;
+      hourlyBookingAllowed?: boolean;
+      foreignGuestsAllowed?: boolean;
+      coupleFriendly?: boolean;
+    }) => {
+      return apiRequest("PATCH", `/api/properties/${property.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id] });
+      toast({
+        title: "Guest Policies Updated",
+        description: "Your guest policy settings have been saved.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update guest policies.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handlePolicyChange = (field: string, value: boolean) => {
+    const update: Record<string, boolean> = {};
+    
+    switch (field) {
+      case 'localIdAllowed':
+        setLocalIdAllowed(value);
+        update.localIdAllowed = value;
+        break;
+      case 'hourlyBookingAllowed':
+        setHourlyBookingAllowed(value);
+        update.hourlyBookingAllowed = value;
+        break;
+      case 'foreignGuestsAllowed':
+        setForeignGuestsAllowed(value);
+        update.foreignGuestsAllowed = value;
+        break;
+      case 'coupleFriendly':
+        setCoupleFriendly(value);
+        update.coupleFriendly = value;
+        break;
+    }
+    
+    updatePoliciesMutation.mutate(update);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Guest Policies</CardTitle>
+        <CardDescription>Define who can book your property and booking options</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <Label className="text-base">Couple Friendly</Label>
+              <p className="text-sm text-muted-foreground">
+                Allow unmarried couples to check in
+              </p>
+            </div>
+            <Switch
+              checked={coupleFriendly}
+              onCheckedChange={(checked) => handlePolicyChange('coupleFriendly', checked)}
+              disabled={updatePoliciesMutation.isPending}
+              data-testid="switch-couple-friendly"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <Label className="text-base">Local ID Allowed</Label>
+              <p className="text-sm text-muted-foreground">
+                Accept guests with local ID proof
+              </p>
+            </div>
+            <Switch
+              checked={localIdAllowed}
+              onCheckedChange={(checked) => handlePolicyChange('localIdAllowed', checked)}
+              disabled={updatePoliciesMutation.isPending}
+              data-testid="switch-local-id"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <Label className="text-base">Foreign Guests Allowed</Label>
+              <p className="text-sm text-muted-foreground">
+                Accept international guests with passport
+              </p>
+            </div>
+            <Switch
+              checked={foreignGuestsAllowed}
+              onCheckedChange={(checked) => handlePolicyChange('foreignGuestsAllowed', checked)}
+              disabled={updatePoliciesMutation.isPending}
+              data-testid="switch-foreign-guests"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <Label className="text-base">Hourly Booking</Label>
+              <p className="text-sm text-muted-foreground">
+                Allow guests to book by the hour
+              </p>
+            </div>
+            <Switch
+              checked={hourlyBookingAllowed}
+              onCheckedChange={(checked) => handlePolicyChange('hourlyBookingAllowed', checked)}
+              disabled={updatePoliciesMutation.isPending}
+              data-testid="switch-hourly-booking"
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
