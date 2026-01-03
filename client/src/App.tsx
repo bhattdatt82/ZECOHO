@@ -53,6 +53,7 @@ import OwnerReviews from "@/pages/owner-reviews";
 import OwnerSettings from "@/pages/owner-settings";
 import OwnerKyc from "@/pages/owner-kyc";
 import ChooseListingMode from "@/pages/choose-listing-mode";
+import WriteReview from "@/pages/write-review";
 
 function Router() {
   return (
@@ -92,6 +93,7 @@ function Router() {
       <Route path="/search" component={Search} />
       <Route path="/properties" component={Search} />
       <Route path="/properties/:id" component={PropertyDetails} />
+      <Route path="/property/:propertyId/review" component={WriteReview} />
       <Route path="/destinations" component={Destinations} />
       <Route path="/destinations/:id" component={DestinationDetails} />
       <Route component={NotFound} />

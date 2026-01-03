@@ -177,6 +177,7 @@ export interface IStorage {
   createReview(review: InsertReview): Promise<Review>;
   getReviewsByProperty(propertyId: string): Promise<(Review & { guest: User })[]>;
   getReview(id: string): Promise<Review | undefined>;
+  getReviewByBookingId(bookingId: string): Promise<Review | undefined>;
   updateOwnerResponse(reviewId: string, response: string): Promise<Review | undefined>;
   getAverageRating(propertyId: string): Promise<number>;
 
@@ -966,6 +967,15 @@ export class DatabaseStorage implements IStorage {
 
   async getReview(id: string): Promise<Review | undefined> {
     const [review] = await db.select().from(reviews).where(eq(reviews.id, id));
+    return review;
+  }
+
+  async getReviewByBookingId(bookingId: string): Promise<Review | undefined> {
+    const [review] = await db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.bookingId, bookingId))
+      .limit(1);
     return review;
   }
 

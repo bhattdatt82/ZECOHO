@@ -1,0 +1,117 @@
+Add a Review & Rating flow for guests after booking completion across ZECOHO.
+
+=============================
+1. TRIGGER CONDITION
+=============================
+
+Trigger review & rating request when:
+- Booking status changes to `checked_out`
+- OR booking is marked `completed`
+
+Do NOT trigger for:
+- cancelled bookings
+- no-show bookings
+
+=============================
+2. REVIEW REQUEST EMAIL (GUEST)
+=============================
+
+Send an automated email to the guest after check-out with:
+
+Subject:
+“How was your stay at {{Hotel Name}}? Leave a review”
+
+Email body:
+- Thank the guest for staying
+- Ask them to rate their experience
+- Include booking reference
+- Clear CTA button:
+  “Rate Your Stay”
+
+CTA button link:
+- Redirect to the hotel’s Review & Rating page
+- Deep-link using booking + hotel identifiers:
+  /hotel/{{hotel_slug}}/review?bookingId={{booking_id}}
+
+Ensure:
+- Link works on desktop & mobile
+- User must be logged in; if not, redirect to login and then back to review page
+
+=============================
+3. IN-APP REVIEW PROMPT (OPTIONAL BUT RECOMMENDED)
+=============================
+
+In Guest → My Bookings:
+- For completed bookings without a review:
+  - Show a “Leave a Review” button
+  - Show reminder badge: “Review pending”
+
+Once review is submitted:
+- Hide CTA
+- Show “Thank you for your feedback”
+
+=============================
+4. REVIEW & RATING PAGE (HOTEL)
+=============================
+
+Create / enable Review & Rating page with:
+- Star rating (1–5)
+- Optional category ratings (cleanliness, staff, location, value)
+- Text review (optional)
+- Submit button
+
+Validation:
+- Only allow review if bookingId is valid
+- Only allow one review per booking
+- Guest must have completed stay
+
+=============================
+5. DATA STORAGE
+=============================
+
+Store review with:
+- booking_id
+- hotel_id
+- guest_id
+- rating (numeric)
+- review_text
+- created_at
+
+Prevent duplicate reviews per booking.
+
+=============================
+6. HOTEL DISPLAY
+=============================
+
+On Hotel Listing & Hotel Detail page:
+- Show average rating
+- Show total review count
+- Do NOT show individual reviews yet (MVP-safe)
+
+=============================
+7. OWNER VISIBILITY
+=============================
+
+In Owner Dashboard:
+- Show average rating per property
+- Show count of new reviews
+- Do NOT allow owners to edit or delete reviews
+
+=============================
+8. FAIL-SAFE & UX
+=============================
+
+- If review link is expired or invalid:
+  Show message: “This review link is no longer active.”
+- If already reviewed:
+  Redirect to hotel page with message: “You’ve already reviewed this stay.”
+
+=============================
+9. DO NOT CHANGE
+=============================
+
+- Booking logic
+- Payment logic
+- Inventory logic
+
+This update should only add review & rating functionality and email triggers.

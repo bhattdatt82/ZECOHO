@@ -25,6 +25,7 @@ import {
   PartyPopper,
   Phone,
   Home,
+  Star,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,6 +52,7 @@ interface Booking {
   parentBookingId?: string | null;
   bookingCreatedAt?: string;
   createdAt: string;
+  hasReview?: boolean;
   property?: {
     id: string;
     title: string;
@@ -737,32 +739,58 @@ export default function MyBookings() {
               </div>
             )}
 
-            {(booking.status === "checked_out" || booking.status === "completed") && booking.checkOutTime && (
-              <div className={`text-sm p-3 border rounded-md ${booking.earlyCheckout ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800' : 'bg-muted'}`}>
-                <p className={booking.earlyCheckout ? 'text-amber-800 dark:text-amber-200' : 'text-muted-foreground'}>
-                  {booking.earlyCheckout ? (
-                    <>
-                      <span className="flex items-center gap-1 font-medium">
-                        <AlertTriangle className="h-4 w-4" />
-                        You checked out early
-                      </span>
-                      <span className="block text-xs mt-1">
-                        Original check-out: {format(new Date(booking.checkOut), "dd MMM yyyy")} | 
-                        Actual check-out: {format(new Date(booking.checkOutTime), "dd MMM yyyy 'at' HH:mm")}
-                      </span>
-                      <span className="block text-xs mt-1 text-amber-600 dark:text-amber-400">
-                        Please contact the hotel regarding any refund policies.
-                      </span>
-                    </>
+            {(booking.status === "checked_out" || booking.status === "completed") && (
+              <div className="space-y-3">
+                {booking.checkOutTime && (
+                  <div className={`text-sm p-3 border rounded-md ${booking.earlyCheckout ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800' : 'bg-muted'}`}>
+                    <p className={booking.earlyCheckout ? 'text-amber-800 dark:text-amber-200' : 'text-muted-foreground'}>
+                      {booking.earlyCheckout ? (
+                        <>
+                          <span className="flex items-center gap-1 font-medium">
+                            <AlertTriangle className="h-4 w-4" />
+                            You checked out early
+                          </span>
+                          <span className="block text-xs mt-1">
+                            Original check-out: {format(new Date(booking.checkOut), "dd MMM yyyy")} | 
+                            Actual check-out: {format(new Date(booking.checkOutTime), "dd MMM yyyy 'at' HH:mm")}
+                          </span>
+                          <span className="block text-xs mt-1 text-amber-600 dark:text-amber-400">
+                            Please contact the hotel regarding any refund policies.
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          Your stay is complete. Thank you for choosing us!
+                          <span className="block text-xs mt-1">
+                            Checked out on {format(new Date(booking.checkOutTime), "dd MMM yyyy 'at' HH:mm")}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!booking.hasReview ? (
+                    <Link href={`/property/${booking.propertyId}/review?bookingId=${booking.id}`}>
+                      <Button size="sm" className="gap-2" data-testid={`btn-leave-review-${booking.id}`}>
+                        <Star className="h-4 w-4" />
+                        Leave a Review
+                      </Button>
+                    </Link>
                   ) : (
-                    <>
-                      Your stay is complete. Thank you for choosing us!
-                      <span className="block text-xs mt-1">
-                        Checked out on {format(new Date(booking.checkOutTime), "dd MMM yyyy 'at' HH:mm")}
-                      </span>
-                    </>
+                    <Badge variant="secondary" className="gap-1" data-testid={`badge-reviewed-${booking.id}`}>
+                      <Star className="h-3 w-3 fill-current" />
+                      Reviewed
+                    </Badge>
                   )}
-                </p>
+                  {booking.property && (
+                    <Link href={`/properties/${booking.property.id}`}>
+                      <Button size="sm" variant="outline" data-testid={`btn-view-property-completed-${booking.id}`}>
+                        View Property
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
 
@@ -778,8 +806,8 @@ export default function MyBookings() {
               </div>
             )}
 
-            {/* Only show generic action buttons for statuses that don't have their own */}
-            {booking.status !== "pending" && booking.status !== "confirmed" && booking.status !== "customer_confirmed" && booking.status !== "rejected" && booking.status !== "checked_in" && booking.status !== "no_show" && (
+            {/* Only show generic action buttons for statuses that don't have their own (currently only cancelled) */}
+            {booking.status === "cancelled" && (
               <div className="flex items-center gap-2 flex-wrap">
                 {booking.property && (
                   <Link href={`/properties/${booking.property.id}`}>

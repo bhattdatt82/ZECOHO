@@ -24,7 +24,7 @@ The backend is built with **Express.js on Node.js**, featuring a **RESTful API**
 -   **ZERO Commission Model**: Eliminates booking, service, and commission fees.
 -   **Dynamic Booking System**: Manages the full booking lifecycle (pending, confirmed, rejected, completed) with server-side validation, pricing calculation, and owner/guest management interfaces. Includes real-time notifications via WebSockets for booking status changes.
 -   **Real-time Messaging**: Facilitates direct communication between guests and owners using WebSockets, with conversation management and unread message tracking.
--   **Review System**: Allows guests to review properties post-booking and owners to respond.
+-   **Review System**: Guests receive a review request email after check-out. They can rate properties (1-5 stars) with optional category ratings (cleanliness, staff, location, value) and comments. Owners can respond to reviews. The system prevents duplicate reviews per booking and only allows reviews for completed stays. Review page accessible via `/property/:propertyId/review?bookingId=:id`.
 -   **Unified KYC & Property Listing**: A multi-step wizard (`/list-property`) for combined personal details, KYC verification, and property information. Features a "Choose Listing Mode" (Quick or Full Application) for flexible onboarding.
 -   **Categorized Property Images**: Supports organized image uploads for properties across six categories with captions.
 -   **KYC Document Uploads**: Secure handling of five categories of KYC documents with validation and access control.

@@ -9,7 +9,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
-import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail, sendBookingCancelledOwnerEmail } from "./emailService";
+import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail, sendBookingCancelledOwnerEmail, sendReviewRequestEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { WebSocketServer, WebSocket } from "ws";
@@ -3230,6 +3230,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
+          // Check if booking has been reviewed (for completed/checked_out bookings)
+          let hasReview = false;
+          if (["completed", "checked_out"].includes(booking.status)) {
+            const existingReview = await storage.getReviewByBookingId(booking.id);
+            hasReview = !!existingReview;
+          }
+          
           return {
             ...booking,
             property: property ? {
@@ -3241,6 +3248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ownerContact,
             roomType,
             roomOption,
+            hasReview,
           };
         })
       );
@@ -3913,6 +3921,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check if review exists for a booking
+  app.get("/api/bookings/:id/review", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const booking = await storage.getBooking(req.params.id);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
+      if (booking.guestId !== userId) {
+        return res.status(403).json({ message: "Not authorized to view this booking's review" });
+      }
+      
+      const review = await storage.getReviewByBookingId(req.params.id);
+      
+      if (review) {
+        return res.json({ exists: true, review });
+      }
+      
+      return res.json({ exists: false, review: null });
+    } catch (error) {
+      console.error("Error checking booking review:", error);
+      res.status(500).json({ message: "Failed to check review status" });
+    }
+  });
+
+  // Get booking details for review page
+  app.get("/api/bookings/:id/review-details", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const booking = await storage.getBooking(req.params.id);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found", code: "BOOKING_NOT_FOUND" });
+      }
+      
+      if (booking.guestId !== userId) {
+        return res.status(403).json({ message: "Not authorized", code: "NOT_AUTHORIZED" });
+      }
+      
+      // Check if already reviewed
+      const existingReview = await storage.getReviewByBookingId(req.params.id);
+      if (existingReview) {
+        return res.status(400).json({ 
+          message: "You've already reviewed this stay", 
+          code: "ALREADY_REVIEWED",
+          reviewId: existingReview.id
+        });
+      }
+      
+      // Check if booking is reviewable (completed or checked_out)
+      if (!["completed", "checked_out"].includes(booking.status)) {
+        return res.status(400).json({ 
+          message: "You can only review completed stays", 
+          code: "NOT_COMPLETED" 
+        });
+      }
+      
+      const property = await storage.getProperty(booking.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found", code: "PROPERTY_NOT_FOUND" });
+      }
+      
+      res.json({
+        booking: {
+          id: booking.id,
+          bookingCode: booking.bookingCode,
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          status: booking.status,
+        },
+        property: {
+          id: property.id,
+          title: property.title,
+          images: property.images,
+          destination: property.destination,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching review details:", error);
+      res.status(500).json({ message: "Failed to fetch review details" });
+    }
+  });
+
   app.post("/api/reviews", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3938,7 +4031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "You can only review your own bookings" });
         }
 
-        if (booking.status !== "completed") {
+        if (!["completed", "checked_out"].includes(booking.status)) {
           return res.status(400).json({ message: "You can only review completed bookings" });
         }
       }
@@ -5323,6 +5416,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isEarlyCheckout,
         };
         broadcastToUser(guest.id, notification);
+      }
+      
+      // Send review request email to guest after check-out
+      if (guest?.email) {
+        const checkInFormatted = new Date(booking.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const checkOutFormatted = new Date(booking.checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        sendReviewRequestEmail(
+          guest.email,
+          guest.firstName || guest.email.split('@')[0],
+          {
+            propertyId: property.id,
+            propertyName: property.title,
+            bookingId: booking.id,
+            bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
+            checkIn: checkInFormatted,
+            checkOut: checkOutFormatted,
+          }
+        ).catch(err => console.error('[REVIEW:REQUEST] Failed to send email:', err));
       }
       
       res.json({ ...updated, isEarlyCheckout });

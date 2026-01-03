@@ -1545,3 +1545,105 @@ export async function sendBookingCancelledOwnerEmail(
     return false;
   }
 }
+
+export async function sendReviewRequestEmail(
+  guestEmail: string,
+  guestFirstName: string,
+  data: {
+    propertyId: string;
+    propertyName: string;
+    bookingId: string;
+    bookingCode: string;
+    checkIn: string;
+    checkOut: string;
+  }
+): Promise<boolean> {
+  try {
+    console.log('[REVIEW:REQUEST] Sending review request email to:', guestEmail);
+    const { client, fromEmail } = await getResendClient();
+    
+    const reviewUrl = `${getAppBaseUrl()}/property/${data.propertyId}/review?bookingId=${data.bookingId}`;
+    
+    const { data: emailData, error } = await client.emails.send({
+      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      to: [guestEmail],
+      subject: `How was your stay at ${data.propertyName}? Leave a review`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+          <div style="max-width: 480px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">ZECOHO</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Your Journey, Our Passion</p>
+            </div>
+            
+            <div style="padding: 32px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <div style="width: 64px; height: 64px; background: #fef3c7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px;">&#11088;</span>
+                </div>
+              </div>
+              
+              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Thank You for Staying!</h2>
+              <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
+                Hi ${guestFirstName || 'there'},
+              </p>
+              <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
+                We hope you had a wonderful stay at <strong>"${data.propertyName}"</strong>. Your feedback helps other travelers and supports our property partners.
+              </p>
+              
+              <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #1f2937; margin: 0 0 12px 0; font-weight: 600;">Your Stay Details:</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Reference:</strong> ${data.bookingCode}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Property:</strong> ${data.propertyName}</p>
+                <p style="color: #6b7280; margin: 0;"><strong>Dates:</strong> ${data.checkIn} - ${data.checkOut}</p>
+              </div>
+              
+              <div style="background: #ecfdf5; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #10b981;">
+                <p style="color: #065f46; margin: 0; font-weight: 500;">Share Your Experience</p>
+                <p style="color: #047857; margin: 8px 0 0 0; font-size: 14px;">
+                  Rate your stay and help future guests make informed decisions. Your review matters!
+                </p>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${reviewUrl}" style="display: inline-block; background: #f59e0b; color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Rate Your Stay
+                </a>
+              </div>
+              
+              <p style="color: #9ca3af; font-size: 13px; margin: 24px 0 0 0; text-align: center; line-height: 1.5;">
+                Can't click the button? Copy and paste this link:<br>
+                <a href="${reviewUrl}" style="color: #10b981; word-break: break-all;">${reviewUrl}</a>
+              </p>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                ZECOHO - Zero Commission Hotel Booking<br>
+                Questions? Contact support@zecoho.com
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('[REVIEW:REQUEST] Failed to send email:', error);
+      return false;
+    }
+
+    console.log('[REVIEW:REQUEST] Email sent successfully:', emailData?.id);
+    return true;
+  } catch (error: any) {
+    console.error('[REVIEW:REQUEST] Exception sending email:', error?.message || error);
+    return false;
+  }
+}
