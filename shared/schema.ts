@@ -119,6 +119,13 @@ export const kycStatusEnum = pgEnum("kyc_status", [
   "rejected",
 ]);
 
+// Deactivation request status enum
+export const deactivationRequestStatusEnum = pgEnum("deactivation_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
 // Listing mode enum - for owner onboarding flow
 export const listingModeEnum = pgEnum("listing_mode", ["not_selected", "quick", "full"]);
 
@@ -486,6 +493,24 @@ export const kycApplications = pgTable("kyc_applications", {
   uniqueIndex("idx_user_unique_kyc").on(table.userId),
 ]);
 
+// Property Deactivation Requests table - owner submits requests, admin approves/rejects
+export const propertyDeactivationRequests = pgTable("property_deactivation_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reason: text("reason").notNull(),
+  requestType: varchar("request_type", { length: 20 }).notNull().default("deactivate"), // "deactivate" or "delete"
+  status: deactivationRequestStatusEnum("status").notNull().default("pending"),
+  adminId: varchar("admin_id").references(() => users.id, { onDelete: "set null" }),
+  adminNotes: text("admin_notes"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_deactivation_property").on(table.propertyId),
+  index("idx_deactivation_status").on(table.status),
+  index("idx_deactivation_owner").on(table.ownerId),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   properties: many(properties),
@@ -661,6 +686,21 @@ export const kycApplicationsRelations = relations(kycApplications, ({ one }) => 
   }),
 }));
 
+export const propertyDeactivationRequestsRelations = relations(propertyDeactivationRequests, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyDeactivationRequests.propertyId],
+    references: [properties.id],
+  }),
+  owner: one(users, {
+    fields: [propertyDeactivationRequests.ownerId],
+    references: [users.id],
+  }),
+  admin: one(users, {
+    fields: [propertyDeactivationRequests.adminId],
+    references: [users.id],
+  }),
+}));
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -703,6 +743,9 @@ export type InsertReview = typeof reviews.$inferInsert;
 
 export type KycApplication = typeof kycApplications.$inferSelect;
 export type InsertKycApplication = typeof kycApplications.$inferInsert;
+
+export type PropertyDeactivationRequest = typeof propertyDeactivationRequests.$inferSelect;
+export type InsertPropertyDeactivationRequest = typeof propertyDeactivationRequests.$inferInsert;
 
 // Insert schemas
 export const insertPropertySchema = createInsertSchema(properties).omit({
@@ -819,6 +862,18 @@ export const insertKycApplicationSchema = createInsertSchema(kycApplications).om
 });
 
 export type KycApplicationFormData = z.infer<typeof insertKycApplicationSchema>;
+
+export const insertDeactivationRequestSchema = createInsertSchema(propertyDeactivationRequests).omit({
+  id: true,
+  ownerId: true,
+  status: true,
+  adminId: true,
+  adminNotes: true,
+  processedAt: true,
+  createdAt: true,
+});
+
+export type DeactivationRequestFormData = z.infer<typeof insertDeactivationRequestSchema>;
 
 // KYC update schema - validates owner registration flow
 export const updateKYCSchema = z.object({

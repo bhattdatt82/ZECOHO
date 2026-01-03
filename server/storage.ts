@@ -18,6 +18,7 @@ import {
   kycApplications,
   otpCodes,
   availabilityOverrides,
+  propertyDeactivationRequests,
   type User,
   type UpsertUser,
   type Property,
@@ -53,6 +54,7 @@ import {
   type InsertOtpCode,
   type AvailabilityOverride,
   type InsertAvailabilityOverride,
+  type PropertyDeactivationRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc, count } from "drizzle-orm";
@@ -250,6 +252,15 @@ export interface IStorage {
   createAvailabilityOverride(override: InsertAvailabilityOverride): Promise<AvailabilityOverride>;
   deleteAvailabilityOverride(id: string): Promise<void>;
   getPropertyBlockedDates(propertyId: string, startDate: Date, endDate: Date, roomTypeId?: string | null): Promise<{ startDate: Date; endDate: Date; type: string; roomTypeId: string | null }[]>;
+
+  // Property Deactivation Request operations
+  createDeactivationRequest(propertyId: string, ownerId: string, reason: string, requestType?: "deactivate" | "delete"): Promise<PropertyDeactivationRequest>;
+  getDeactivationRequest(id: string): Promise<PropertyDeactivationRequest | undefined>;
+  getDeactivationRequestByProperty(propertyId: string): Promise<PropertyDeactivationRequest | undefined>;
+  getDeactivationRequestsByOwner(ownerId: string): Promise<PropertyDeactivationRequest[]>;
+  getAllPendingDeactivationRequests(): Promise<(PropertyDeactivationRequest & { property: Property; owner: User })[]>;
+  processDeactivationRequest(id: string, adminId: string, status: "approved" | "rejected", adminNotes?: string): Promise<PropertyDeactivationRequest | undefined>;
+  cancelDeactivationRequest(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1584,6 +1595,97 @@ export class DatabaseStorage implements IStorage {
       type: o.overrideType,
       roomTypeId: o.roomTypeId,
     }));
+  }
+
+  // Property Deactivation Request operations
+  async createDeactivationRequest(
+    propertyId: string, 
+    ownerId: string, 
+    reason: string, 
+    requestType: "deactivate" | "delete" = "deactivate"
+  ): Promise<PropertyDeactivationRequest> {
+    const [created] = await db
+      .insert(propertyDeactivationRequests)
+      .values({
+        propertyId,
+        ownerId,
+        reason,
+        requestType,
+        status: "pending",
+      })
+      .returning();
+    return created;
+  }
+
+  async getDeactivationRequest(id: string): Promise<PropertyDeactivationRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(propertyDeactivationRequests)
+      .where(eq(propertyDeactivationRequests.id, id));
+    return request;
+  }
+
+  async getDeactivationRequestByProperty(propertyId: string): Promise<PropertyDeactivationRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(propertyDeactivationRequests)
+      .where(
+        and(
+          eq(propertyDeactivationRequests.propertyId, propertyId),
+          eq(propertyDeactivationRequests.status, "pending")
+        )
+      );
+    return request;
+  }
+
+  async getDeactivationRequestsByOwner(ownerId: string): Promise<PropertyDeactivationRequest[]> {
+    return await db
+      .select()
+      .from(propertyDeactivationRequests)
+      .where(eq(propertyDeactivationRequests.ownerId, ownerId))
+      .orderBy(desc(propertyDeactivationRequests.createdAt));
+  }
+
+  async getAllPendingDeactivationRequests(): Promise<(PropertyDeactivationRequest & { property: Property; owner: User })[]> {
+    const requests = await db
+      .select()
+      .from(propertyDeactivationRequests)
+      .where(eq(propertyDeactivationRequests.status, "pending"))
+      .orderBy(desc(propertyDeactivationRequests.createdAt));
+    
+    // Fetch related property and owner data
+    const result: (PropertyDeactivationRequest & { property: Property; owner: User })[] = [];
+    for (const request of requests) {
+      const [property] = await db.select().from(properties).where(eq(properties.id, request.propertyId));
+      const [owner] = await db.select().from(users).where(eq(users.id, request.ownerId));
+      if (property && owner) {
+        result.push({ ...request, property, owner });
+      }
+    }
+    return result;
+  }
+
+  async processDeactivationRequest(
+    id: string, 
+    adminId: string, 
+    status: "approved" | "rejected", 
+    adminNotes?: string
+  ): Promise<PropertyDeactivationRequest | undefined> {
+    const [updated] = await db
+      .update(propertyDeactivationRequests)
+      .set({
+        status,
+        adminId,
+        adminNotes: adminNotes || null,
+        processedAt: new Date(),
+      })
+      .where(eq(propertyDeactivationRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async cancelDeactivationRequest(id: string): Promise<void> {
+    await db.delete(propertyDeactivationRequests).where(eq(propertyDeactivationRequests.id, id));
   }
 }
 
