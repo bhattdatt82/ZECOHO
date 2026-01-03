@@ -255,7 +255,7 @@ export interface IStorage {
   getPropertyBlockedDates(propertyId: string, startDate: Date, endDate: Date, roomTypeId?: string | null): Promise<{ startDate: Date; endDate: Date; type: string; roomTypeId: string | null }[]>;
 
   // Property Deactivation Request operations
-  createDeactivationRequest(propertyId: string, ownerId: string, reason: string, requestType?: "deactivate" | "delete"): Promise<PropertyDeactivationRequest>;
+  createDeactivationRequest(propertyId: string, ownerId: string, reason: string, requestType?: "deactivate" | "delete" | "reactivate"): Promise<PropertyDeactivationRequest>;
   getDeactivationRequest(id: string): Promise<PropertyDeactivationRequest | undefined>;
   getDeactivationRequestByProperty(propertyId: string): Promise<PropertyDeactivationRequest | undefined>;
   getDeactivationRequestsByOwner(ownerId: string): Promise<PropertyDeactivationRequest[]>;
