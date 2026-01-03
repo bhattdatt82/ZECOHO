@@ -116,12 +116,16 @@ export function SearchBar({
   }, []);
   
   // Auto-adjust rooms when guest count changes (bi-directional sync)
+  // Remove 'rooms' from dependencies to prevent infinite loops - we only trigger on guest changes
   useEffect(() => {
     const minRequired = calculateMinRooms(adults, children);
-    if (rooms < minRequired) {
-      setRooms(Math.min(minRequired, 5)); // Cap at max 5 rooms for search
-    }
-  }, [adults, children, calculateMinRooms, rooms]);
+    setRooms(prevRooms => {
+      if (prevRooms < minRequired) {
+        return Math.min(minRequired, 5); // Cap at max 5 rooms for search
+      }
+      return prevRooms;
+    });
+  }, [adults, children, calculateMinRooms]);
   
   // Load saved guest preferences from localStorage on mount (only if no initial values provided)
   useEffect(() => {
