@@ -766,8 +766,10 @@ export default function PropertyDetails() {
       }
     }
     
-    // Calculate base price (room + meal per night per room)
-    let basePrice = nights * (pricePerNight + mealOptionPrice) * rooms;
+    // Calculate base price: room rate (per room per night) + meal cost (per person per night)
+    const roomCost = nights * pricePerNight * rooms;
+    const mealCost = nights * mealOptionPrice * guests;
+    let basePrice = roomCost + mealCost;
     
     // Apply bulk booking discount if applicable
     if (property.bulkBookingEnabled && 
@@ -1868,7 +1870,7 @@ export default function PropertyDetails() {
                             {/* Meal Options for selected room type */}
                             {selectedRoomTypeId === roomType.id && roomType.mealOptions && roomType.mealOptions.length > 0 && (
                               <div className="mt-3 pt-3 border-t space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">Meal Options</p>
+                                <p className="text-sm font-medium text-muted-foreground">Meal Options (per person per night)</p>
                                 <div className="space-y-2">
                                   <div
                                     className={`p-2 rounded border cursor-pointer text-sm transition-all ${
@@ -1909,7 +1911,7 @@ export default function PropertyDetails() {
                                           )}
                                         </div>
                                         <span className="text-primary font-medium">
-                                          +₹{Number(option.priceAdjustment).toLocaleString('en-IN')}
+                                          +₹{Number(option.priceAdjustment).toLocaleString('en-IN')}/person
                                         </span>
                                       </div>
                                     </div>
@@ -2048,7 +2050,7 @@ export default function PropertyDetails() {
                   
                   const discountPercent = hasBulkDiscount ? Number(property.bulkBookingDiscountPercent) : 0;
                   const roomSubtotal = nights * effectivePrice * rooms;
-                  const mealSubtotal = nights * mealOptionPrice * rooms;
+                  const mealSubtotal = nights * mealOptionPrice * guests;
                   const subtotal = roomSubtotal + mealSubtotal;
                   
                   // Calculate savings from original price
@@ -2086,11 +2088,11 @@ export default function PropertyDetails() {
                         </div>
                       )}
                       
-                      {/* Meal option pricing */}
+                      {/* Meal option pricing (per person) */}
                       {mealOptionPrice > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
-                            {mealOptionName}: ₹{mealOptionPrice.toLocaleString('en-IN')} × {nights} {nights === 1 ? 'night' : 'nights'} × {rooms} {rooms === 1 ? 'room' : 'rooms'}
+                            {mealOptionName}: ₹{mealOptionPrice.toLocaleString('en-IN')}/person × {guests} {guests === 1 ? 'guest' : 'guests'} × {nights} {nights === 1 ? 'night' : 'nights'}
                           </span>
                           <span className="font-semibold">₹{mealSubtotal.toLocaleString('en-IN')}</span>
                         </div>
