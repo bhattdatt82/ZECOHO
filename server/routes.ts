@@ -1747,15 +1747,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const properties = await storage.getProperties(filters);
       
-      // For published properties, include owner contact info
-      const propertiesWithOwnerContact = await Promise.all(
+      // For published properties, include owner contact info and room-type pricing
+      const propertiesWithDetails = await Promise.all(
         properties.map(async (property) => {
+          // Get room types to compute starting price from room-level pricing
+          const propertyRoomTypes = await storage.getRoomTypes(property.id);
+          
+          // Calculate starting price from minimum room-type base price
+          let startingRoomPrice: string | null = null;
+          let startingRoomOriginalPrice: string | null = null;
+          
+          if (propertyRoomTypes.length > 0) {
+            // Find the room type with the lowest base price
+            const sortedRoomTypes = [...propertyRoomTypes].sort(
+              (a, b) => parseFloat(a.basePrice) - parseFloat(b.basePrice)
+            );
+            const cheapestRoomType = sortedRoomTypes[0];
+            startingRoomPrice = cheapestRoomType.basePrice;
+            
+            // Include original price for strike-off display if available
+            if (cheapestRoomType.originalPrice && 
+                parseFloat(cheapestRoomType.originalPrice) > parseFloat(cheapestRoomType.basePrice)) {
+              startingRoomOriginalPrice = cheapestRoomType.originalPrice;
+            }
+          }
+          
           if (property.status === "published") {
             const owner = await storage.getUser(property.ownerId);
             // Clean phone value - trim whitespace and convert empty strings to null
             const ownerPhone = owner?.phone && owner.phone.trim() ? owner.phone.trim() : null;
             return {
               ...property,
+              startingRoomPrice,
+              startingRoomOriginalPrice,
               ownerContact: owner ? {
                 phone: ownerPhone,
                 name: owner.firstName && owner.lastName 
@@ -1764,11 +1788,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } : null,
             };
           }
-          return property;
+          return {
+            ...property,
+            startingRoomPrice,
+            startingRoomOriginalPrice,
+          };
         })
       );
       
-      res.json(propertiesWithOwnerContact);
+      res.json(propertiesWithDetails);
     } catch (error) {
       console.error("Error fetching properties:", error);
       res.status(500).json({ message: "Failed to fetch properties" });
@@ -1782,6 +1810,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Property not found" });
       }
       
+      // Get room types to compute starting price from room-level pricing
+      const propertyRoomTypes = await storage.getRoomTypes(property.id);
+      
+      // Calculate starting price from minimum room-type base price
+      let startingRoomPrice: string | null = null;
+      let startingRoomOriginalPrice: string | null = null;
+      
+      if (propertyRoomTypes.length > 0) {
+        const sortedRoomTypes = [...propertyRoomTypes].sort(
+          (a, b) => parseFloat(a.basePrice) - parseFloat(b.basePrice)
+        );
+        const cheapestRoomType = sortedRoomTypes[0];
+        startingRoomPrice = cheapestRoomType.basePrice;
+        
+        if (cheapestRoomType.originalPrice && 
+            parseFloat(cheapestRoomType.originalPrice) > parseFloat(cheapestRoomType.basePrice)) {
+          startingRoomOriginalPrice = cheapestRoomType.originalPrice;
+        }
+      }
+      
       // For published properties, include owner contact info
       if (property.status === "published") {
         const owner = await storage.getUser(property.ownerId);
@@ -1789,6 +1837,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const ownerPhone = owner?.phone && owner.phone.trim() ? owner.phone.trim() : null;
         return res.json({
           ...property,
+          startingRoomPrice,
+          startingRoomOriginalPrice,
           ownerContact: owner ? {
             phone: ownerPhone,
             name: owner.firstName && owner.lastName 
@@ -1798,7 +1848,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.json(property);
+      res.json({
+        ...property,
+        startingRoomPrice,
+        startingRoomOriginalPrice,
+      });
     } catch (error) {
       console.error("Error fetching property:", error);
       res.status(500).json({ message: "Failed to fetch property" });

@@ -1049,6 +1049,8 @@ function RoomsSection({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
       setShowAddForm(false);
       resetForm();
       toast({
@@ -1071,6 +1073,8 @@ function RoomsSection({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
       setEditingRoom(null);
       toast({
         title: "Room Updated",
@@ -1092,6 +1096,8 @@ function RoomsSection({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
       toast({
         title: "Room Deleted",
         description: "Room type has been deleted.",

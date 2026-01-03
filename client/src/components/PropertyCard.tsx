@@ -28,6 +28,8 @@ interface PropertyCardProps {
     images?: string[];
     isWishlisted?: boolean;
     ownerContact?: OwnerContact | null;
+    startingRoomPrice?: string | null;
+    startingRoomOriginalPrice?: string | null;
   };
   onWishlistToggle?: (propertyId: string) => void;
   searchParams?: SearchParams;
@@ -234,11 +236,18 @@ export function PropertyCard({ property, onWishlistToggle, searchParams }: Prope
             <span>{property.bathrooms} bath{property.bathrooms !== 1 ? "s" : ""}</span>
           </div>
           
-          {/* OTA Price Comparison Ribbon */}
+          {/* OTA Price Comparison Ribbon - uses room-type pricing */}
           {(() => {
-            const zecohoPrice = Number(property.pricePerNight);
+            // Use room-type starting price, fall back to legacy pricePerNight only if no room types
+            const zecohoPrice = property.startingRoomPrice 
+              ? Number(property.startingRoomPrice) 
+              : Number(property.pricePerNight);
             const otaPrice = Math.round(zecohoPrice * 1.15);
             const savings = otaPrice - zecohoPrice;
+            
+            // Only show if we have a valid price
+            if (!zecohoPrice || zecohoPrice <= 0) return null;
+            
             return (
               <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2">
                 <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
@@ -260,17 +269,36 @@ export function PropertyCard({ property, onWishlistToggle, searchParams }: Prope
           })()}
           
           <div className="pt-2 border-t">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              {property.originalPrice && Number(property.originalPrice) > Number(property.pricePerNight) && (
-                <span className="text-base text-muted-foreground line-through">
-                  ₹{Number(property.originalPrice).toLocaleString('en-IN')}
-                </span>
-              )}
-              <span className="text-xl font-semibold" data-testid={`text-price-${property.id}`}>
-                ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
-              </span>
-              <span className="text-sm text-muted-foreground">/ night</span>
-            </div>
+            {/* Price display - uses room-type pricing with strike-off */}
+            {(() => {
+              const displayPrice = property.startingRoomPrice 
+                ? Number(property.startingRoomPrice) 
+                : Number(property.pricePerNight);
+              const originalPrice = property.startingRoomOriginalPrice 
+                ? Number(property.startingRoomOriginalPrice) 
+                : (property.originalPrice ? Number(property.originalPrice) : null);
+              const hasDiscount = originalPrice && originalPrice > displayPrice;
+              
+              if (!displayPrice || displayPrice <= 0) {
+                return (
+                  <span className="text-sm text-muted-foreground">Price not available</span>
+                );
+              }
+              
+              return (
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  {hasDiscount && (
+                    <span className="text-base text-muted-foreground line-through">
+                      ₹{originalPrice.toLocaleString('en-IN')}
+                    </span>
+                  )}
+                  <span className="text-xl font-semibold" data-testid={`text-price-${property.id}`}>
+                    ₹{displayPrice.toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-sm text-muted-foreground">/ night</span>
+                </div>
+              );
+            })()}
           </div>
           
           {/* Book Direct CTA Button */}
