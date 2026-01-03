@@ -75,6 +75,7 @@ import {
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { NearbyPlaces } from "@/components/NearbyPlaces";
+import { HowToReach } from "@/components/HowToReach";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 
@@ -1154,6 +1155,16 @@ export default function PropertyDetails() {
                 </div>
               )}
             </div>
+
+            {/* How to Reach - Transport hubs with travel time estimates */}
+            {property.latitude && property.longitude && (
+              <HowToReach 
+                propertyId={property.id}
+                propertyName={property.title}
+                latitude={Number(property.latitude)}
+                longitude={Number(property.longitude)}
+              />
+            )}
 
             {/* Nearby Places - Localities, Landmarks, Things to Do */}
             {property.latitude && property.longitude && (

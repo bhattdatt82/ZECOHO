@@ -1828,9 +1828,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Define place types for each category
       const categories = {
+        transportHubs: {
+          types: ['subway_station', 'train_station', 'bus_station', 'airport'],
+          radius: 25000,
+          maxResults: 8
+        },
         landmarks: {
-          types: ['train_station', 'bus_station', 'subway_station', 'airport', 'hospital', 'shopping_mall', 'hindu_temple', 'mosque', 'church'],
-          radius: 3000,
+          types: ['hospital', 'shopping_mall', 'hindu_temple', 'mosque', 'church'],
+          radius: 5000,
           maxResults: 8
         },
         localities: {
@@ -1840,12 +1845,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         thingsToDo: {
           types: ['tourist_attraction', 'museum', 'park', 'art_gallery', 'amusement_park', 'zoo', 'aquarium', 'stadium', 'movie_theater'],
-          radius: 5000,
+          radius: 10000,
           maxResults: 8
         }
       };
 
-      const results: { landmarks: any[], localities: any[], thingsToDo: any[] } = {
+      const results: { transportHubs: any[], landmarks: any[], localities: any[], thingsToDo: any[] } = {
+        transportHubs: [],
         landmarks: [],
         localities: [],
         thingsToDo: []

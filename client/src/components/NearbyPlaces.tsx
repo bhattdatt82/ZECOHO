@@ -16,6 +16,7 @@ interface NearbyPlace {
 }
 
 interface NearbyPlacesData {
+  transportHubs: NearbyPlace[];
   landmarks: NearbyPlace[];
   localities: NearbyPlace[];
   thingsToDo: NearbyPlace[];
