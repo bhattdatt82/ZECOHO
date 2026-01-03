@@ -41,6 +41,7 @@ export default function Search() {
   const [coupleFriendly, setCoupleFriendly] = useState<string>("");
   const [hourlyAvailability, setHourlyAvailability] = useState<string>("");
   const [localIdAllowed, setLocalIdAllowed] = useState<string>("");
+  const [foreignGuestsAllowed, setForeignGuestsAllowed] = useState<string>("");
   const [selectedLocality, setSelectedLocality] = useState<string>("");
   
   const [showFilters, setShowFilters] = useState(true);
@@ -202,6 +203,35 @@ export default function Search() {
       return false;
     }
     
+    // Guest policy filters
+    if (coupleFriendly === "yes" && property.coupleFriendly !== true) {
+      return false;
+    }
+    if (coupleFriendly === "no" && property.coupleFriendly !== false) {
+      return false;
+    }
+    
+    if (hourlyAvailability === "yes" && property.hourlyBookingAllowed !== true) {
+      return false;
+    }
+    if (hourlyAvailability === "no" && property.hourlyBookingAllowed !== false) {
+      return false;
+    }
+    
+    if (localIdAllowed === "yes" && property.localIdAllowed !== true) {
+      return false;
+    }
+    if (localIdAllowed === "no" && property.localIdAllowed !== false) {
+      return false;
+    }
+    
+    if (foreignGuestsAllowed === "yes" && property.foreignGuestsAllowed !== true) {
+      return false;
+    }
+    if (foreignGuestsAllowed === "no" && property.foreignGuestsAllowed !== false) {
+      return false;
+    }
+    
     return true;
   });
 
@@ -214,13 +244,14 @@ export default function Search() {
     setCoupleFriendly("");
     setHourlyAvailability("");
     setLocalIdAllowed("");
+    setForeignGuestsAllowed("");
     setSelectedLocality("");
     setSearchDestination("");
   };
 
   const hasActiveFilters = selectedTypes.length > 0 || selectedBudgets.length > 0 || 
     selectedRatings.length > 0 || selectedAmenities.length > 0 || selectedStarRatings.length > 0 ||
-    coupleFriendly || hourlyAvailability || localIdAllowed || 
+    coupleFriendly || hourlyAvailability || localIdAllowed || foreignGuestsAllowed ||
     selectedLocality || searchDestination;
 
   return (
@@ -384,6 +415,23 @@ export default function Search() {
                     <SelectContent>
                       {booleanOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value} data-testid={`select-localid-${option.value}`}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Foreign Guests Allowed Filter */}
+                <div className="min-w-[180px]">
+                  <Label className="text-sm font-medium mb-2 block">Foreign Guests Allowed</Label>
+                  <Select value={foreignGuestsAllowed} onValueChange={setForeignGuestsAllowed}>
+                    <SelectTrigger data-testid="select-foreign-guests" className="w-full">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {booleanOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} data-testid={`select-foreign-${option.value}`}>
                           {option.label}
                         </SelectItem>
                       ))}
