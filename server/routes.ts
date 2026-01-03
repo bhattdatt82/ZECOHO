@@ -5093,6 +5093,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Fix misclassified reactivation requests (migration endpoint)
+  // This fixes requests that were incorrectly stored as "deactivate" when they should be "reactivate"
+  app.post("/api/admin/fix-reactivation-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Only admins can run this migration" });
+      }
+
+      // Find pending "deactivate" requests where the property is already deactivated
+      // These are actually reactivation requests that were incorrectly stored
+      const fixedCount = await storage.fixMisclassifiedReactivationRequests();
+      
+      res.json({ 
+        message: `Migration complete. Fixed ${fixedCount} misclassified reactivation request(s).`,
+        fixedCount 
+      });
+    } catch (error) {
+      console.error("Error fixing reactivation requests:", error);
+      res.status(500).json({ message: "Failed to run migration" });
+    }
+  });
+
   // Admin: Direct deactivate property (admin-only, no request needed)
   app.patch("/api/admin/properties/:id/deactivate", isAuthenticated, async (req: any, res) => {
     try {

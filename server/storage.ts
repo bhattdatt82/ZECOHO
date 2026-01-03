@@ -262,6 +262,7 @@ export interface IStorage {
   getAllPendingDeactivationRequests(): Promise<(PropertyDeactivationRequest & { property: Property; owner: User })[]>;
   processDeactivationRequest(id: string, adminId: string, status: "approved" | "rejected", adminNotes?: string): Promise<PropertyDeactivationRequest | undefined>;
   cancelDeactivationRequest(id: string): Promise<void>;
+  fixMisclassifiedReactivationRequests(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1694,6 +1695,39 @@ export class DatabaseStorage implements IStorage {
 
   async cancelDeactivationRequest(id: string): Promise<void> {
     await db.delete(propertyDeactivationRequests).where(eq(propertyDeactivationRequests.id, id));
+  }
+
+  async fixMisclassifiedReactivationRequests(): Promise<number> {
+    // Find pending "deactivate" requests where the property is already deactivated
+    // These are actually reactivation requests that were incorrectly stored due to the bug
+    const misclassifiedRequests = await db
+      .select({
+        requestId: propertyDeactivationRequests.id,
+        propertyId: propertyDeactivationRequests.propertyId,
+        propertyStatus: properties.status,
+      })
+      .from(propertyDeactivationRequests)
+      .innerJoin(properties, eq(propertyDeactivationRequests.propertyId, properties.id))
+      .where(
+        and(
+          eq(propertyDeactivationRequests.status, "pending"),
+          eq(propertyDeactivationRequests.requestType, "deactivate"),
+          eq(properties.status, "deactivated")
+        )
+      );
+
+    if (misclassifiedRequests.length === 0) {
+      return 0;
+    }
+
+    // Update all misclassified requests to have requestType = "reactivate"
+    const requestIds = misclassifiedRequests.map(r => r.requestId);
+    await db
+      .update(propertyDeactivationRequests)
+      .set({ requestType: "reactivate" })
+      .where(inArray(propertyDeactivationRequests.id, requestIds));
+
+    return misclassifiedRequests.length;
   }
 }
 
