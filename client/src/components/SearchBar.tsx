@@ -70,7 +70,7 @@ export function SearchBar({
   initialAdults = 2,
   initialChildren = 0,
   initialRooms = 1,
-  ctaText = "Find Lowest Direct Prices →",
+  ctaText = "Book Now",
 }: SearchBarProps) {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();

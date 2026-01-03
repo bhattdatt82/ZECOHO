@@ -136,7 +136,7 @@ export default function Landing() {
                 compact={false} 
                 showDates={true} 
                 showGuests={true} 
-                ctaText="Find Lowest Direct Prices →"
+                ctaText="Book Now"
               />
             </div>
           </div>
