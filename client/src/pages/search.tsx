@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import type { Property, Amenity } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { useKycGuard } from "@/hooks/useKycGuard";
@@ -45,7 +45,6 @@ export default function Search() {
   const [selectedLocality, setSelectedLocality] = useState<string>("");
   
   const [showFilters, setShowFilters] = useState(true);
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [searchDestination, setSearchDestination] = useState("");
   const [initialSearchValues, setInitialSearchValues] = useState({
     destination: "",
@@ -287,195 +286,180 @@ export default function Search() {
         </div>
       </div>
 
-      {/* Horizontal Filters Bar */}
+      {/* Horizontal Filters Bar - All filters in one scrollable row on desktop */}
       {showFilters && (
         <div className="border-b bg-muted/30">
           <div className="container px-4 md:px-6 py-4">
-            {/* Primary Filters Row */}
-            <div className="flex flex-wrap items-end gap-4 mb-4">
+            {/* Single Row of All Filters - horizontal scroll on mobile, single line on desktop */}
+            <div className="flex items-end gap-3 overflow-x-auto pb-2 lg:overflow-x-visible lg:flex-nowrap scrollbar-thin">
               {/* Property Type Filter */}
-              <MultiSelectFilter
-                label="Property Type"
-                options={propertyTypes}
-                selectedValues={selectedTypes}
-                onSelectionChange={setSelectedTypes}
-                placeholder="All types"
-                testId="filter-property-type"
-              />
+              <div className="flex-shrink-0">
+                <MultiSelectFilter
+                  label="Property Type"
+                  options={propertyTypes}
+                  selectedValues={selectedTypes}
+                  onSelectionChange={setSelectedTypes}
+                  placeholder="All types"
+                  testId="filter-property-type"
+                />
+              </div>
 
               {/* Budget Filter */}
-              <MultiSelectFilter
-                label="Budget"
-                options={budgetOptions}
-                selectedValues={selectedBudgets}
-                onSelectionChange={setSelectedBudgets}
-                placeholder="Any budget"
-                testId="filter-budget"
-              />
+              <div className="flex-shrink-0">
+                <MultiSelectFilter
+                  label="Budget"
+                  options={budgetOptions}
+                  selectedValues={selectedBudgets}
+                  onSelectionChange={setSelectedBudgets}
+                  placeholder="Any budget"
+                  testId="filter-budget"
+                />
+              </div>
 
               {/* User Rating Filter */}
-              <MultiSelectFilter
-                label="User Rating"
-                options={ratingOptions}
-                selectedValues={selectedRatings}
-                onSelectionChange={setSelectedRatings}
-                placeholder="Any rating"
-                testId="filter-rating"
-              />
+              <div className="flex-shrink-0">
+                <MultiSelectFilter
+                  label="User Rating"
+                  options={ratingOptions}
+                  selectedValues={selectedRatings}
+                  onSelectionChange={setSelectedRatings}
+                  placeholder="Any rating"
+                  testId="filter-rating"
+                />
+              </div>
 
               {/* Amenities Filter */}
-              <MultiSelectFilter
-                label="Amenities"
-                options={amenities.length > 0 
-                  ? amenities.map((a) => ({ value: a.id, label: `${a.name}${a.category ? ` (${a.category})` : ""}` }))
-                  : [{ value: "wifi", label: "WiFi" }]
-                }
-                selectedValues={selectedAmenities}
-                onSelectionChange={setSelectedAmenities}
-                placeholder="All amenities"
-                testId="filter-amenity"
-              />
+              <div className="flex-shrink-0">
+                <MultiSelectFilter
+                  label="Amenities"
+                  options={amenities.length > 0 
+                    ? amenities.map((a) => ({ value: a.id, label: `${a.name}${a.category ? ` (${a.category})` : ""}` }))
+                    : [{ value: "wifi", label: "WiFi" }]
+                  }
+                  selectedValues={selectedAmenities}
+                  onSelectionChange={setSelectedAmenities}
+                  placeholder="All amenities"
+                  testId="filter-amenity"
+                />
+              </div>
 
               {/* Hotel Star Rating Filter */}
-              <MultiSelectFilter
-                label="Hotel Star Rating"
-                options={starRatingOptions}
-                selectedValues={selectedStarRatings}
-                onSelectionChange={setSelectedStarRatings}
-                placeholder="Any stars"
-                testId="filter-star-rating"
-              />
+              <div className="flex-shrink-0">
+                <MultiSelectFilter
+                  label="Star Rating"
+                  options={starRatingOptions}
+                  selectedValues={selectedStarRatings}
+                  onSelectionChange={setSelectedStarRatings}
+                  placeholder="Any stars"
+                  testId="filter-star-rating"
+                />
+              </div>
 
-              {/* Show More Filters Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowMoreFilters(!showMoreFilters)}
-                data-testid="button-more-filters"
-                className="mb-0.5"
-              >
-                {showMoreFilters ? (
-                  <>
-                    <ChevronUp className="h-4 w-4 mr-1" />
-                    Less Filters
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4 mr-1" />
-                    More Filters
-                  </>
-                )}
-              </Button>
+              {/* Couple Friendly Filter */}
+              <div className="flex-shrink-0 min-w-[120px]">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Couple Friendly</Label>
+                <Select value={coupleFriendly} onValueChange={setCoupleFriendly}>
+                  <SelectTrigger data-testid="select-couple-friendly" className="w-full h-9">
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {booleanOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} data-testid={`select-couple-${option.value}`}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Hourly Availability Filter */}
+              <div className="flex-shrink-0 min-w-[120px]">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Hourly</Label>
+                <Select value={hourlyAvailability} onValueChange={setHourlyAvailability}>
+                  <SelectTrigger data-testid="select-hourly" className="w-full h-9">
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {booleanOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} data-testid={`select-hourly-${option.value}`}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Local ID Allowed Filter */}
+              <div className="flex-shrink-0 min-w-[110px]">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Local ID</Label>
+                <Select value={localIdAllowed} onValueChange={setLocalIdAllowed}>
+                  <SelectTrigger data-testid="select-local-id" className="w-full h-9">
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {booleanOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} data-testid={`select-localid-${option.value}`}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Foreign Guests Allowed Filter */}
+              <div className="flex-shrink-0 min-w-[120px]">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Foreign Guests</Label>
+                <Select value={foreignGuestsAllowed} onValueChange={setForeignGuestsAllowed}>
+                  <SelectTrigger data-testid="select-foreign-guests" className="w-full h-9">
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {booleanOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} data-testid={`select-foreign-${option.value}`}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Localities and Landmarks Filter */}
+              <div className="flex-shrink-0 min-w-[140px]">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Localities</Label>
+                <Select value={selectedLocality} onValueChange={setSelectedLocality}>
+                  <SelectTrigger data-testid="select-locality" className="w-full h-9">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {localities.length > 0 ? (
+                      localities.map((locality) => (
+                        <SelectItem key={locality} value={locality} data-testid={`select-locality-${locality}`}>
+                          {locality}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="all" disabled>No localities available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Clear Filters Button - inline with filters */}
+              {hasActiveFilters && (
+                <div className="flex-shrink-0 self-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllFilters}
+                    data-testid="button-clear-filters"
+                    className="h-9 whitespace-nowrap"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear
+                  </Button>
+                </div>
+              )}
             </div>
-
-            {/* Secondary Filters Row (Expandable) */}
-            {showMoreFilters && (
-              <div className="flex flex-wrap items-end gap-4 pt-4 border-t">
-                {/* Couple Friendly Filter */}
-                <div className="min-w-[140px]">
-                  <Label className="text-sm font-medium mb-2 block">Couple Friendly</Label>
-                  <Select value={coupleFriendly} onValueChange={setCoupleFriendly}>
-                    <SelectTrigger data-testid="select-couple-friendly" className="w-full">
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {booleanOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} data-testid={`select-couple-${option.value}`}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Hourly Availability Filter */}
-                <div className="min-w-[160px]">
-                  <Label className="text-sm font-medium mb-2 block">Hourly Availability</Label>
-                  <Select value={hourlyAvailability} onValueChange={setHourlyAvailability}>
-                    <SelectTrigger data-testid="select-hourly" className="w-full">
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {booleanOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} data-testid={`select-hourly-${option.value}`}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Local ID Allowed Filter */}
-                <div className="min-w-[140px]">
-                  <Label className="text-sm font-medium mb-2 block">Local ID Allowed</Label>
-                  <Select value={localIdAllowed} onValueChange={setLocalIdAllowed}>
-                    <SelectTrigger data-testid="select-local-id" className="w-full">
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {booleanOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} data-testid={`select-localid-${option.value}`}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Foreign Guests Allowed Filter */}
-                <div className="min-w-[180px]">
-                  <Label className="text-sm font-medium mb-2 block">Foreign Guests Allowed</Label>
-                  <Select value={foreignGuestsAllowed} onValueChange={setForeignGuestsAllowed}>
-                    <SelectTrigger data-testid="select-foreign-guests" className="w-full">
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {booleanOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value} data-testid={`select-foreign-${option.value}`}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Localities and Landmarks Filter */}
-                <div className="min-w-[180px]">
-                  <Label className="text-sm font-medium mb-2 block">Localities & Landmarks</Label>
-                  <Select value={selectedLocality} onValueChange={setSelectedLocality}>
-                    <SelectTrigger data-testid="select-locality" className="w-full">
-                      <SelectValue placeholder="All localities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {localities.length > 0 ? (
-                        localities.map((locality) => (
-                          <SelectItem key={locality} value={locality} data-testid={`select-locality-${locality}`}>
-                            {locality}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="all" disabled>No localities available</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <div className="flex justify-end mt-4 pt-4 border-t">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  data-testid="button-clear-filters"
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Clear all filters
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       )}
