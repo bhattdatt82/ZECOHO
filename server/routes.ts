@@ -3076,9 +3076,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         : undefined;
         
+      // Get room type details for email
+      let roomTypeName: string | undefined;
+      let roomTypeDescription: string | undefined;
+      if (validatedData.roomTypeId) {
+        const roomTypeForEmail = await storage.getRoomType(validatedData.roomTypeId);
+        if (roomTypeForEmail) {
+          roomTypeName = roomTypeForEmail.name;
+          roomTypeDescription = roomTypeForEmail.description || undefined;
+        }
+      }
+      
+      // Build full property address
+      const propertyAddressParts = [
+        property.propFlatNo,
+        property.propHouseNo,
+        property.propStreetAddress,
+        property.propLandmark,
+        property.propLocality
+      ].filter(Boolean);
+      const propertyAddress = propertyAddressParts.length > 0 ? propertyAddressParts.join(', ') : property.address || undefined;
+      
       const bookingEmailData = {
         bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
         propertyName: property.title,
+        propertyId: property.id,
         checkIn: checkInFormatted,
         checkOut: checkOutFormatted,
         guests: validatedData.guests || 1,
@@ -3089,6 +3111,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : guest?.email || 'Guest',
         guestEmail: guest?.email || '',
         bookingCreatedAt: bookingCreatedAtFormatted,
+        // Extended property details
+        propertyAddress,
+        propertyCity: property.propCity || property.destination || undefined,
+        propertyState: property.propState || undefined,
+        propertyPincode: property.propPincode || undefined,
+        latitude: property.latitude?.toString() || undefined,
+        longitude: property.longitude?.toString() || undefined,
+        // Room details
+        roomTypeName,
+        roomTypeDescription,
+        // Payment type - default to pay_at_hotel
+        paymentType: 'pay_at_hotel',
       };
       
       // Email to guest: "Reservation Requested"
@@ -3551,9 +3585,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
           : undefined;
         
+        // Get room type details for email
+        let roomTypeName: string | undefined;
+        let roomTypeDescription: string | undefined;
+        if (booking.roomTypeId) {
+          const roomTypeForEmail = await storage.getRoomType(booking.roomTypeId);
+          if (roomTypeForEmail) {
+            roomTypeName = roomTypeForEmail.name;
+            roomTypeDescription = roomTypeForEmail.description || undefined;
+          }
+        }
+        
+        // Build full property address
+        const propertyAddressParts = [
+          property.propFlatNo,
+          property.propHouseNo,
+          property.propStreetAddress,
+          property.propLandmark,
+          property.propLocality
+        ].filter(Boolean);
+        const propertyAddress = propertyAddressParts.length > 0 ? propertyAddressParts.join(', ') : property.address || undefined;
+        
         const bookingEmailData = {
           bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
           propertyName: property.title,
+          propertyId: property.id,
           checkIn: checkInFormatted,
           checkOut: checkOutFormatted,
           guests: booking.guests || 1,
@@ -3564,6 +3620,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             : guest?.email || 'Guest',
           guestEmail: guest?.email || '',
           bookingCreatedAt: bookingCreatedAtFormatted,
+          // Extended property details
+          propertyAddress,
+          propertyCity: property.propCity || property.destination || undefined,
+          propertyState: property.propState || undefined,
+          propertyPincode: property.propPincode || undefined,
+          latitude: property.latitude?.toString() || undefined,
+          longitude: property.longitude?.toString() || undefined,
+          // Room details
+          roomTypeName,
+          roomTypeDescription,
+          // Payment type
+          paymentType: 'pay_at_hotel',
         };
         
         // Email to guest: "Booking Confirmed"
@@ -3672,6 +3740,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const checkInFormatted = format(checkInDate, "MMM d, yyyy");
       const checkOutFormatted = format(new Date(booking.checkOut), "MMM d, yyyy");
       
+      // Get room type details for email
+      let roomTypeName: string | undefined;
+      let roomTypeDescription: string | undefined;
+      if (booking.roomTypeId) {
+        const roomTypeForEmail = await storage.getRoomType(booking.roomTypeId);
+        if (roomTypeForEmail) {
+          roomTypeName = roomTypeForEmail.name;
+          roomTypeDescription = roomTypeForEmail.description || undefined;
+        }
+      }
+      
+      // Build full property address
+      const propertyAddressParts = [
+        property.propFlatNo,
+        property.propHouseNo,
+        property.propStreetAddress,
+        property.propLandmark,
+        property.propLocality
+      ].filter(Boolean);
+      const propertyAddress = propertyAddressParts.length > 0 ? propertyAddressParts.join(', ') : property.address || undefined;
+      
       // Send email to guest
       if (guest?.email) {
         sendBookingDeclinedEmail(
@@ -3680,11 +3769,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {
             bookingCode: booking.bookingCode || bookingId,
             propertyName: property.title,
+            propertyId: property.id,
             checkIn: checkInFormatted,
             checkOut: checkOutFormatted,
             totalPrice: booking.totalPrice?.toString() || '0',
             guests: booking.guests,
             rooms: booking.rooms || 1,
+            // Extended property details
+            propertyAddress,
+            propertyCity: property.propCity || property.destination || undefined,
+            propertyState: property.propState || undefined,
+            propertyPincode: property.propPincode || undefined,
+            latitude: property.latitude?.toString() || undefined,
+            longitude: property.longitude?.toString() || undefined,
+            // Room details
+            roomTypeName,
+            roomTypeDescription,
+            // Payment type
+            paymentType: 'pay_at_hotel',
           },
           'cancelled'
         ).catch(console.error);
@@ -3699,6 +3801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {
             bookingCode: booking.bookingCode || bookingId,
             propertyName: property.title,
+            propertyId: property.id,
             checkIn: checkInFormatted,
             checkOut: checkOutFormatted,
             totalPrice: booking.totalPrice?.toString() || '0',
@@ -3708,6 +3811,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? `${guest.firstName} ${guest.lastName}` 
               : guest?.email || 'Guest',
             cancellationReason: reason || 'No reason provided',
+            // Extended property details
+            propertyAddress,
+            propertyCity: property.propCity || property.destination || undefined,
+            propertyState: property.propState || undefined,
+            propertyPincode: property.propPincode || undefined,
+            latitude: property.latitude?.toString() || undefined,
+            longitude: property.longitude?.toString() || undefined,
+            // Room details
+            roomTypeName,
+            roomTypeDescription,
+            // Payment type
+            paymentType: 'pay_at_hotel',
           }
         ).catch(console.error);
       }
@@ -5266,15 +5381,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
           : undefined;
         
+        // Get room type details for email
+        let roomTypeName: string | undefined;
+        let roomTypeDescription: string | undefined;
+        if (booking.roomTypeId) {
+          const roomTypeForEmail = await storage.getRoomType(booking.roomTypeId);
+          if (roomTypeForEmail) {
+            roomTypeName = roomTypeForEmail.name;
+            roomTypeDescription = roomTypeForEmail.description || undefined;
+          }
+        }
+        
+        // Build full property address
+        const propertyAddressParts = [
+          property.propFlatNo,
+          property.propHouseNo,
+          property.propStreetAddress,
+          property.propLandmark,
+          property.propLocality
+        ].filter(Boolean);
+        const propertyAddress = propertyAddressParts.length > 0 ? propertyAddressParts.join(', ') : property.address || undefined;
+        
         const bookingEmailData = {
           bookingCode: booking.bookingCode || booking.id.slice(0, 8).toUpperCase(),
           propertyName: property.title,
+          propertyId: property.id,
           checkIn: checkInFormatted,
           checkOut: checkOutFormatted,
           guests: booking.guests || 1,
           rooms: booking.rooms || 1,
           totalPrice: booking.totalPrice?.toString() || '0',
           bookingCreatedAt: bookingCreatedAtFormatted,
+          // Extended property details
+          propertyAddress,
+          propertyCity: property.propCity || property.destination || undefined,
+          propertyState: property.propState || undefined,
+          propertyPincode: property.propPincode || undefined,
+          latitude: property.latitude?.toString() || undefined,
+          longitude: property.longitude?.toString() || undefined,
+          // Room details
+          roomTypeName,
+          roomTypeDescription,
+          // Payment type
+          paymentType: 'pay_at_hotel',
         };
         
         if (status === "confirmed") {
