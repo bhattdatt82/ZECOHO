@@ -393,7 +393,7 @@ export async function sendPropertyStatusEmail(
   email: string, 
   firstName: string, 
   propertyName: string, 
-  status: 'paused' | 'resumed' | 'deactivated'
+  status: 'paused' | 'resumed' | 'deactivated' | 'deleted'
 ): Promise<boolean> {
   try {
     console.log(`Sending property ${status} notification to:`, email);
@@ -423,6 +423,14 @@ export async function sendPropertyStatusEmail(
         color: '#dc2626',
         bgColor: '#fef2f2',
         icon: '&#10060;'
+      },
+      deleted: {
+        subject: `Property Deleted - ${propertyName}`,
+        heading: 'Property Permanently Deleted',
+        message: `Your property "${propertyName}" has been permanently deleted from ZECOHO per your request. All property data has been removed. If this was done in error, please contact support immediately.`,
+        color: '#dc2626',
+        bgColor: '#fef2f2',
+        icon: '&#128465;'
       }
     };
     
@@ -489,6 +497,103 @@ export async function sendPropertyStatusEmail(
     return true;
   } catch (error: any) {
     console.error(`Failed to send property ${status} email:`, error?.message || error);
+    return false;
+  }
+}
+
+export async function sendAdminDeactivationRequestEmail(
+  adminEmails: string[],
+  ownerName: string,
+  propertyName: string,
+  requestType: 'deactivate' | 'delete',
+  reason: string
+): Promise<boolean> {
+  try {
+    if (adminEmails.length === 0) {
+      console.log('No admin emails provided for deactivation request notification');
+      return false;
+    }
+    
+    console.log(`Sending deactivation request notification to admins:`, adminEmails);
+    const { client, fromEmail } = await getResendClient();
+    
+    const isDelete = requestType === 'delete';
+    const actionType = isDelete ? 'Deletion' : 'Deactivation';
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      to: adminEmails,
+      subject: `Action Required: Property ${actionType} Request - ${propertyName}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+          <div style="max-width: 480px; margin: 40px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 32px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">ZECOHO Admin</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">Property ${actionType} Request</p>
+            </div>
+            
+            <div style="padding: 32px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <div style="width: 64px; height: 64px; background: ${isDelete ? '#fef2f2' : '#fffbeb'}; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px; color: ${isDelete ? '#dc2626' : '#f59e0b'};">${isDelete ? '&#128465;' : '&#9888;'}</span>
+                </div>
+              </div>
+              
+              <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">New ${actionType} Request</h2>
+              
+              <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">
+                  <strong>Property:</strong> ${propertyName}
+                </p>
+                <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">
+                  <strong>Owner:</strong> ${ownerName}
+                </p>
+                <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">
+                  <strong>Request Type:</strong> <span style="color: ${isDelete ? '#dc2626' : '#f59e0b'}; font-weight: 600;">${actionType}</span>
+                </p>
+                <p style="color: #6b7280; margin: 0; font-size: 14px;">
+                  <strong>Reason:</strong> ${reason}
+                </p>
+              </div>
+              
+              <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5; text-align: center;">
+                Please review this request in the admin portal and take appropriate action.
+              </p>
+              
+              <div style="text-align: center;">
+                <a href="${getAppBaseUrl()}/admin/properties" style="display: inline-block; background: #f59e0b; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                  Review Request
+                </a>
+              </div>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                ZECOHO Admin Portal<br>
+                This is an automated notification for property management
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('Failed to send admin deactivation request email:', error);
+      return false;
+    }
+
+    console.log('Admin deactivation request email sent successfully:', data?.id);
+    return true;
+  } catch (error: any) {
+    console.error('Failed to send admin deactivation request email:', error?.message || error);
     return false;
   }
 }

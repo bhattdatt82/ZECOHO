@@ -9,7 +9,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
-import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail, sendBookingCancelledOwnerEmail, sendReviewRequestEmail } from "./emailService";
+import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail, sendBookingCancelledOwnerEmail, sendReviewRequestEmail, sendAdminDeactivationRequestEmail } from "./emailService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { WebSocketServer, WebSocket } from "ws";
@@ -1987,7 +1987,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate with partial schema
       const validatedData = insertPropertySchema.partial().parse(req.body);
-      const { amenityIds, pricePerNight, latitude, longitude, ...propertyData } = validatedData;
+      const { amenityIds, pricePerNight, latitude, longitude, status, ...propertyData } = validatedData;
+      
+      // SECURITY: Owners cannot directly change property status - must use deactivation request flow
+      // Status changes are handled through dedicated endpoints (pause, resume, admin-approved deactivation)
+      if (status !== undefined) {
+        console.warn(`Owner ${userId} attempted to directly change status for property ${req.params.id}`);
+      }
       
       // Convert numeric fields to strings if provided
       const updateData = {
@@ -2014,23 +2020,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SECURITY: Direct property deletion is admin-only
+  // Owners must use the deactivation request flow (POST /api/properties/:id/deactivation-request with requestType: "delete")
   app.delete("/api/properties/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
-      if (!user || !userHasRole(user, "owner")) {
-        return res.status(403).json({ message: "Only owners can delete properties" });
+      // Only admins can directly delete properties
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ 
+          message: "Property deletion requires admin approval. Please submit a deactivation request instead." 
+        });
       }
 
       const property = await storage.getProperty(req.params.id);
       
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
-      }
-      
-      if (property.ownerId !== userId) {
-        return res.status(403).json({ message: "Not authorized to delete this property" });
       }
 
       await storage.deleteProperty(req.params.id);
@@ -2258,12 +2265,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Please provide a reason (at least 10 characters)" });
       }
 
+      const actualRequestType = requestType === "delete" ? "delete" : "deactivate";
       const request = await storage.createDeactivationRequest(
         req.params.id, 
         userId, 
         reason.trim(),
-        requestType === "delete" ? "delete" : "deactivate"
+        actualRequestType
       );
+      
+      // Send email notification to all admins
+      const adminUsers = await storage.getAdminUsers();
+      const adminEmails = adminUsers.filter(a => a.email).map(a => a.email as string);
+      if (adminEmails.length > 0) {
+        const ownerName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Property Owner';
+        sendAdminDeactivationRequestEmail(
+          adminEmails,
+          ownerName,
+          property.title,
+          actualRequestType,
+          reason.trim()
+        ).catch(console.error);
+      }
       
       res.json(request);
     } catch (error) {

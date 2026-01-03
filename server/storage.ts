@@ -105,6 +105,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   promoteUserToAdmin(email: string): Promise<User | undefined>;
+  getAdminUsers(): Promise<User[]>;
 
   // Property operations
   getProperties(filters?: {
@@ -292,6 +293,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.email, email))
       .returning();
     return user;
+  }
+
+  async getAdminUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.userRole, "admin"));
   }
 
   // Property operations
