@@ -41,6 +41,7 @@ import { PropertyMap } from "@/components/PropertyMap";
 import type { Property, AvailabilityOverride, RoomType, RoomOption } from "@shared/schema";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 export default function OwnerPropertyManage() {
   const { id } = useParams<{ id: string }>();
@@ -805,9 +806,22 @@ function AvailabilitySection({
 
 function StatusSection({ property }: { property: Property }) {
   const { toast } = useToast();
+  const [showDeactivationDialog, setShowDeactivationDialog] = useState(false);
+  const [deactivationReason, setDeactivationReason] = useState("");
+  const [deactivationRequestType, setDeactivationRequestType] = useState<"deactivate" | "delete">("deactivate");
+
+  // Check if there's a pending deactivation request
+  const { data: pendingRequest, isLoading: isLoadingRequest } = useQuery({
+    queryKey: ["/api/properties", property.id, "deactivation-request"],
+    queryFn: async () => {
+      const res = await fetch(`/api/properties/${property.id}/deactivation-request`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async (action: "pause" | "resume" | "deactivate") => {
+    mutationFn: async (action: "pause" | "resume") => {
       return apiRequest("PATCH", `/api/properties/${property.id}/${action}`, {});
     },
     onSuccess: (_, action) => {
@@ -822,6 +836,51 @@ function StatusSection({ property }: { property: Property }) {
       toast({
         title: "Error",
         description: "Failed to update property status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const submitDeactivationRequestMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/properties/${property.id}/deactivation-request`, {
+        reason: deactivationReason,
+        requestType: deactivationRequestType,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id, "deactivation-request"] });
+      setShowDeactivationDialog(false);
+      setDeactivationReason("");
+      toast({
+        title: "Request Submitted",
+        description: "Your deactivation request has been submitted. An admin will review it shortly.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit deactivation request.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelDeactivationRequestMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/properties/${property.id}/deactivation-request`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id, "deactivation-request"] });
+      toast({
+        title: "Request Cancelled",
+        description: "Your deactivation request has been cancelled.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to cancel deactivation request.",
         variant: "destructive",
       });
     },
@@ -911,19 +970,41 @@ function StatusSection({ property }: { property: Property }) {
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                    <div>
-                      <h4 className="font-medium">Deactivate Listing</h4>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Permanently remove your property from the platform. This action can be reversed later.
-                      </p>
-                      <Button 
-                        variant="destructive"
-                        onClick={() => updateStatusMutation.mutate("deactivate")}
-                        disabled={updateStatusMutation.isPending}
-                        data-testid="deactivate-property"
-                      >
-                        Deactivate Property
-                      </Button>
+                    <div className="flex-1">
+                      {pendingRequest ? (
+                        <>
+                          <h4 className="font-medium">Deactivation Request Pending</h4>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Your request to {pendingRequest.requestType === "delete" ? "delete" : "deactivate"} this property is awaiting admin approval.
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Submitted: {new Date(pendingRequest.createdAt).toLocaleDateString()}
+                          </p>
+                          <Button 
+                            variant="outline"
+                            onClick={() => cancelDeactivationRequestMutation.mutate()}
+                            disabled={cancelDeactivationRequestMutation.isPending}
+                            data-testid="cancel-deactivation-request"
+                          >
+                            Cancel Request
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <h4 className="font-medium">Request Deactivation</h4>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Submit a request to deactivate or delete your property. An admin will review and approve your request.
+                          </p>
+                          <Button 
+                            variant="destructive"
+                            onClick={() => setShowDeactivationDialog(true)}
+                            disabled={isLoadingRequest}
+                            data-testid="request-deactivation-property"
+                          >
+                            Request Deactivation
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -932,6 +1013,54 @@ function StatusSection({ property }: { property: Property }) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showDeactivationDialog} onOpenChange={setShowDeactivationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Property Deactivation</DialogTitle>
+            <DialogDescription>
+              Please provide details about why you want to deactivate or delete this property. An admin will review your request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Request Type</label>
+              <select
+                value={deactivationRequestType}
+                onChange={(e) => setDeactivationRequestType(e.target.value as "deactivate" | "delete")}
+                className="w-full p-2 border rounded-md"
+                data-testid="select-deactivation-type"
+              >
+                <option value="deactivate">Deactivate (can be reversed later)</option>
+                <option value="delete">Delete Permanently</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Reason (minimum 10 characters)</label>
+              <Textarea
+                placeholder="Please explain why you want to deactivate or delete this property..."
+                value={deactivationReason}
+                onChange={(e) => setDeactivationReason(e.target.value)}
+                rows={4}
+                data-testid="input-deactivation-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeactivationDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => submitDeactivationRequestMutation.mutate()}
+              disabled={deactivationReason.trim().length < 10 || submitDeactivationRequestMutation.isPending}
+              data-testid="submit-deactivation-request"
+            >
+              {submitDeactivationRequestMutation.isPending ? "Submitting..." : "Submit Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <GuestPoliciesCard property={property} />
     </div>
