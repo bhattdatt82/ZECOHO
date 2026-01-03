@@ -1735,11 +1735,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (maxPrice) filters.maxPrice = Number(maxPrice);
       if (minGuests) filters.minGuests = Number(minGuests);
       
-      // Guest policy filters (only filter when 'true', as these are positive filters)
+      // Guest policy filters - support both 'true' and 'false' values
       if (localIdAllowed === 'true') filters.localIdAllowed = true;
+      else if (localIdAllowed === 'false') filters.localIdAllowed = false;
       if (hourlyBookingAllowed === 'true') filters.hourlyBookingAllowed = true;
+      else if (hourlyBookingAllowed === 'false') filters.hourlyBookingAllowed = false;
       if (foreignGuestsAllowed === 'true') filters.foreignGuestsAllowed = true;
+      else if (foreignGuestsAllowed === 'false') filters.foreignGuestsAllowed = false;
       if (coupleFriendly === 'true') filters.coupleFriendly = true;
+      else if (coupleFriendly === 'false') filters.coupleFriendly = false;
       
       const properties = await storage.getProperties(filters);
       
