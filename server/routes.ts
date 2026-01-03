@@ -1805,6 +1805,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Nearby places endpoint - fetches localities, landmarks, and things to do using Google Places API
+  app.get("/api/properties/:id/nearby-places", async (req, res) => {
+    try {
+      const property = await storage.getProperty(req.params.id);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+
+      if (!property.latitude || !property.longitude) {
+        return res.status(400).json({ message: "Property location not available" });
+      }
+
+      const lat = property.latitude;
+      const lng = property.longitude;
+      // Use server-side API key (falls back to VITE_ key if not set)
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({ message: "Google Maps API key not configured" });
+      }
+
+      // Define place types for each category
+      const categories = {
+        landmarks: {
+          types: ['train_station', 'bus_station', 'subway_station', 'airport', 'hospital', 'shopping_mall', 'hindu_temple', 'mosque', 'church'],
+          radius: 3000,
+          maxResults: 8
+        },
+        localities: {
+          types: ['neighborhood', 'locality', 'sublocality'],
+          radius: 5000,
+          maxResults: 6
+        },
+        thingsToDo: {
+          types: ['tourist_attraction', 'museum', 'park', 'art_gallery', 'amusement_park', 'zoo', 'aquarium', 'stadium', 'movie_theater'],
+          radius: 5000,
+          maxResults: 8
+        }
+      };
+
+      const results: { landmarks: any[], localities: any[], thingsToDo: any[] } = {
+        landmarks: [],
+        localities: [],
+        thingsToDo: []
+      };
+
+      // Fetch nearby places for each category
+      for (const [category, config] of Object.entries(categories)) {
+        const allPlaces: any[] = [];
+        
+        for (const type of config.types) {
+          try {
+            const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${config.radius}&type=${type}&key=${apiKey}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.status === 'OK' && data.results) {
+              for (const place of data.results) {
+                // Calculate distance from property
+                const placeLat = place.geometry?.location?.lat;
+                const placeLng = place.geometry?.location?.lng;
+                let distance = 0;
+                
+                if (placeLat && placeLng) {
+                  // Haversine formula for distance calculation
+                  const R = 6371; // Earth's radius in km
+                  const dLat = (placeLat - Number(lat)) * Math.PI / 180;
+                  const dLng = (placeLng - Number(lng)) * Math.PI / 180;
+                  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(Number(lat) * Math.PI / 180) * Math.cos(placeLat * Math.PI / 180) *
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                  distance = R * c; // Distance in km
+                }
+                
+                allPlaces.push({
+                  name: place.name,
+                  type: type.replace(/_/g, ' '),
+                  rating: place.rating || null,
+                  userRatingsTotal: place.user_ratings_total || 0,
+                  vicinity: place.vicinity || '',
+                  distance: Math.round(distance * 10) / 10, // Round to 1 decimal
+                  placeId: place.place_id,
+                  icon: place.icon || null,
+                  photoReference: place.photos?.[0]?.photo_reference || null
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching ${type} places:`, error);
+          }
+        }
+        
+        // Remove duplicates by place_id and sort by distance
+        const uniquePlaces = allPlaces.reduce((acc: any[], place) => {
+          if (!acc.find(p => p.placeId === place.placeId)) {
+            acc.push(place);
+          }
+          return acc;
+        }, []);
+        
+        // Sort by distance and limit results
+        uniquePlaces.sort((a, b) => a.distance - b.distance);
+        results[category as keyof typeof results] = uniquePlaces.slice(0, config.maxResults);
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching nearby places:", error);
+      res.status(500).json({ message: "Failed to fetch nearby places" });
+    }
+  });
+
   app.post("/api/properties", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

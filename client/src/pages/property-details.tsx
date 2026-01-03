@@ -73,6 +73,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { NearbyPlaces } from "@/components/NearbyPlaces";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 
@@ -1155,6 +1156,15 @@ export default function PropertyDetails() {
                 </div>
               )}
             </div>
+
+            {/* Nearby Places - Localities, Landmarks, Things to Do */}
+            {property.latitude && property.longitude && (
+              <NearbyPlaces 
+                propertyId={property.id}
+                latitude={Number(property.latitude)}
+                longitude={Number(property.longitude)}
+              />
+            )}
 
             {/* Things to Know */}
             {(property.policies || property.checkInTime || property.checkOutTime || 

@@ -1516,6 +1516,7 @@ export async function sendBookingCancelledOwnerEmail(
   data: {
     bookingCode: string;
     propertyName: string;
+    propertyId?: string;
     checkIn: string;
     checkOut: string;
     totalPrice: string;
@@ -1523,6 +1524,21 @@ export async function sendBookingCancelledOwnerEmail(
     rooms: number;
     guestName: string;
     cancellationReason: string;
+    // Extended property details
+    propertyAddress?: string;
+    propertyCity?: string;
+    propertyState?: string;
+    propertyPincode?: string;
+    latitude?: string;
+    longitude?: string;
+    // Room details
+    roomTypeName?: string;
+    roomTypeDescription?: string;
+    // Pricing details for strikethrough display
+    roomBasePrice?: string;
+    roomOriginalPrice?: string;
+    // Payment type
+    paymentType?: string;
   }
 ): Promise<boolean> {
   try {
