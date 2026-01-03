@@ -158,7 +158,7 @@ export function RoomTypeBuilder({ value, onChange, propertyType }: RoomTypeBuild
           Room Types & Pricing
         </CardTitle>
         <CardDescription>
-          Add different room categories with their pricing and meal plans. Each room type can have multiple meal options.
+          Add different room categories with their pricing and meal plans. Each room type can have multiple meal options. Meal prices are charged per person per night.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -671,7 +671,7 @@ function MealOptionsSection({
                     <div className="text-left">
                       <div className="font-medium text-xs">{preset.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {preset.priceAdjustment === 0 ? "Included" : `+₹${preset.priceAdjustment}`}
+                        {preset.priceAdjustment === 0 ? "Included" : `+₹${preset.priceAdjustment}/person`}
                       </div>
                     </div>
                   </Button>
@@ -700,7 +700,7 @@ function MealOptionsSection({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Price Adjustment (₹)</Label>
+              <Label className="text-xs">Price per Person (₹/night)</Label>
               <Input
                 type="number"
                 value={newPrice}
@@ -815,7 +815,7 @@ function MealOptionRow({
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm font-medium">{option.name}</span>
         <Badge variant={option.priceAdjustment === 0 ? "secondary" : "default"} className="text-xs">
-          {option.priceAdjustment === 0 ? "Included" : `+₹${option.priceAdjustment}`}
+          {option.priceAdjustment === 0 ? "Included" : `+₹${option.priceAdjustment}/person`}
         </Badge>
         {option.inclusions && (
           <span className="text-xs text-muted-foreground">{option.inclusions}</span>
