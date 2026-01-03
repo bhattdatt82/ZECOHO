@@ -394,7 +394,14 @@ export default function MyBookings() {
                   <div className="flex items-center gap-2" data-testid={`meal-plan-${booking.id}`}>
                     <Utensils className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Meal Plan:</span>
-                    <span className="font-medium">{booking.roomOption.name}</span>
+                    <span className="font-medium">
+                      {booking.roomOption.name}
+                      {Number(booking.roomOption.priceAdjustment) > 0 && (
+                        <span className="text-muted-foreground font-normal ml-1">
+                          (₹{Number(booking.roomOption.priceAdjustment).toLocaleString('en-IN')}/person/night)
+                        </span>
+                      )}
+                    </span>
                   </div>
                 )}
               </div>

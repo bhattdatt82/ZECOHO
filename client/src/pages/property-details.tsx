@@ -71,6 +71,7 @@ import {
   Minus,
   Plus,
   ChevronDown,
+  Info,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { NearbyPlaces } from "@/components/NearbyPlaces";
@@ -1870,7 +1871,22 @@ export default function PropertyDetails() {
                             {/* Meal Options for selected room type */}
                             {selectedRoomTypeId === roomType.id && roomType.mealOptions && roomType.mealOptions.length > 0 && (
                               <div className="mt-3 pt-3 border-t space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">Meal Options (per person per night)</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium text-muted-foreground">Meal Options (per person per night)</p>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-5 w-5 p-0" data-testid="meal-pricing-info">
+                                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 text-sm" align="start">
+                                      <p className="font-medium mb-1">Per-Person Meal Pricing</p>
+                                      <p className="text-muted-foreground text-xs">
+                                        Meal charges are calculated per person per night. The total meal cost = meal price × number of guests × number of nights.
+                                      </p>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
                                 <div className="space-y-2">
                                   <div
                                     className={`p-2 rounded border cursor-pointer text-sm transition-all ${
