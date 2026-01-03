@@ -2303,17 +2303,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized to request deactivation for this property" });
       }
 
-      if (property.status === "deactivated") {
-        return res.status(400).json({ message: "Property is already deactivated" });
+      const { reason, requestType } = req.body;
+
+      // For reactivation requests, property must be deactivated
+      // For deactivation/deletion requests, property must NOT be deactivated
+      if (requestType === "reactivate") {
+        if (property.status !== "deactivated") {
+          return res.status(400).json({ message: "Only deactivated properties can request reactivation" });
+        }
+      } else {
+        if (property.status === "deactivated") {
+          return res.status(400).json({ message: "Property is already deactivated" });
+        }
       }
 
       // Check if there's already a pending request
       const existingRequest = await storage.getDeactivationRequestByProperty(req.params.id);
       if (existingRequest) {
-        return res.status(400).json({ message: "A deactivation request is already pending for this property" });
+        const requestTypeLabel = requestType === "reactivate" ? "reactivation" : "deactivation";
+        return res.status(400).json({ message: `A ${requestTypeLabel} request is already pending for this property` });
       }
-
-      const { reason, requestType } = req.body;
       
       if (!reason || reason.trim().length < 10) {
         return res.status(400).json({ message: "Please provide a reason (at least 10 characters)" });
