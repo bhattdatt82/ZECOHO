@@ -31,6 +31,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { usePropertyUpdates } from "@/hooks/usePropertyUpdates";
 import type { Property } from "@shared/schema";
 
 export default function OwnerProperties() {
@@ -40,6 +41,9 @@ export default function OwnerProperties() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [newPrice, setNewPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
+
+  // Real-time property status updates via WebSocket
+  usePropertyUpdates({ userId: user?.id });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

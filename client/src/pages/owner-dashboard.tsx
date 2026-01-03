@@ -42,6 +42,7 @@ import {
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format } from "date-fns";
+import { usePropertyUpdates } from "@/hooks/usePropertyUpdates";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -278,6 +279,9 @@ export default function OwnerDashboard() {
     queryKey: ["/api/owner/stats"],
     refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
   });
+
+  // Real-time property status updates via WebSocket
+  usePropertyUpdates({ userId: user?.id });
 
   const pauseMutation = useMutation({
     mutationFn: async (propertyId: string) => {

@@ -4869,6 +4869,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         verifiedAt: new Date(),
         verifiedBy: userId
       });
+      
+      // Notify property owner via WebSocket
+      broadcastToUser(property.ownerId, {
+        type: "property_status_update",
+        propertyId: property.id,
+        status: "published",
+        message: `Your property "${property.title}" has been approved and is now live!`,
+        propertyTitle: property.title,
+      });
+      
+      // Send email notification
+      if (owner.email) {
+        sendPropertyLiveEmail(owner.email, owner.firstName || 'Property Owner', property.title).catch(console.error);
+      }
+      
       res.json(updated);
     } catch (error) {
       console.error("Error approving property:", error);
@@ -4902,6 +4917,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         verifiedAt: new Date(),
         verifiedBy: userId
       });
+      
+      // Notify property owner via WebSocket
+      broadcastToUser(property.ownerId, {
+        type: "property_status_update",
+        propertyId: property.id,
+        status: "draft",
+        message: `Your property "${property.title}" requires attention. Reason: ${notes}`,
+        propertyTitle: property.title,
+        reason: notes,
+      });
+      
       res.json(updated);
     } catch (error) {
       console.error("Error rejecting property:", error);
