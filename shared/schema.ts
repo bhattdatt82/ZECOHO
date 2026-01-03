@@ -205,6 +205,11 @@ export const properties = pgTable("properties", {
   receptionNumber: varchar("reception_number", { length: 20 }),
   safetyFeatures: text("safety_features").array().default(sql`ARRAY[]::text[]`),
   cancellationPolicy: text("cancellation_policy"),
+  // Guest policies
+  localIdAllowed: boolean("local_id_allowed").notNull().default(true),
+  hourlyBookingAllowed: boolean("hourly_booking_allowed").notNull().default(false),
+  foreignGuestsAllowed: boolean("foreign_guests_allowed").notNull().default(true),
+  coupleFriendly: boolean("couple_friendly").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
