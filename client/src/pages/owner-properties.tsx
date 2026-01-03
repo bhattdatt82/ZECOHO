@@ -57,6 +57,7 @@ export default function OwnerProperties() {
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/owner/properties"],
     enabled: isAuthenticated && !authLoading,
+    refetchInterval: 30000, // Refresh every 30 seconds for status updates
   });
 
   const deletePropertyMutation = useMutation({

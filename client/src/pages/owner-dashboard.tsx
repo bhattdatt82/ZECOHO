@@ -276,6 +276,7 @@ export default function OwnerDashboard() {
   const { toast } = useToast();
   const { data: stats, isLoading } = useQuery<OwnerStats>({
     queryKey: ["/api/owner/stats"],
+    refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
   });
 
   const pauseMutation = useMutation({

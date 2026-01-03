@@ -35,6 +35,7 @@ export default function Home() {
 
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
+    refetchInterval: 60000, // Refresh every 60 seconds for price/availability updates
   });
 
   const { data: wishlists = [] } = useQuery<any[]>({
