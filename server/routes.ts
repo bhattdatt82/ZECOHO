@@ -4660,16 +4660,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const propertyIds = properties.map(p => p.id);
       
-      // Get all bookings for owner's properties
+      // Get all bookings for owner's properties - SINGLE SOURCE OF TRUTH
       const allBookings = await storage.getBookingsForProperties(propertyIds);
       
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      // Create a map of propertyId to property for timezone lookup
+      const propertyMap = new Map(properties.map(p => [p.id, p]));
+      
+      // Default timezone for Indian properties (fallback when property has no timezone)
+      const DEFAULT_TIMEZONE = 'Asia/Kolkata';
+      
+      // Helper function to get property timezone (fallback to IST)
+      // Note: Properties table currently doesn't have a timezone column, so always falls back to IST
+      const getPropertyTimezone = (propertyId: string): string => {
+        const property = propertyMap.get(propertyId);
+        // Future: return (property as any)?.timezone || DEFAULT_TIMEZONE;
+        return DEFAULT_TIMEZONE;
+      };
+      
+      // Helper function to get timezone-safe date string (YYYY-MM-DD)
+      const getLocalDateString = (date: Date, timezone: string): string => {
+        try {
+          return date.toLocaleDateString('en-CA', { timeZone: timezone });
+        } catch {
+          return date.toLocaleDateString('en-CA', { timeZone: DEFAULT_TIMEZONE });
+        }
+      };
+      
+      // Get current timestamp for timezone conversions
+      const now = new Date();
       
       // Calculate KPIs
       let bookingsToday = 0;
@@ -4677,13 +4695,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let revenueToday = 0;
       let revenueThisMonth = 0;
       
-      // NEW: Action-focused counts
+      // Action-focused counts from bookings table
       let pendingRequests = 0;
       let ongoingStays = 0;
       let todaysCheckIns = 0;
       let todaysCheckOuts = 0;
       
-      // Monthly summary breakdown
+      // Monthly summary breakdown - all from bookings table
       const monthlySummary = {
         confirmed: 0,
         completed: 0,
@@ -4695,35 +4713,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       for (const booking of allBookings) {
-        const bookingDate = new Date(booking.createdAt || booking.checkIn);
-        bookingDate.setHours(0, 0, 0, 0);
-        const checkInDate = new Date(booking.checkIn);
-        checkInDate.setHours(0, 0, 0, 0);
-        const checkOutDate = new Date(booking.checkOut);
-        checkOutDate.setHours(0, 0, 0, 0);
+        // Get property-specific timezone for this booking (fallback to IST)
+        const propertyTimezone = getPropertyTimezone(booking.propertyId);
         
-        // Count pending requests (awaiting owner response)
+        // Get timezone-safe date strings for booking dates using property timezone
+        const checkInDateStr = getLocalDateString(new Date(booking.checkIn), propertyTimezone);
+        const checkOutDateStr = getLocalDateString(new Date(booking.checkOut), propertyTimezone);
+        const createdAtStr = booking.createdAt 
+          ? getLocalDateString(new Date(booking.createdAt), propertyTimezone) 
+          : checkInDateStr;
+        
+        // Get today string in property's timezone for comparison
+        const propertyTodayStr = getLocalDateString(now, propertyTimezone);
+        
+        // Count pending requests (awaiting owner response) - from bookings table
         if (booking.status === "pending") {
           pendingRequests++;
         }
         
-        // Count ongoing stays (checked in guests)
+        // Count ongoing stays (checked_in status only) - from bookings table
         if (booking.status === "checked_in") {
           ongoingStays++;
         }
         
-        // Count today's check-ins (customer_confirmed bookings where check-in is today)
-        if (booking.status === "customer_confirmed" && checkInDate.getTime() === today.getTime()) {
+        // Count today's check-ins: customer_confirmed bookings where check-in date is today (in property timezone)
+        if (booking.status === "customer_confirmed" && checkInDateStr === propertyTodayStr) {
           todaysCheckIns++;
         }
         
-        // Count today's check-outs (checked_in bookings where check-out is today)
-        if (booking.status === "checked_in" && checkOutDate.getTime() === today.getTime()) {
+        // Count today's check-outs: checked_in bookings where check-out date is today (in property timezone)
+        if (booking.status === "checked_in" && checkOutDateStr === propertyTodayStr) {
           todaysCheckOuts++;
         }
         
-        // Monthly summary (bookings created or with check-in in current month)
-        if (checkInDate >= startOfMonth && checkInDate <= endOfMonth) {
+        // Calculate property-specific month boundaries
+        const [propYear, propMonth] = propertyTodayStr.split('-').map(Number);
+        const propStartOfMonthStr = `${propYear}-${String(propMonth).padStart(2, '0')}-01`;
+        const propLastDayOfMonth = new Date(propYear, propMonth, 0).getDate();
+        const propEndOfMonthStr = `${propYear}-${String(propMonth).padStart(2, '0')}-${String(propLastDayOfMonth).padStart(2, '0')}`;
+        
+        // Monthly summary: bookings with check-in in current month (in property timezone)
+        if (checkInDateStr >= propStartOfMonthStr && checkInDateStr <= propEndOfMonthStr) {
           const price = parseFloat(booking.totalPrice as string) || 0;
           switch (booking.status) {
             case "confirmed":
@@ -4752,17 +4782,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // Revenue calculations for active bookings (using property timezone)
         if (booking.status === "confirmed" || booking.status === "completed" || 
             booking.status === "customer_confirmed" || booking.status === "checked_in" || 
             booking.status === "checked_out") {
           const price = parseFloat(booking.totalPrice as string) || 0;
           
-          if (bookingDate.getTime() === today.getTime()) {
+          if (createdAtStr === propertyTodayStr) {
             bookingsToday++;
             revenueToday += price;
           }
           
-          if (bookingDate >= startOfMonth) {
+          if (createdAtStr >= propStartOfMonthStr) {
             bookingsThisMonth++;
             revenueThisMonth += price;
           }

@@ -31,6 +31,8 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
   const invalidateBookingQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/bookings/user"] });
     queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/owner/stats"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
   }, []);
 
   const handleBookingUpdate = useCallback((data: BookingStatusUpdate) => {
