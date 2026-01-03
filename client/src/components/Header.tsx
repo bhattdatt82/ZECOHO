@@ -132,7 +132,7 @@ export function Header() {
               <span className="font-bold text-xl text-foreground tracking-tight">
                 ZECOHO
               </span>
-              <span className="font-bold text-base text-primary">.com</span>
+              <span className="font-bold text-base text-primary">.COM</span>
             </div>
           </div>
         </Link>

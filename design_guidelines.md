@@ -62,7 +62,7 @@ Drawing from Swiggy's clean, modern design language with bold orange branding, e
 ### Navigation (Header)
 - Fixed top navigation with subtle shadow on scroll
 - Logo: Solid bg-primary icon with bold "ZECOHO" text
-- Logo ".com" suffix in text-primary color
+- Logo ".COM" suffix in text-primary color (uppercase)
 - Clean, minimal navigation buttons
 - Primary CTA: "List Your Property FREE" using bg-primary with token-derived shadow
 - User menu: Clean avatar dropdown
@@ -101,7 +101,7 @@ Drawing from Swiggy's clean, modern design language with bold orange branding, e
 - Icon: Rounded square with solid bg-primary background
 - "Z" letter in white, bold
 - Shadow: Token-derived using hsl(var(--primary) / 0.2) for subtle glow
-- Text: "ZECOHO" in bold foreground, ".com" in text-primary
+- Text: "ZECOHO" in bold foreground, ".COM" in text-primary (all uppercase)
 
 ### Call-to-Action Styling
 - Primary buttons use solid bg-primary (Swiggy orange)

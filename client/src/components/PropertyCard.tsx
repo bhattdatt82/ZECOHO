@@ -210,7 +210,7 @@ export function PropertyCard({ property, onWishlistToggle, searchParams }: Prope
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Check className="h-3 w-3 text-emerald-500" />
-              Verified by Zecoho
+              Verified by ZECOHO
             </span>
             <span className="flex items-center gap-1">
               <Check className="h-3 w-3 text-emerald-500" />
