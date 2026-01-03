@@ -104,6 +104,11 @@ export default function AdminProperties() {
     queryKey: ["/api/admin/properties"],
   });
 
+  // Fetch pending deactivation requests
+  const { data: deactivationRequests = [], isLoading: isLoadingDeactivationRequests } = useQuery<any[]>({
+    queryKey: ["/api/admin/deactivation-requests"],
+  });
+
   const approveMutation = useMutation({
     mutationFn: async ({ propertyId, notes }: { propertyId: string; notes: string }) => {
       return apiRequest("PATCH", `/api/admin/properties/${propertyId}/approve`, { notes });
@@ -154,6 +159,53 @@ export default function AdminProperties() {
       toast({ title: "Success", description: "Property deleted successfully" });
       setDeleteDialogOpen(false);
       setPropertyToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Deactivation request state and mutations
+  const [deactivationDialogOpen, setDeactivationDialogOpen] = useState(false);
+  const [selectedDeactivationRequest, setSelectedDeactivationRequest] = useState<any | null>(null);
+  const [deactivationAction, setDeactivationAction] = useState<"approve" | "reject">("approve");
+  const [deactivationAdminNotes, setDeactivationAdminNotes] = useState("");
+
+  const approveDeactivationMutation = useMutation({
+    mutationFn: async ({ requestId, adminNotes }: { requestId: string; adminNotes?: string }) => {
+      return apiRequest("PATCH", `/api/admin/deactivation-requests/${requestId}/approve`, { adminNotes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/deactivation-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/properties"] });
+      toast({ title: "Success", description: "Deactivation request approved" });
+      setDeactivationDialogOpen(false);
+      setSelectedDeactivationRequest(null);
+      setDeactivationAdminNotes("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectDeactivationMutation = useMutation({
+    mutationFn: async ({ requestId, adminNotes }: { requestId: string; adminNotes: string }) => {
+      return apiRequest("PATCH", `/api/admin/deactivation-requests/${requestId}/reject`, { adminNotes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/deactivation-requests"] });
+      toast({ title: "Success", description: "Deactivation request rejected" });
+      setDeactivationDialogOpen(false);
+      setSelectedDeactivationRequest(null);
+      setDeactivationAdminNotes("");
     },
     onError: (error: Error) => {
       toast({
@@ -367,7 +419,7 @@ export default function AdminProperties() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="pending" data-testid="tab-pending">
               Pending Review ({pendingProperties.length})
             </TabsTrigger>
@@ -376,6 +428,9 @@ export default function AdminProperties() {
             </TabsTrigger>
             <TabsTrigger value="draft" data-testid="tab-draft">
               Draft ({draftProperties.length})
+            </TabsTrigger>
+            <TabsTrigger value="deactivation-requests" data-testid="tab-deactivation-requests">
+              Deactivation Requests ({deactivationRequests.length})
             </TabsTrigger>
           </TabsList>
 
@@ -435,8 +490,180 @@ export default function AdminProperties() {
               renderPropertyCards(draftProperties)
             )}
           </TabsContent>
+
+          <TabsContent value="deactivation-requests" className="mt-6">
+            {isLoadingDeactivationRequests ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <Skeleton className="h-20 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : deactivationRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No pending deactivation requests</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {deactivationRequests.map((request) => (
+                  <Card key={request.id} className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-lg">{request.property?.title}</h3>
+                            <Badge variant={request.requestType === "delete" ? "destructive" : "secondary"}>
+                              {request.requestType === "delete" ? "Delete Request" : "Deactivation Request"}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            <span className="font-medium">Owner:</span> {request.owner?.firstName} {request.owner?.lastName}
+                          </p>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            <span className="font-medium">Submitted:</span> {new Date(request.createdAt).toLocaleDateString()}
+                          </p>
+                          <div className="bg-background/80 p-3 rounded-lg mt-3">
+                            <p className="text-sm font-medium mb-1">Reason:</p>
+                            <p className="text-sm text-muted-foreground">{request.reason}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedDeactivationRequest(request);
+                              setDeactivationAction("approve");
+                              setDeactivationDialogOpen(true);
+                            }}
+                            data-testid={`approve-deactivation-${request.id}`}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedDeactivationRequest(request);
+                              setDeactivationAction("reject");
+                              setDeactivationDialogOpen(true);
+                            }}
+                            data-testid={`reject-deactivation-${request.id}`}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setLocation(`/property/${request.propertyId}`)}
+                            data-testid={`view-property-${request.propertyId}`}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={deactivationDialogOpen} onOpenChange={setDeactivationDialogOpen}>
+        <DialogContent data-testid="dialog-deactivation-request">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {deactivationAction === "approve" ? (
+                <>
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Approve {selectedDeactivationRequest?.requestType === "delete" ? "Deletion" : "Deactivation"} Request
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-5 w-5 text-red-600" />
+                  Reject {selectedDeactivationRequest?.requestType === "delete" ? "Deletion" : "Deactivation"} Request
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {deactivationAction === "approve" 
+                ? `This will ${selectedDeactivationRequest?.requestType === "delete" ? "permanently delete" : "deactivate"} "${selectedDeactivationRequest?.property?.title}".`
+                : "Please provide a reason for rejecting this request."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted p-3 rounded-lg">
+              <p className="text-sm font-medium mb-1">Owner's Reason:</p>
+              <p className="text-sm text-muted-foreground">{selectedDeactivationRequest?.reason}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="deactivation-notes">
+                {deactivationAction === "approve" ? "Admin Notes (Optional)" : "Rejection Reason (Required)"}
+              </Label>
+              <Textarea
+                id="deactivation-notes"
+                placeholder={deactivationAction === "approve" ? "Add any notes..." : "Please explain why this request is being rejected..."}
+                value={deactivationAdminNotes}
+                onChange={(e) => setDeactivationAdminNotes(e.target.value)}
+                className="min-h-[100px]"
+                data-testid="input-deactivation-admin-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeactivationDialogOpen(false);
+                setSelectedDeactivationRequest(null);
+                setDeactivationAdminNotes("");
+              }}
+              data-testid="button-cancel-deactivation-action"
+            >
+              Cancel
+            </Button>
+            {deactivationAction === "approve" ? (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (selectedDeactivationRequest) {
+                    approveDeactivationMutation.mutate({
+                      requestId: selectedDeactivationRequest.id,
+                      adminNotes: deactivationAdminNotes || undefined,
+                    });
+                  }
+                }}
+                disabled={approveDeactivationMutation.isPending}
+                data-testid="button-confirm-approve-deactivation"
+              >
+                {approveDeactivationMutation.isPending ? "Processing..." : `Approve ${selectedDeactivationRequest?.requestType === "delete" ? "Deletion" : "Deactivation"}`}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  if (selectedDeactivationRequest && deactivationAdminNotes.trim()) {
+                    rejectDeactivationMutation.mutate({
+                      requestId: selectedDeactivationRequest.id,
+                      adminNotes: deactivationAdminNotes,
+                    });
+                  }
+                }}
+                disabled={!deactivationAdminNotes.trim() || rejectDeactivationMutation.isPending}
+                data-testid="button-confirm-reject-deactivation"
+              >
+                {rejectDeactivationMutation.isPending ? "Processing..." : "Reject Request"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent data-testid="dialog-delete-property">
