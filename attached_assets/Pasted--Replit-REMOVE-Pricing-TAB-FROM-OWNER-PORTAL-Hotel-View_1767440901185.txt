@@ -1,0 +1,81 @@
+@Replit REMOVE “Pricing” TAB FROM OWNER PORTAL (Hotel View) + MIGRATE ALL DEPENDENCIES TO ROOM TAB
+
+Goal: In Owner Portal → Property → Hotel View, remove the Pricing tab completely. Pricing must be managed only from the Rooms / Room Types tab. Pricing tab should not exist for owners anymore.
+
+1) UI CHANGE (Owner Portal)
+
+Remove the “Pricing” tab from the tabs row in /owner/properties/:id/edit (Hotel View).
+
+Remove/disable all Pricing tab routes, components, and navigation for owners.
+
+Ensure no broken navigation / no blank page / no 404 after removal.
+
+2) SINGLE SOURCE OF TRUTH (CRITICAL)
+
+After this change:
+
+Room Types (Rooms tab) is the ONLY source of pricing.
+
+Do NOT use property-level pricing fields anymore (base price, occupancy pricing, bulk discount, etc.) for calculations or display.
+
+3) MIGRATION / COMPATIBILITY
+
+Search codebase and remove or refactor any logic that still depends on old Pricing-tab fields:
+
+Search results price display
+
+Property detail “Select Room” price display
+
+Booking total calculation
+
+Booking confirmation screens
+
+Email templates (guest + owner)
+
+Owner dashboard revenue summary / earnings
+
+Any API endpoints that read property.basePrice, property.occupancyPricing, bulkDiscount, etc.
+
+Replace with: room-level pricing:
+
+roomType.pricePerNight (and any existing room-level strike-off / discounted price fields if present)
+
+room occupancy rules per room type (if already present)
+
+total = nights × roomsSelected × roomTypePrice (+ GST if your system supports it)
+
+If old property-level pricing columns exist in DB:
+
+Keep them temporarily for backward compatibility (don’t break existing data), but make sure they are NOT used anywhere in pricing calculations.
+
+(Optional) Add a safe fallback: if a legacy property has no room types configured yet, show an owner warning banner: “Add room types to set pricing.”
+
+4) API + VALIDATION CLEANUP
+
+Remove Pricing-tab form validation and any server routes that accept “property pricing updates”.
+
+If any endpoint is still required by other parts of the app, keep it but make it a no-op or return a clear message: “Deprecated: pricing is managed via room types”.
+
+5) QA / ACCEPTANCE CHECKLIST
+
+After implementation, verify:
+
+Owner can manage pricing fully from Rooms tab (and it reflects everywhere).
+
+“Pricing” tab is gone on desktop + mobile.
+
+Booking totals, room cards, emails show correct price based on selected room type.
+
+No runtime errors, no 404s, no missing imports.
+
+Existing bookings still load correctly.
+
+Do NOT change:
+
+booking flow
+
+payment flow
+
+inventory logic
+
+overall UI layout (except removing the Pricing tab)

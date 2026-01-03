@@ -736,37 +736,29 @@ export default function PropertyDetails() {
     
     if (nights <= 0) return 0;
     
-    // Calculate guests per room to determine occupancy type
-    const guestsPerRoom = Math.ceil(guests / rooms);
+    // Room type must be selected for pricing (room-level pricing only)
+    if (!selectedRoomTypeId) {
+      // Return 0 if no room type selected - pricing is now room-level only
+      return 0;
+    }
     
-    // Determine price based on room type selection or occupancy type
-    let pricePerNight = Number(property.pricePerNight);
+    let pricePerNight = 0;
     let mealOptionPrice = 0;
     
-    // If a room type is selected, use its base price
-    if (selectedRoomTypeId) {
-      const selectedRoomType = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
-      if (selectedRoomType) {
-        pricePerNight = Number(selectedRoomType.basePrice);
-        
-        // Add meal option price if selected
-        if (selectedMealOptionId && selectedRoomType.mealOptions) {
-          const selectedMealOption = selectedRoomType.mealOptions.find((opt: any) => opt.id === selectedMealOptionId);
-          if (selectedMealOption) {
-            mealOptionPrice = Number(selectedMealOption.priceAdjustment);
-          }
+    const selectedRoomType = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
+    if (selectedRoomType) {
+      pricePerNight = Number(selectedRoomType.basePrice);
+      
+      // Add meal option price if selected
+      if (selectedMealOptionId && selectedRoomType.mealOptions) {
+        const selectedMealOption = selectedRoomType.mealOptions.find((opt: any) => opt.id === selectedMealOptionId);
+        if (selectedMealOption) {
+          mealOptionPrice = Number(selectedMealOption.priceAdjustment);
         }
       }
-    } else {
-      // Fallback to property's occupancy-based pricing
-      if (guestsPerRoom === 1 && property.singleOccupancyPrice) {
-        pricePerNight = Number(property.singleOccupancyPrice);
-      } else if (guestsPerRoom === 2 && property.doubleOccupancyPrice) {
-        pricePerNight = Number(property.doubleOccupancyPrice);
-      } else if (guestsPerRoom >= 3 && property.tripleOccupancyPrice) {
-        pricePerNight = Number(property.tripleOccupancyPrice);
-      }
     }
+    
+    if (pricePerNight <= 0) return 0;
     
     // Calculate base price: room rate (per room per night) + meal cost (per person per night)
     const roomCost = nights * pricePerNight * rooms;
@@ -880,6 +872,16 @@ export default function PropertyDetails() {
       toast({
         title: "Cannot Book Own Property",
         description: "You cannot book your own property",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Room type must be selected for booking
+    if (!selectedRoomTypeId) {
+      toast({
+        title: "Room Type Required",
+        description: "Please select a room type before booking",
         variant: "destructive",
       });
       return;
@@ -1495,23 +1497,41 @@ export default function PropertyDetails() {
             <Card>
               <CardContent className="p-6">
                 <div className="mb-6">
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-3xl font-semibold" data-testid="text-price-detail">
-                      ₹{Number(property.pricePerNight).toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-muted-foreground">/ night</span>
-                  </div>
-                  {(property.singleOccupancyPrice || property.doubleOccupancyPrice || property.tripleOccupancyPrice) && (
-                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                      {property.singleOccupancyPrice && (
-                        <div>Single: ₹{Number(property.singleOccupancyPrice).toLocaleString('en-IN')}/night</div>
-                      )}
-                      {property.doubleOccupancyPrice && (
-                        <div>Double: ₹{Number(property.doubleOccupancyPrice).toLocaleString('en-IN')}/night</div>
-                      )}
-                      {property.tripleOccupancyPrice && (
-                        <div>Triple: ₹{Number(property.tripleOccupancyPrice).toLocaleString('en-IN')}/night</div>
-                      )}
+                  {roomTypes.length > 0 ? (
+                    <>
+                      {(() => {
+                        const lowestPrice = Math.min(...roomTypes.map((rt: any) => Number(rt.basePrice)));
+                        const roomWithLowestPrice = roomTypes.find((rt: any) => Number(rt.basePrice) === lowestPrice);
+                        const hasDiscount = roomWithLowestPrice?.originalPrice && 
+                          parseFloat(roomWithLowestPrice.originalPrice) > parseFloat(roomWithLowestPrice.basePrice);
+                        
+                        return (
+                          <>
+                            <div className="flex items-baseline gap-1 mb-2 flex-wrap">
+                              {hasDiscount && (
+                                <span className="text-xl text-muted-foreground line-through">
+                                  ₹{Number(roomWithLowestPrice.originalPrice).toLocaleString('en-IN')}
+                                </span>
+                              )}
+                              <span className={`text-3xl font-semibold ${hasDiscount ? 'text-green-600 dark:text-green-400' : ''}`} data-testid="text-price-detail">
+                                ₹{lowestPrice.toLocaleString('en-IN')}
+                              </span>
+                              <span className="text-muted-foreground">/ night</span>
+                            </div>
+                            {hasDiscount && (
+                              <Badge variant="secondary" className="text-xs mb-2">
+                                {Math.round((1 - lowestPrice / Number(roomWithLowestPrice.originalPrice)) * 100)}% OFF
+                              </Badge>
+                            )}
+                            <p className="text-xs text-muted-foreground">Starting from</p>
+                          </>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground">No rooms available</p>
+                      <p className="text-xs text-muted-foreground mt-1">Please check back later</p>
                     </div>
                   )}
                   {property.bulkBookingEnabled && property.bulkBookingMinRooms && property.bulkBookingDiscountPercent && (
@@ -2027,46 +2047,26 @@ export default function PropertyDetails() {
                   </div>
                 )}
 
-                {nights > 0 && totalPrice > 0 && !hasDateOverlap && !hasBlockedDateOverlap && (() => {
-                  const guestsPerRoom = Math.ceil(guests / rooms);
-                  let effectivePrice = Number(property.pricePerNight);
+                {nights > 0 && totalPrice > 0 && !hasDateOverlap && !hasBlockedDateOverlap && selectedRoomTypeId && (() => {
+                  const selectedRoomType = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
+                  if (!selectedRoomType) return null;
+                  
+                  const effectivePrice = Number(selectedRoomType.basePrice);
+                  const roomTypeName = selectedRoomType.name;
                   let originalPrice: number | null = null;
-                  let occupancyLabel = "";
-                  let roomTypeName = "";
                   let mealOptionName = "";
                   let mealOptionPrice = 0;
                   
-                  // Check if room type is selected
-                  if (selectedRoomTypeId) {
-                    const selectedRoomType = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
-                    if (selectedRoomType) {
-                      effectivePrice = Number(selectedRoomType.basePrice);
-                      roomTypeName = selectedRoomType.name;
-                      
-                      // Check for original price (strikethrough)
-                      if (selectedRoomType.originalPrice && parseFloat(selectedRoomType.originalPrice) > parseFloat(selectedRoomType.basePrice)) {
-                        originalPrice = Number(selectedRoomType.originalPrice);
-                      }
-                      
-                      if (selectedMealOptionId && selectedRoomType.mealOptions) {
-                        const selectedMealOption = selectedRoomType.mealOptions.find((opt: any) => opt.id === selectedMealOptionId);
-                        if (selectedMealOption) {
-                          mealOptionName = selectedMealOption.name;
-                          mealOptionPrice = Number(selectedMealOption.priceAdjustment);
-                        }
-                      }
-                    }
-                  } else {
-                    // Fallback to occupancy-based pricing
-                    if (guestsPerRoom === 1 && property.singleOccupancyPrice) {
-                      effectivePrice = Number(property.singleOccupancyPrice);
-                      occupancyLabel = "Single";
-                    } else if (guestsPerRoom === 2 && property.doubleOccupancyPrice) {
-                      effectivePrice = Number(property.doubleOccupancyPrice);
-                      occupancyLabel = "Double";
-                    } else if (guestsPerRoom >= 3 && property.tripleOccupancyPrice) {
-                      effectivePrice = Number(property.tripleOccupancyPrice);
-                      occupancyLabel = "Triple";
+                  // Check for original price (strikethrough)
+                  if (selectedRoomType.originalPrice && parseFloat(selectedRoomType.originalPrice) > parseFloat(selectedRoomType.basePrice)) {
+                    originalPrice = Number(selectedRoomType.originalPrice);
+                  }
+                  
+                  if (selectedMealOptionId && selectedRoomType.mealOptions) {
+                    const selectedMealOption = selectedRoomType.mealOptions.find((opt: any) => opt.id === selectedMealOptionId);
+                    if (selectedMealOption) {
+                      mealOptionName = selectedMealOption.name;
+                      mealOptionPrice = Number(selectedMealOption.priceAdjustment);
                     }
                   }
                   
@@ -2090,7 +2090,7 @@ export default function PropertyDetails() {
                       {originalPrice && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground line-through">
-                            {roomTypeName && <span className="font-medium">{roomTypeName}: </span>}
+                            <span className="font-medium">{roomTypeName}: </span>
                             ₹{originalPrice.toLocaleString('en-IN')} × {nights} {nights === 1 ? 'night' : 'nights'} × {rooms} {rooms === 1 ? 'room' : 'rooms'}
                           </span>
                           <span className="text-muted-foreground line-through">₹{originalSubtotal.toLocaleString('en-IN')}</span>
@@ -2098,7 +2098,7 @@ export default function PropertyDetails() {
                       )}
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
-                          {roomTypeName && <span className="font-medium">{roomTypeName}: </span>}
+                          <span className="font-medium">{roomTypeName}: </span>
                           <span className={originalPrice ? 'text-green-600 dark:text-green-400' : ''}>
                             ₹{effectivePrice.toLocaleString('en-IN')}
                           </span>
@@ -2128,7 +2128,6 @@ export default function PropertyDetails() {
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>
                           {guests} guest{guests !== 1 ? 's' : ''} ({adults} adult{adults !== 1 ? 's' : ''}, {children} child{children !== 1 ? 'ren' : ''})
-                          {occupancyLabel && <span className="ml-1">• {occupancyLabel} occupancy</span>}
                         </span>
                       </div>
                       {hasBulkDiscount && (

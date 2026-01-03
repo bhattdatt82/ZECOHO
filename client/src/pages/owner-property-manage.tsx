@@ -18,7 +18,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import {
   ArrowLeft,
-  IndianRupee,
   Calendar as CalendarIcon,
   Plus,
   Trash2,
@@ -119,14 +118,10 @@ export default function OwnerPropertyManage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="rooms" data-testid="tab-rooms">
               <Bed className="h-4 w-4 mr-2" />
               Rooms
-            </TabsTrigger>
-            <TabsTrigger value="pricing" data-testid="tab-pricing">
-              <IndianRupee className="h-4 w-4 mr-2" />
-              Pricing
             </TabsTrigger>
             <TabsTrigger value="availability" data-testid="tab-availability">
               <CalendarIcon className="h-4 w-4 mr-2" />
@@ -148,10 +143,6 @@ export default function OwnerPropertyManage() {
               roomTypes={roomTypes} 
               isLoading={roomTypesLoading} 
             />
-          </TabsContent>
-
-          <TabsContent value="pricing" className="mt-6">
-            <PricingSection property={property} />
           </TabsContent>
 
           <TabsContent value="availability" className="mt-6">
@@ -320,184 +311,6 @@ function LocationSection({ property }: { property: Property }) {
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function PricingSection({ property }: { property: Property }) {
-  const { toast } = useToast();
-  const [pricePerNight, setPricePerNight] = useState(property.pricePerNight || "");
-  const [singleOccupancy, setSingleOccupancy] = useState(property.singleOccupancyPrice || "");
-  const [doubleOccupancy, setDoubleOccupancy] = useState(property.doubleOccupancyPrice || "");
-  const [tripleOccupancy, setTripleOccupancy] = useState(property.tripleOccupancyPrice || "");
-  const [bulkEnabled, setBulkEnabled] = useState(property.bulkBookingEnabled || false);
-  const [bulkMinRooms, setBulkMinRooms] = useState(String(property.bulkBookingMinRooms || 5));
-  const [bulkDiscount, setBulkDiscount] = useState(property.bulkBookingDiscountPercent || "10");
-
-  const updateMutation = useMutation({
-    mutationFn: async (updates: Record<string, any>) => {
-      return apiRequest("PATCH", `/api/properties/${property.id}`, updates);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id] });
-      toast({
-        title: "Pricing Updated",
-        description: "Your property pricing has been saved.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update pricing.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSavePricing = () => {
-    updateMutation.mutate({
-      pricePerNight: pricePerNight || property.pricePerNight,
-      singleOccupancyPrice: singleOccupancy || null,
-      doubleOccupancyPrice: doubleOccupancy || null,
-      tripleOccupancyPrice: tripleOccupancy || null,
-      bulkBookingEnabled: bulkEnabled,
-      bulkBookingMinRooms: bulkEnabled ? parseInt(bulkMinRooms) : null,
-      bulkBookingDiscountPercent: bulkEnabled ? bulkDiscount : null,
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Base Pricing</CardTitle>
-          <CardDescription>Set your standard nightly rate</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="pricePerNight">Price per Night (₹)</Label>
-            <div className="flex items-center gap-2">
-              <IndianRupee className="h-4 w-4 text-muted-foreground" />
-              <Input
-                id="pricePerNight"
-                type="number"
-                value={pricePerNight}
-                onChange={(e) => setPricePerNight(e.target.value)}
-                placeholder="2000"
-                className="max-w-xs"
-                data-testid="input-price-per-night"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Occupancy-Based Pricing</CardTitle>
-          <CardDescription>Set different prices based on number of guests per room (optional)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="singleOccupancy">Single Occupancy (₹)</Label>
-              <Input
-                id="singleOccupancy"
-                type="number"
-                value={singleOccupancy}
-                onChange={(e) => setSingleOccupancy(e.target.value)}
-                placeholder="1500"
-                data-testid="input-single-occupancy"
-              />
-              <p className="text-xs text-muted-foreground">1 guest per room</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="doubleOccupancy">Double Occupancy (₹)</Label>
-              <Input
-                id="doubleOccupancy"
-                type="number"
-                value={doubleOccupancy}
-                onChange={(e) => setDoubleOccupancy(e.target.value)}
-                placeholder="2000"
-                data-testid="input-double-occupancy"
-              />
-              <p className="text-xs text-muted-foreground">2 guests per room</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tripleOccupancy">Triple Occupancy (₹)</Label>
-              <Input
-                id="tripleOccupancy"
-                type="number"
-                value={tripleOccupancy}
-                onChange={(e) => setTripleOccupancy(e.target.value)}
-                placeholder="2500"
-                data-testid="input-triple-occupancy"
-              />
-              <p className="text-xs text-muted-foreground">3 guests per room</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Bulk Booking Discount</CardTitle>
-          <CardDescription>Offer discounts for guests booking multiple rooms</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={bulkEnabled}
-                onChange={(e) => setBulkEnabled(e.target.checked)}
-                className="rounded border-gray-300"
-                data-testid="checkbox-bulk-enabled"
-              />
-              <span>Enable bulk booking discount</span>
-            </label>
-          </div>
-          
-          {bulkEnabled && (
-            <div className="grid gap-4 md:grid-cols-2 pt-2">
-              <div className="space-y-2">
-                <Label htmlFor="bulkMinRooms">Minimum Rooms for Discount</Label>
-                <Input
-                  id="bulkMinRooms"
-                  type="number"
-                  value={bulkMinRooms}
-                  onChange={(e) => setBulkMinRooms(e.target.value)}
-                  min="2"
-                  data-testid="input-bulk-min-rooms"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bulkDiscount">Discount Percentage (%)</Label>
-                <Input
-                  id="bulkDiscount"
-                  type="number"
-                  value={bulkDiscount}
-                  onChange={(e) => setBulkDiscount(e.target.value)}
-                  min="1"
-                  max="50"
-                  data-testid="input-bulk-discount"
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSavePricing} 
-          disabled={updateMutation.isPending}
-          data-testid="save-pricing"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {updateMutation.isPending ? "Saving..." : "Save Pricing"}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -1366,6 +1179,23 @@ function RoomsSection({
 
   return (
     <div className="space-y-6">
+      {/* Warning banner for properties without room types */}
+      {!isLoading && roomTypes.length === 0 && (
+        <Card className="border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-800 dark:text-amber-200">Room types required for pricing</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  Add at least one room type to set pricing for your property. Guests will not be able to book until room types with prices are configured.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-4 flex-wrap">
