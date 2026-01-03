@@ -961,16 +961,24 @@ function GuestPoliciesCard({ property }: { property: Property }) {
         description: "Your guest policy settings have been saved.",
       });
     },
-    onError: () => {
+    onError: (_error, variables) => {
+      // Revert to original values on error
+      if ('localIdAllowed' in variables) setLocalIdAllowed(property.localIdAllowed ?? true);
+      if ('hourlyBookingAllowed' in variables) setHourlyBookingAllowed(property.hourlyBookingAllowed ?? false);
+      if ('foreignGuestsAllowed' in variables) setForeignGuestsAllowed(property.foreignGuestsAllowed ?? true);
+      if ('coupleFriendly' in variables) setCoupleFriendly(property.coupleFriendly ?? true);
       toast({
         title: "Error",
-        description: "Failed to update guest policies.",
+        description: "Failed to update guest policies. Changes have been reverted.",
         variant: "destructive",
       });
     },
   });
 
   const handlePolicyChange = (field: string, value: boolean) => {
+    // Don't allow rapid toggles while a mutation is pending
+    if (updatePoliciesMutation.isPending) return;
+    
     const update: Record<string, boolean> = {};
     
     switch (field) {
