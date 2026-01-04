@@ -1,0 +1,52 @@
+@Replit FIX: Localities filter must depend on selected City (no default like "Vasundhara" unless city selected)
+
+Problem:
+In Search filters, the Localities dropdown is prefilled with “Vasundhara” even when no city is selected. This is wrong UX and causes incorrect filtering.
+
+Goal:
+1) Localities must be EMPTY + DISABLED until a City is selected.
+2) Only after City selection, load localities for that city and enable dropdown.
+3) If user changes City, reset Locality selection to blank and reload options.
+4) Never preselect any locality automatically. Show placeholder: “Select city first”.
+
+Implementation steps:
+A) UI/State
+- Set localitySelected = null by default.
+- Set localityOptions = [] by default.
+- Add a computed flag: isCitySelected = !!selectedCity
+- Disable Localities dropdown when !isCitySelected
+- Placeholder:
+  - if !isCitySelected: “Select city first”
+  - else: “Select locality”
+
+B) Data Loading
+- Create endpoint or reuse existing:
+  GET /api/locations/localities?city=<CITY>
+  returns unique localities list for that city.
+  If you already have localities in DB tied to properties, query them:
+  SELECT DISTINCT locality FROM properties WHERE city = $1 AND locality IS NOT NULL AND locality != '' ORDER BY locality;
+
+C) Remove any hardcoded defaults
+- Search codebase for "Vasundhara" and remove it from any default state, seed value, placeholder, or test data.
+- Ensure URL query param "locality" is only applied if city is present. If city missing, ignore locality param.
+
+D) URL / Query Param rules
+- If user loads /search with locality but no city:
+  - do NOT apply locality filter
+  - clear localitySelected and update URL to remove locality param
+- When city is selected, allow locality filter and persist to URL.
+
+E) Results filtering
+- Ensure backend search query applies locality filter ONLY when city is selected and localitySelected is not null.
+- Changing city must trigger refetch results and not keep old locality filter.
+
+F) Apply everywhere
+- Desktop filters sidebar
+- Mobile filters UI
+- Any header search / filter component that includes Localities
+
+Acceptance criteria:
+- On first load with no city: Localities is disabled, empty, no “Vasundhara”
+- After selecting city: Localities options load for that city only
+- Changing city clears locality and reloads list
+- No locality is auto-selected at any time
