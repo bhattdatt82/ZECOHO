@@ -137,12 +137,30 @@ export default function Search() {
     { value: "no", label: "No" },
   ];
 
-  // Get unique localities from properties
-  const localities = Array.from(new Set(
+  // Get unique localities from properties that match the search destination (city)
+  // Only show localities when a city/destination is selected
+  const hasSearchDestination = searchDestination && searchDestination.trim().length > 0;
+  
+  const localities = hasSearchDestination ? Array.from(new Set(
     properties
-      .filter(p => p.propLocality)
+      .filter(p => {
+        if (!p.propLocality) return false;
+        // Only include localities from properties matching the search destination
+        const searchLower = searchDestination.toLowerCase().trim();
+        const destinationLower = (p.destination || "").toLowerCase();
+        const cityLower = (p.propCity || "").toLowerCase();
+        const stateLower = (p.propState || "").toLowerCase();
+        return destinationLower.includes(searchLower) || 
+               cityLower.includes(searchLower) || 
+               stateLower.includes(searchLower);
+      })
       .map(p => p.propLocality as string)
-  )).sort();
+  )).sort() : [];
+  
+  // Clear selected locality when search destination changes
+  useEffect(() => {
+    setSelectedLocality("");
+  }, [searchDestination]);
 
   const handleSearch = ({ destination }: { destination?: string; checkIn?: string; checkOut?: string; guests?: number }) => {
     if (destination !== undefined) {
@@ -424,12 +442,16 @@ export default function Search() {
                 </Select>
               </div>
 
-              {/* Localities and Landmarks Filter */}
+              {/* Localities Filter - Only enabled when city/destination is selected */}
               <div className="flex-shrink-0 min-w-[140px]">
                 <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Localities</Label>
-                <Select value={selectedLocality} onValueChange={setSelectedLocality}>
+                <Select 
+                  value={selectedLocality} 
+                  onValueChange={setSelectedLocality}
+                  disabled={!hasSearchDestination}
+                >
                   <SelectTrigger data-testid="select-locality" className="w-full h-9">
-                    <SelectValue placeholder="All" />
+                    <SelectValue placeholder={hasSearchDestination ? "All localities" : "Search city first"} />
                   </SelectTrigger>
                   <SelectContent>
                     {localities.length > 0 ? (
@@ -439,7 +461,7 @@ export default function Search() {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="all" disabled>No localities available</SelectItem>
+                      <SelectItem value="no-localities" disabled>No localities in this area</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
