@@ -4094,24 +4094,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Property not found" });
       }
       
-      // Parse cancellation policy - default to 24 hours before check-in
-      // Policies: "flexible" = 24h, "moderate" = 48h, "strict" = 72h, "non-refundable" = no cancellation
-      let minHoursBeforeCheckIn = 24;
-      let refundPercentage = 100;
-      const policy = property.cancellationPolicy?.toLowerCase() || "flexible";
-      
-      if (policy === "moderate") {
-        minHoursBeforeCheckIn = 48;
-        refundPercentage = 100;
-      } else if (policy === "strict") {
-        minHoursBeforeCheckIn = 72;
-        refundPercentage = 50;
-      } else if (policy === "non-refundable" || policy === "non_refundable") {
-        return res.status(400).json({ 
-          message: "This booking has a non-refundable cancellation policy and cannot be cancelled online. Please contact the property directly." 
-        });
-      }
-      
       // Check if check-in has already passed
       if (hoursUntilCheckIn < 0) {
         return res.status(400).json({ 
@@ -4119,12 +4101,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Check if within cancellation window
-      if (hoursUntilCheckIn < minHoursBeforeCheckIn) {
-        return res.status(400).json({ 
-          message: `This booking cannot be cancelled within ${minHoursBeforeCheckIn} hours of check-in per the ${policy} cancellation policy. Check-in is in ${Math.floor(hoursUntilCheckIn)} hours.` 
-        });
-      }
+      // Guests can always cancel, but refund amount varies based on policy
+      // The storage method calculates the appropriate refund
       
       // Update booking to cancelled
       const updated = await storage.cancelBooking(bookingId, "guest", reason || "Cancelled by guest");
@@ -4233,12 +4211,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ).catch(console.error);
       }
       
-      console.log(`[BOOKING:CANCELLED] Guest ${userId} cancelled booking ${bookingId}`);
+      console.log(`[BOOKING:CANCELLED] Guest ${userId} cancelled booking ${bookingId}, refund: ${updated?.refundPercentage}% (${updated?.refundAmount})`);
       
       res.json({ 
         ...updated, 
         message: "Booking cancelled successfully.",
-        refundPercentage,
       });
     } catch (error) {
       console.error("Error cancelling booking:", error);

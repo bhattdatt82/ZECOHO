@@ -491,6 +491,9 @@ export const bookings = pgTable("bookings", {
   cancelledAt: timestamp("cancelled_at"),
   cancelledBy: varchar("cancelled_by", { length: 20 }), // 'guest' or 'owner' or 'admin'
   cancellationReason: text("cancellation_reason"),
+  // Refund tracking for cancelled bookings
+  refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),
+  refundPercentage: integer("refund_percentage"), // 0-100
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

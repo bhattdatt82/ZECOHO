@@ -766,6 +766,64 @@ export class DatabaseStorage implements IStorage {
 
   async cancelBooking(bookingId: string, cancelledBy: "guest" | "owner" | "admin", reason?: string): Promise<Booking | undefined> {
     const now = new Date();
+    
+    // Get booking with property info to calculate refund
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+    });
+    
+    if (!booking) return undefined;
+    
+    // Get property cancellation policy
+    const property = await db.query.properties.findFirst({
+      where: eq(properties.id, booking.propertyId),
+    });
+    
+    if (!property) return undefined;
+    
+    // Calculate refund based on cancellation policy
+    let refundPercentage = 0;
+    let refundAmount = "0.00";
+    const totalPrice = parseFloat(booking.totalPrice);
+    const hoursUntilCheckIn = (new Date(booking.checkIn).getTime() - now.getTime()) / (1000 * 60 * 60);
+    const freeCancellationHours = property.freeCancellationHours || 24;
+    const partialRefundPercent = property.partialRefundPercent || 50;
+    
+    // Owner/admin cancellations always get full refund for the guest
+    if (cancelledBy === "owner" || cancelledBy === "admin") {
+      refundPercentage = 100;
+    } else {
+      // Guest cancellation - apply property policy
+      const policyType = property.cancellationPolicyType || "flexible";
+      
+      if (policyType === "flexible") {
+        // Free cancellation until X hours before check-in
+        if (hoursUntilCheckIn >= freeCancellationHours) {
+          refundPercentage = 100;
+        } else {
+          refundPercentage = partialRefundPercent;
+        }
+      } else if (policyType === "moderate") {
+        // Partial refund based on timing
+        if (hoursUntilCheckIn >= freeCancellationHours) {
+          refundPercentage = 100;
+        } else if (hoursUntilCheckIn >= freeCancellationHours / 2) {
+          refundPercentage = partialRefundPercent;
+        } else {
+          refundPercentage = 0;
+        }
+      } else if (policyType === "strict") {
+        // Non-refundable (or very limited refund)
+        if (hoursUntilCheckIn >= freeCancellationHours * 2) {
+          refundPercentage = partialRefundPercent;
+        } else {
+          refundPercentage = 0;
+        }
+      }
+    }
+    
+    refundAmount = ((totalPrice * refundPercentage) / 100).toFixed(2);
+    
     const [updated] = await db
       .update(bookings)
       .set({
@@ -773,6 +831,8 @@ export class DatabaseStorage implements IStorage {
         cancelledAt: now,
         cancelledBy: cancelledBy,
         cancellationReason: reason || null,
+        refundAmount: refundAmount,
+        refundPercentage: refundPercentage,
         updatedAt: now,
       })
       .where(eq(bookings.id, bookingId))
