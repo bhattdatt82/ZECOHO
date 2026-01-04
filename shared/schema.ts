@@ -90,6 +90,49 @@ export type InsertPolicy = typeof policies.$inferInsert;
 export const insertPolicySchema = createInsertSchema(policies).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertPolicyData = z.infer<typeof insertPolicySchema>;
 
+// Contact settings table for admin-editable contact information
+export const contactSettings = pgTable(
+  "contact_settings",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    // Customer Support
+    customerSupportEmail: varchar("customer_support_email", { length: 255 }).default("support@zecoho.com"),
+    customerSupportPhone: varchar("customer_support_phone", { length: 20 }).default("+91-XXXXXXXXXX"),
+    customerSupportHours: varchar("customer_support_hours", { length: 255 }).default("Monday to Saturday, 9:00 AM - 6:00 PM IST"),
+    // Property Owner Support
+    ownerSupportEmail: varchar("owner_support_email", { length: 255 }).default("owners@zecoho.com"),
+    ownerSupportPhone: varchar("owner_support_phone", { length: 20 }).default("+91-XXXXXXXXXX"),
+    // Grievance Redressal Officer (required under Indian IT Act)
+    grievanceOfficerName: varchar("grievance_officer_name", { length: 255 }).default("Mr./Ms. [Name]"),
+    grievanceOfficerEmail: varchar("grievance_officer_email", { length: 255 }).default("grievance@zecoho.com"),
+    grievanceOfficerPhone: varchar("grievance_officer_phone", { length: 20 }).default("+91-XXXXXXXXXX"),
+    grievanceOfficerAddress: text("grievance_officer_address").default("[Office Address]"),
+    // Privacy & Data Protection
+    privacyEmail: varchar("privacy_email", { length: 255 }).default("privacy@zecoho.com"),
+    dataProtectionOfficerName: varchar("data_protection_officer_name", { length: 255 }).default("Mr./Ms. [Name]"),
+    // Business & Partnerships
+    businessEmail: varchar("business_email", { length: 255 }).default("partnerships@zecoho.com"),
+    businessPhone: varchar("business_phone", { length: 20 }).default("+91-XXXXXXXXXX"),
+    // Registered Office
+    registeredOfficeName: varchar("registered_office_name", { length: 255 }).default("ZECOHO Technologies Pvt. Ltd."),
+    registeredOfficeAddress: text("registered_office_address").default("[Complete Registered Address]"),
+    registeredOfficeCity: varchar("registered_office_city", { length: 100 }).default("[City]"),
+    registeredOfficeState: varchar("registered_office_state", { length: 100 }).default("[State]"),
+    registeredOfficePincode: varchar("registered_office_pincode", { length: 10 }).default("[Pincode]"),
+    registeredOfficeCountry: varchar("registered_office_country", { length: 100 }).default("India"),
+    // CIN/Registration Number
+    companyRegistrationNumber: varchar("company_registration_number", { length: 50 }).default("[CIN Number]"),
+    // Timestamps
+    updatedAt: timestamp("updated_at").defaultNow(),
+    updatedBy: varchar("updated_by"),
+  },
+);
+
+export type ContactSettings = typeof contactSettings.$inferSelect;
+export type InsertContactSettings = typeof contactSettings.$inferInsert;
+export const insertContactSettingsSchema = createInsertSchema(contactSettings).omit({ id: true, updatedAt: true });
+export type InsertContactSettingsData = z.infer<typeof insertContactSettingsSchema>;
+
 // User roles enum
 export const userRoleEnum = pgEnum("user_role", ["guest", "owner", "admin"]);
 

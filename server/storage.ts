@@ -20,6 +20,7 @@ import {
   availabilityOverrides,
   propertyDeactivationRequests,
   policies,
+  contactSettings,
   type User,
   type UpsertUser,
   type Property,
@@ -58,6 +59,8 @@ import {
   type PropertyDeactivationRequest,
   type Policy,
   type InsertPolicy,
+  type ContactSettings,
+  type InsertContactSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc, count } from "drizzle-orm";
@@ -278,6 +281,10 @@ export interface IStorage {
   publishPolicy(id: string): Promise<Policy | undefined>;
   archivePolicy(id: string): Promise<Policy | undefined>;
   updateUserPolicyConsent(userId: string, termsVersion: number, privacyVersion: number, consentCommunication?: boolean): Promise<User | undefined>;
+
+  // Contact Settings operations
+  getContactSettings(): Promise<ContactSettings | undefined>;
+  upsertContactSettings(settings: Partial<InsertContactSettings>): Promise<ContactSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1863,6 +1870,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  // Contact Settings operations
+  async getContactSettings(): Promise<ContactSettings | undefined> {
+    const [settings] = await db.select().from(contactSettings).limit(1);
+    return settings;
+  }
+
+  async upsertContactSettings(settings: Partial<InsertContactSettings>): Promise<ContactSettings> {
+    const existing = await this.getContactSettings();
+    
+    if (existing) {
+      const [updated] = await db
+        .update(contactSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(contactSettings.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(contactSettings)
+        .values({ ...settings })
+        .returning();
+      return created;
+    }
   }
 }
 
