@@ -224,6 +224,13 @@ export function Header() {
                           Manage Destinations
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild data-testid="link-admin-policies">
+                        <Link href="/admin/policies">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Policies & Terms
+                        </Link>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </>
