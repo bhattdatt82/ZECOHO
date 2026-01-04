@@ -1,11 +1,47 @@
 import { Mail } from "lucide-react";
 import { SiInstagram, SiYoutube, SiFacebook, SiLinkedin, SiX } from "react-icons/si";
+import { Link } from "wouter";
 
 export function Footer() {
   return (
-    <footer className="border-t bg-background py-4 mt-auto">
+    <footer className="border-t bg-background py-6 mt-auto">
       <div className="container px-4 md:px-6">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
+          {/* Policy Links Row */}
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-sm">
+            <Link 
+              href="/terms" 
+              className="text-muted-foreground hover:text-primary transition-colors"
+              data-testid="link-footer-terms"
+            >
+              Terms & Conditions
+            </Link>
+            <span className="text-muted-foreground/50">|</span>
+            <Link 
+              href="/privacy" 
+              className="text-muted-foreground hover:text-primary transition-colors"
+              data-testid="link-footer-privacy"
+            >
+              Privacy Policy
+            </Link>
+            <span className="text-muted-foreground/50">|</span>
+            <Link 
+              href="/about" 
+              className="text-muted-foreground hover:text-primary transition-colors"
+              data-testid="link-footer-about"
+            >
+              About Us
+            </Link>
+            <span className="text-muted-foreground/50">|</span>
+            <Link 
+              href="/contact" 
+              className="text-muted-foreground hover:text-primary transition-colors"
+              data-testid="link-footer-contact"
+            >
+              Contact
+            </Link>
+          </div>
+
           {/* Main footer content */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
