@@ -5644,6 +5644,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get all owner agreement acceptances
+  app.get("/api/admin/owner-agreement-acceptances", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Only admins can view agreement acceptances" });
+      }
+
+      const acceptances = await storage.getOwnerAgreementAcceptances();
+      res.json(acceptances);
+    } catch (error) {
+      console.error("Error fetching owner agreement acceptances:", error);
+      res.status(500).json({ message: "Failed to fetch agreement acceptances" });
+    }
+  });
+
   // Owner consent endpoint for accepting owner agreement
   app.post("/api/auth/owner-agreement-consent", isAuthenticated, async (req: any, res) => {
     try {

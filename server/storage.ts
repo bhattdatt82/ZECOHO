@@ -1985,6 +1985,29 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getOwnerAgreementAcceptances(): Promise<Array<{
+    userId: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    ownerAgreementAcceptedAt: Date | null;
+    ownerAgreementAcceptedVersion: number | null;
+  }>> {
+    const acceptances = await db
+      .select({
+        userId: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        ownerAgreementAcceptedAt: users.ownerAgreementAcceptedAt,
+        ownerAgreementAcceptedVersion: users.ownerAgreementAcceptedVersion,
+      })
+      .from(users)
+      .where(eq(users.ownerAgreementAccepted, true))
+      .orderBy(desc(users.ownerAgreementAcceptedAt));
+    return acceptances;
+  }
+
   // Contact Settings operations
   async getContactSettings(): Promise<ContactSettings | undefined> {
     const [settings] = await db.select().from(contactSettings).limit(1);

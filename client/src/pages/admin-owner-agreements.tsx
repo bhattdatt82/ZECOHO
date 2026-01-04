@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-import { Plus, FileCheck, Edit, Eye, Upload, Archive } from "lucide-react";
+import { Plus, FileCheck, Edit, Eye, Upload, Archive, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +23,15 @@ import {
 } from "@/components/ui/dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { OwnerAgreement } from "@shared/schema";
+
+interface OwnerAgreementAcceptance {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  ownerAgreementAcceptedAt: string | null;
+  ownerAgreementAcceptedVersion: number | null;
+}
 
 export default function AdminOwnerAgreements() {
   const { user } = useAuth();
@@ -56,6 +67,10 @@ export default function AdminOwnerAgreements() {
 
   const { data: agreements = [], isLoading } = useQuery<OwnerAgreement[]>({
     queryKey: ["/api/admin/owner-agreements"],
+  });
+
+  const { data: acceptances = [], isLoading: isLoadingAcceptances } = useQuery<OwnerAgreementAcceptance[]>({
+    queryKey: ["/api/admin/owner-agreement-acceptances"],
   });
 
   const createMutation = useMutation({
@@ -219,7 +234,7 @@ export default function AdminOwnerAgreements() {
         <div>
           <h1 className="text-2xl font-bold">Property Owner Agreement</h1>
           <p className="text-muted-foreground">
-            Manage the Property Owner Agreement versions
+            Manage the Property Owner Agreement versions and view acceptances
           </p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-agreement">
@@ -228,38 +243,120 @@ export default function AdminOwnerAgreements() {
         </Button>
       </div>
 
-      <Card className="mb-6 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <Archive className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-amber-800 dark:text-amber-200">How Agreement Versioning Works</p>
-              <p className="text-amber-700 dark:text-amber-300 mt-1">
-                When you publish a new agreement version, the previous published version is automatically archived. 
-                All property owners will be required to accept the new version before accessing owner features.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="agreements" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="agreements" data-testid="tab-agreements">
+            <FileCheck className="h-4 w-4 mr-2" />
+            Agreements
+          </TabsTrigger>
+          <TabsTrigger value="acceptances" data-testid="tab-acceptances">
+            <Users className="h-4 w-4 mr-2" />
+            Acceptances ({acceptances.length})
+          </TabsTrigger>
+        </TabsList>
 
-      {agreements.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <FileCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground mb-4">No Owner Agreement versions yet</p>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              Create First Version
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {agreements.map((agreement) => (
-            <AgreementCard key={agreement.id} agreement={agreement} />
-          ))}
-        </div>
-      )}
+        <TabsContent value="agreements" className="space-y-6">
+          <Card className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <Archive className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-800 dark:text-amber-200">How Agreement Versioning Works</p>
+                  <p className="text-amber-700 dark:text-amber-300 mt-1">
+                    When you publish a new agreement version, the previous published version is automatically archived. 
+                    All property owners will be required to accept the new version before accessing owner features.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {agreements.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FileCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">No Owner Agreement versions yet</p>
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  Create First Version
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {agreements.map((agreement) => (
+                <AgreementCard key={agreement.id} agreement={agreement} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="acceptances">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Owner Agreement Acceptances
+              </CardTitle>
+              <CardDescription>
+                View all property owners who have accepted the Owner Agreement
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingAcceptances ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : acceptances.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No acceptances yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Owner Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Version Accepted</TableHead>
+                      <TableHead>Accepted Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {acceptances.map((acceptance) => (
+                      <TableRow key={acceptance.userId} data-testid={`row-acceptance-${acceptance.userId}`}>
+                        <TableCell className="font-medium">
+                          {acceptance.firstName || acceptance.lastName 
+                            ? `${acceptance.firstName || ''} ${acceptance.lastName || ''}`.trim()
+                            : 'Unknown'}
+                        </TableCell>
+                        <TableCell>{acceptance.email || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            Version {acceptance.ownerAgreementAcceptedVersion || 'N/A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {acceptance.ownerAgreementAcceptedAt 
+                            ? new Date(acceptance.ownerAgreementAcceptedAt).toLocaleDateString('en-IN', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
