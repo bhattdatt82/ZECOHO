@@ -38,7 +38,9 @@ import AdminAccess from "@/pages/admin-access";
 import AdminPolicies from "@/pages/admin-policies";
 import AdminOwnerAgreements from "@/pages/admin-owner-agreements";
 import AdminContactSettings from "@/pages/admin-contact-settings";
+import AdminAboutUs from "@/pages/admin-about-us";
 import ContactUs from "@/pages/contact-us";
+import AboutUs from "@/pages/about-us";
 import OwnerAgreementPage from "@/pages/owner-agreement";
 import KYC from "@/pages/kyc";
 import ListPropertyWizard from "@/pages/list-property-wizard";
@@ -95,7 +97,9 @@ function Router() {
       <Route path="/admin/policies" component={AdminPolicies} />
       <Route path="/admin/owner-agreements" component={AdminOwnerAgreements} />
       <Route path="/admin/contact-settings" component={AdminContactSettings} />
+      <Route path="/admin/about-us" component={AdminAboutUs} />
       <Route path="/contact" component={ContactUs} />
+      <Route path="/about-us" component={AboutUs} />
       <Route path="/owner-agreement" component={OwnerAgreementPage} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />

@@ -26,7 +26,7 @@ export function Footer() {
             </Link>
             <span className="text-muted-foreground/50">|</span>
             <Link 
-              href="/about" 
+              href="/about-us" 
               className="text-muted-foreground hover:text-primary transition-colors"
               data-testid="link-footer-about"
             >
