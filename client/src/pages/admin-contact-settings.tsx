@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -91,6 +92,34 @@ export default function AdminContactSettings() {
     },
   });
 
+  // Populate form when settings load - must be before any conditional returns
+  useEffect(() => {
+    if (settings) {
+      form.reset({
+        customerSupportEmail: settings.customerSupportEmail || "",
+        customerSupportPhone: settings.customerSupportPhone || "",
+        customerSupportHours: settings.customerSupportHours || "",
+        ownerSupportEmail: settings.ownerSupportEmail || "",
+        ownerSupportPhone: settings.ownerSupportPhone || "",
+        grievanceOfficerName: settings.grievanceOfficerName || "",
+        grievanceOfficerEmail: settings.grievanceOfficerEmail || "",
+        grievanceOfficerPhone: settings.grievanceOfficerPhone || "",
+        grievanceOfficerAddress: settings.grievanceOfficerAddress || "",
+        privacyEmail: settings.privacyEmail || "",
+        dataProtectionOfficerName: settings.dataProtectionOfficerName || "",
+        businessEmail: settings.businessEmail || "",
+        businessPhone: settings.businessPhone || "",
+        registeredOfficeName: settings.registeredOfficeName || "",
+        registeredOfficeAddress: settings.registeredOfficeAddress || "",
+        registeredOfficeCity: settings.registeredOfficeCity || "",
+        registeredOfficeState: settings.registeredOfficeState || "",
+        registeredOfficePincode: settings.registeredOfficePincode || "",
+        registeredOfficeCountry: settings.registeredOfficeCountry || "",
+        companyRegistrationNumber: settings.companyRegistrationNumber || "",
+      });
+    }
+  }, [settings, form]);
+
   // Show loading while checking auth
   if (isAuthLoading) {
     return (
@@ -121,32 +150,6 @@ export default function AdminContactSettings() {
         </div>
       </div>
     );
-  }
-
-  if (settings && !form.formState.isDirty) {
-    const formValues = {
-      customerSupportEmail: settings.customerSupportEmail || "",
-      customerSupportPhone: settings.customerSupportPhone || "",
-      customerSupportHours: settings.customerSupportHours || "",
-      ownerSupportEmail: settings.ownerSupportEmail || "",
-      ownerSupportPhone: settings.ownerSupportPhone || "",
-      grievanceOfficerName: settings.grievanceOfficerName || "",
-      grievanceOfficerEmail: settings.grievanceOfficerEmail || "",
-      grievanceOfficerPhone: settings.grievanceOfficerPhone || "",
-      grievanceOfficerAddress: settings.grievanceOfficerAddress || "",
-      privacyEmail: settings.privacyEmail || "",
-      dataProtectionOfficerName: settings.dataProtectionOfficerName || "",
-      businessEmail: settings.businessEmail || "",
-      businessPhone: settings.businessPhone || "",
-      registeredOfficeName: settings.registeredOfficeName || "",
-      registeredOfficeAddress: settings.registeredOfficeAddress || "",
-      registeredOfficeCity: settings.registeredOfficeCity || "",
-      registeredOfficeState: settings.registeredOfficeState || "",
-      registeredOfficePincode: settings.registeredOfficePincode || "",
-      registeredOfficeCountry: settings.registeredOfficeCountry || "",
-      companyRegistrationNumber: settings.companyRegistrationNumber || "",
-    };
-    form.reset(formValues);
   }
 
   const onSubmit = (data: ContactSettingsFormData) => {
