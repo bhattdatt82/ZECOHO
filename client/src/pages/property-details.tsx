@@ -1220,9 +1220,63 @@ export default function PropertyDetails() {
                   <div>
                     <h3 className="font-semibold mb-3">Cancellation policy</h3>
                     <div className="space-y-2 text-muted-foreground">
-                      {property.cancellationPolicy ? (
-                        <p>{property.cancellationPolicy.length > 150 ? property.cancellationPolicy.substring(0, 150) + "..." : property.cancellationPolicy}</p>
-                      ) : (
+                      {/* Policy Type Badge */}
+                      {property.cancellationPolicyType && (
+                        <div className="mb-3">
+                          <Badge 
+                            variant={
+                              property.cancellationPolicyType === 'flexible' ? 'default' :
+                              property.cancellationPolicyType === 'moderate' ? 'secondary' : 'outline'
+                            }
+                            className="capitalize"
+                          >
+                            {property.cancellationPolicyType}
+                          </Badge>
+                        </div>
+                      )}
+                      
+                      {/* Policy Details */}
+                      {property.cancellationPolicyType === 'flexible' && (
+                        <div className="text-sm space-y-1">
+                          <p className="text-green-600 dark:text-green-400 font-medium">
+                            Free cancellation until {property.freeCancellationHours || 24} hours before check-in
+                          </p>
+                          <p>Full refund if cancelled in time</p>
+                          <p>{property.partialRefundPercent || 50}% refund after deadline</p>
+                        </div>
+                      )}
+                      
+                      {property.cancellationPolicyType === 'moderate' && (
+                        <div className="text-sm space-y-1">
+                          <p className="text-amber-600 dark:text-amber-400 font-medium">
+                            Free cancellation until {property.freeCancellationHours || 48} hours before check-in
+                          </p>
+                          <p>Full refund if cancelled before deadline</p>
+                          <p>50% refund up to 24 hours before</p>
+                          <p>No refund within 24 hours</p>
+                        </div>
+                      )}
+                      
+                      {property.cancellationPolicyType === 'strict' && (
+                        <div className="text-sm space-y-1">
+                          <p className="text-red-600 dark:text-red-400 font-medium">
+                            Limited refund available
+                          </p>
+                          <p>50% refund up to {property.freeCancellationHours || 168} hours (7 days) before</p>
+                          <p>No refund after that period</p>
+                        </div>
+                      )}
+                      
+                      {/* Custom Policy Text if available */}
+                      {property.cancellationPolicy && (
+                        <p className="text-xs mt-2 italic">
+                          {property.cancellationPolicy.length > 100 
+                            ? property.cancellationPolicy.substring(0, 100) + "..." 
+                            : property.cancellationPolicy}
+                        </p>
+                      )}
+                      
+                      {!property.cancellationPolicyType && !property.cancellationPolicy && (
                         <p className="text-sm">Contact host for cancellation details</p>
                       )}
                     </div>
