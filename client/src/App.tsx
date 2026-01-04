@@ -36,6 +36,8 @@ import AdminProperties from "@/pages/admin-properties";
 import AdminKYC from "@/pages/admin-kyc";
 import AdminAccess from "@/pages/admin-access";
 import AdminPolicies from "@/pages/admin-policies";
+import AdminContactSettings from "@/pages/admin-contact-settings";
+import ContactUs from "@/pages/contact-us";
 import KYC from "@/pages/kyc";
 import ListPropertyWizard from "@/pages/list-property-wizard";
 import DevAdminLogin from "@/pages/dev-admin-login";
@@ -88,6 +90,8 @@ function Router() {
       <Route path="/admin/properties" component={AdminProperties} />
       <Route path="/admin/kyc" component={AdminKYC} />
       <Route path="/admin/policies" component={AdminPolicies} />
+      <Route path="/admin/contact-settings" component={AdminContactSettings} />
+      <Route path="/contact" component={ContactUs} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/forgot-password" component={ForgotPassword} />

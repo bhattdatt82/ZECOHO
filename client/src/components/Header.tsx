@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Globe, Check, LayoutDashboard, CalendarCheck, IndianRupee, Star, UserCircle, ArrowRightLeft } from "lucide-react";
+import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Globe, Check, LayoutDashboard, CalendarCheck, IndianRupee, Star, UserCircle, ArrowRightLeft, Phone } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useKycGuard } from "@/hooks/useKycGuard";
@@ -229,6 +229,12 @@ export function Header() {
                         <Link href="/admin/policies">
                           <FileText className="h-4 w-4 mr-2" />
                           Policies & Terms
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild data-testid="link-admin-contact-settings">
+                        <Link href="/admin/contact-settings">
+                          <Phone className="h-4 w-4 mr-2" />
+                          Contact Settings
                         </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
