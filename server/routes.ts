@@ -61,6 +61,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user consent (Terms & Conditions, Privacy Policy)
+  app.post('/api/auth/consent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { termsAccepted, privacyAccepted, consentCommunication } = req.body;
+      
+      if (typeof termsAccepted !== 'boolean' || typeof privacyAccepted !== 'boolean') {
+        return res.status(400).json({ message: "Both termsAccepted and privacyAccepted are required as boolean values" });
+      }
+      
+      const now = new Date();
+      const updateData: any = {
+        termsAccepted,
+        privacyAccepted,
+        consentCommunication: consentCommunication === true,
+        updatedAt: now,
+      };
+      
+      if (termsAccepted) {
+        updateData.termsAcceptedAt = now;
+      }
+      if (privacyAccepted) {
+        updateData.privacyAcceptedAt = now;
+      }
+      
+      const [updatedUser] = await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, userId))
+        .returning();
+      
+      res.json({ 
+        message: "Consent updated successfully",
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("Error updating consent:", error);
+      res.status(500).json({ message: "Failed to update consent" });
+    }
+  });
+
   // OTP Authentication - Send OTP to email
   app.post('/api/auth/send-otp', async (req: any, res) => {
     try {
