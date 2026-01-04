@@ -421,7 +421,7 @@ export default function Landing() {
                       <span className="font-bold text-lg text-primary">ZECOHO</span>
                     </th>
                     <th className="text-center p-4">
-                      <span className="font-semibold text-muted-foreground">OTAs (MMT, GoIbibo, etc.)</span>
+                      <span className="font-semibold text-muted-foreground">Other OTAs</span>
                     </th>
                   </tr>
                 </thead>
