@@ -54,6 +54,9 @@ import OwnerSettings from "@/pages/owner-settings";
 import OwnerKyc from "@/pages/owner-kyc";
 import ChooseListingMode from "@/pages/choose-listing-mode";
 import WriteReview from "@/pages/write-review";
+import Terms from "@/pages/terms";
+import Privacy from "@/pages/privacy";
+import { ConsentModal } from "@/components/ConsentModal";
 
 function Router() {
   return (
@@ -96,6 +99,8 @@ function Router() {
       <Route path="/property/:propertyId/review" component={WriteReview} />
       <Route path="/destinations" component={Destinations} />
       <Route path="/destinations/:id" component={DestinationDetails} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/privacy" component={Privacy} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -105,11 +110,18 @@ function Router() {
 // All KYC-based redirects happen AFTER navigation, not during render
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
 
   // Always show header on all pages including landing page
   const showHeader = true;
+  
+  // Check if user needs to accept consent (authenticated but hasn't accepted terms/privacy)
+  const needsConsent = !!(isAuthenticated && user && (!user.termsAccepted || !user.privacyAccepted));
+  
+  // Don't show consent modal on terms/privacy pages so users can read them
+  const isConsentPage = location === "/terms" || location === "/privacy";
+  const showConsentModal = needsConsent && !isConsentPage;
 
   return (
     <KycRouteGuard>
@@ -121,6 +133,10 @@ function AppContent() {
         </div>
         <Footer />
         <Toaster />
+        <ConsentModal 
+          open={showConsentModal} 
+          userName={user?.firstName || undefined}
+        />
       </div>
     </KycRouteGuard>
   );
