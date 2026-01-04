@@ -73,6 +73,24 @@ export default function AdminContactSettings() {
     },
   });
 
+  const { data: settings, isLoading } = useQuery<ContactSettings>({
+    queryKey: ["/api/contact-settings"],
+    enabled: user?.userRole === "admin",
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: ContactSettingsFormData) => {
+      return apiRequest("PATCH", "/api/admin/contact-settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-settings"] });
+      toast({ title: "Success", description: "Contact settings updated successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   if (user?.userRole !== "admin") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -88,23 +106,6 @@ export default function AdminContactSettings() {
       </div>
     );
   }
-
-  const { data: settings, isLoading } = useQuery<ContactSettings>({
-    queryKey: ["/api/contact-settings"],
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async (data: ContactSettingsFormData) => {
-      return apiRequest("PATCH", "/api/admin/contact-settings", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contact-settings"] });
-      toast({ title: "Success", description: "Contact settings updated successfully" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
 
   if (settings && !form.formState.isDirty) {
     const formValues = {
