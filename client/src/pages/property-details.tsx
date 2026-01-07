@@ -1235,37 +1235,53 @@ export default function PropertyDetails() {
                         </div>
                       )}
                       
-                      {/* Policy Details */}
-                      {property.cancellationPolicyType === 'flexible' && (
-                        <div className="text-sm space-y-1">
-                          <p className="text-green-600 dark:text-green-400 font-medium">
-                            Free cancellation until {property.freeCancellationHours || 24} hours before check-in
-                          </p>
-                          <p>Full refund if cancelled in time</p>
-                          <p>{property.partialRefundPercent || 50}% refund after deadline</p>
-                        </div>
-                      )}
+                      {/* Policy Details - Using actual owner-configured values */}
+                      {property.cancellationPolicyType === 'flexible' && (() => {
+                        const hours = property.freeCancellationHours || 24;
+                        const partialPercent = property.partialRefundPercent || 50;
+                        return (
+                          <div className="text-sm space-y-1">
+                            <p className="text-green-600 dark:text-green-400 font-medium">
+                              Free cancellation until {hours} hours before check-in
+                            </p>
+                            <p>100% refund if cancelled {hours}+ hours before</p>
+                            <p>{partialPercent}% refund if cancelled less than {hours} hours before</p>
+                          </div>
+                        );
+                      })()}
                       
-                      {property.cancellationPolicyType === 'moderate' && (
-                        <div className="text-sm space-y-1">
-                          <p className="text-amber-600 dark:text-amber-400 font-medium">
-                            Free cancellation until {property.freeCancellationHours || 48} hours before check-in
-                          </p>
-                          <p>Full refund if cancelled before deadline</p>
-                          <p>50% refund up to 24 hours before</p>
-                          <p>No refund within 24 hours</p>
-                        </div>
-                      )}
+                      {property.cancellationPolicyType === 'moderate' && (() => {
+                        const hours = property.freeCancellationHours || 48;
+                        const halfHours = hours / 2;
+                        const partialPercent = property.partialRefundPercent || 50;
+                        const halfHoursDisplay = Number.isInteger(halfHours) ? halfHours : halfHours.toFixed(1);
+                        return (
+                          <div className="text-sm space-y-1">
+                            <p className="text-amber-600 dark:text-amber-400 font-medium">
+                              Free cancellation until {hours} hours before check-in
+                            </p>
+                            <p>100% refund if cancelled {hours}+ hours before</p>
+                            <p>{partialPercent}% refund if cancelled {halfHoursDisplay}+ to {hours} hours before</p>
+                            <p>No refund if cancelled less than {halfHoursDisplay} hours before</p>
+                          </div>
+                        );
+                      })()}
                       
-                      {property.cancellationPolicyType === 'strict' && (
-                        <div className="text-sm space-y-1">
-                          <p className="text-red-600 dark:text-red-400 font-medium">
-                            Limited refund available
-                          </p>
-                          <p>50% refund up to {property.freeCancellationHours || 168} hours (7 days) before</p>
-                          <p>No refund after that period</p>
-                        </div>
-                      )}
+                      {property.cancellationPolicyType === 'strict' && (() => {
+                        const hours = property.freeCancellationHours || 168;
+                        const doubleHours = hours * 2;
+                        const partialPercent = property.partialRefundPercent || 50;
+                        const daysDisplay = doubleHours >= 24 ? ` (${(doubleHours / 24).toFixed(0)} days)` : '';
+                        return (
+                          <div className="text-sm space-y-1">
+                            <p className="text-red-600 dark:text-red-400 font-medium">
+                              Limited refund available
+                            </p>
+                            <p>{partialPercent}% refund if cancelled {doubleHours}+ hours{daysDisplay} before</p>
+                            <p>No refund if cancelled less than {doubleHours} hours before</p>
+                          </div>
+                        );
+                      })()}
                       
                       {/* Custom Policy Text if available */}
                       {property.cancellationPolicy && (
