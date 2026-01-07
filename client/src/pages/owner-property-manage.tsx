@@ -986,7 +986,183 @@ function StatusSection({ property }: { property: Property }) {
       </Dialog>
       
       <GuestPoliciesCard property={property} />
+      <CancellationPolicyCard property={property} />
     </div>
+  );
+}
+
+function CancellationPolicyCard({ property }: { property: Property }) {
+  const { toast } = useToast();
+  type PolicyType = "flexible" | "moderate" | "strict";
+  const [policyType, setPolicyType] = useState<PolicyType>(property.cancellationPolicyType ?? "flexible");
+  const [freeCancellationHours, setFreeCancellationHours] = useState(
+    String(property.freeCancellationHours ?? 24)
+  );
+  const [partialRefundPercent, setPartialRefundPercent] = useState(
+    String(property.partialRefundPercent ?? 50)
+  );
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const updatePolicyMutation = useMutation({
+    mutationFn: async (data: {
+      cancellationPolicyType: string;
+      freeCancellationHours: number;
+      partialRefundPercent: number;
+    }) => {
+      return apiRequest("PATCH", `/api/properties/${property.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", String(property.id)] });
+      setHasChanges(false);
+      toast({
+        title: "Cancellation Policy Updated",
+        description: "Your cancellation policy has been saved.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update cancellation policy.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    const hours = parseInt(freeCancellationHours, 10);
+    const percent = parseInt(partialRefundPercent, 10);
+    
+    if (isNaN(hours) || hours < 1 || hours > 168) {
+      toast({
+        title: "Invalid Hours",
+        description: "Free cancellation hours must be between 1 and 168 (7 days).",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isNaN(percent) || percent < 0 || percent > 100) {
+      toast({
+        title: "Invalid Percentage",
+        description: "Refund percentage must be between 0 and 100.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updatePolicyMutation.mutate({
+      cancellationPolicyType: policyType,
+      freeCancellationHours: hours,
+      partialRefundPercent: percent,
+    });
+  };
+
+  const getPolicyDescription = () => {
+    const hours = parseInt(freeCancellationHours, 10) || 24;
+    const percent = parseInt(partialRefundPercent, 10) || 50;
+    
+    switch (policyType) {
+      case "flexible":
+        return `Guests get 100% refund if they cancel at least ${hours} hours before check-in. After that, they get ${percent}% refund.`;
+      case "moderate":
+        return `Guests get 100% refund if cancelled ${hours}+ hours before check-in, ${percent}% refund if cancelled between ${Math.floor(hours/2)}-${hours} hours before, and no refund within ${Math.floor(hours/2)} hours.`;
+      case "strict":
+        return `Guests get ${percent}% refund only if cancelled at least ${hours * 2} hours before check-in. No refund after that.`;
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Cancellation Policy</CardTitle>
+        <CardDescription>
+          Define how refunds work when guests cancel their bookings
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-base">Policy Type</Label>
+            <Select
+              value={policyType}
+              onValueChange={(value: string) => {
+                setPolicyType(value as PolicyType);
+                setHasChanges(true);
+              }}
+            >
+              <SelectTrigger data-testid="select-cancellation-policy-type">
+                <SelectValue placeholder="Select a policy type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="flexible">Flexible - Most guest-friendly</SelectItem>
+                <SelectItem value="moderate">Moderate - Balanced</SelectItem>
+                <SelectItem value="strict">Strict - Most restrictive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Free Cancellation Window (hours before check-in)</Label>
+              <Input
+                type="number"
+                min="1"
+                max="168"
+                value={freeCancellationHours}
+                onChange={(e) => {
+                  setFreeCancellationHours(e.target.value);
+                  setHasChanges(true);
+                }}
+                placeholder="24"
+                data-testid="input-free-cancellation-hours"
+              />
+              <p className="text-xs text-muted-foreground">
+                Hours before check-in when free cancellation is allowed (1-168)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Partial Refund Percentage</Label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={partialRefundPercent}
+                onChange={(e) => {
+                  setPartialRefundPercent(e.target.value);
+                  setHasChanges(true);
+                }}
+                placeholder="50"
+                data-testid="input-partial-refund-percent"
+              />
+              <p className="text-xs text-muted-foreground">
+                Refund percentage for late cancellations (0-100%)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border p-4 bg-muted/50">
+          <p className="text-sm font-medium mb-1">Policy Preview</p>
+          <p className="text-sm text-muted-foreground">
+            {getPolicyDescription()}
+          </p>
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || updatePolicyMutation.isPending}
+            data-testid="save-cancellation-policy"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {updatePolicyMutation.isPending ? "Saving..." : "Save Cancellation Policy"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
