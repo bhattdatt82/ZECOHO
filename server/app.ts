@@ -11,6 +11,7 @@ import { registerRoutes } from "./routes";
 import { seedAmenities } from "./seed-amenities";
 import { seedDestinations } from "./seed-destinations";
 import { seedOwnerAgreement } from "./seed-owner-agreement";
+import { seedPolicies } from "./seed-policies";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -115,15 +116,17 @@ export default async function runApp(
     }, () => {
       log(`serving on port ${port}`);
       
-      // Only run seeding in development - production data should already be seeded
+      // Critical policies and agreements must be seeded in all environments
+      // These are required for the app to function (users must accept policies)
+      // Fire-and-forget seeding - functions check if data exists before inserting
+      seedPolicies();
+      seedOwnerAgreement();
+      
+      // Only run amenities/destinations seeding in development - they are large datasets
       // This prevents deployment timeouts from expensive seeding operations
       if (process.env.NODE_ENV !== 'production') {
-        // Seed essential data in the background
-        // Both functions check if data exists before inserting, so this is safe to run always
-        // Fire-and-forget seeding - don't await, don't chain .catch()
         seedAmenities();
         seedDestinations();
-        seedOwnerAgreement();
       }
     });
   });
