@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SlidersHorizontal, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { Property, Amenity } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { useKycGuard } from "@/hooks/useKycGuard";
@@ -44,7 +44,6 @@ export default function Search() {
   const [foreignGuestsAllowed, setForeignGuestsAllowed] = useState<string>("");
   const [selectedLocality, setSelectedLocality] = useState<string>("");
   
-  const [showFilters, setShowFilters] = useState(true);
   const [searchDestination, setSearchDestination] = useState("");
   const [initialSearchValues, setInitialSearchValues] = useState({
     destination: "",
@@ -292,22 +291,12 @@ export default function Search() {
                 initialRooms={initialSearchValues.rooms}
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              data-testid="button-toggle-filters"
-            >
-              <SlidersHorizontal className="h-4 w-4 mr-2" />
-              {showFilters ? "Hide Filters" : "Show Filters"}
-            </Button>
           </div>
         </div>
       </div>
 
       {/* Horizontal Filters Bar - All filters in one scrollable row on desktop */}
-      {showFilters && (
-        <div className="border-b bg-muted/30">
+      <div className="border-b bg-muted/30">
           <div className="container px-4 md:px-6 py-4">
             {/* Single Row of All Filters - horizontal scroll on mobile, single line on desktop */}
             <div className="flex items-end gap-3 overflow-x-auto pb-2 lg:overflow-x-visible lg:flex-nowrap scrollbar-thin">
@@ -485,7 +474,6 @@ export default function Search() {
             </div>
           </div>
         </div>
-      )}
 
       <div className="container px-4 md:px-6 py-6">
         {/* Results */}
