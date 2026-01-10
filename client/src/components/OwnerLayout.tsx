@@ -71,10 +71,9 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
   const [location, setLocation] = useLocation();
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   
-  // Check if user has engaged with KYC process (pending or rejected status)
-  const hasKycEngagement = user?.kycStatus === "rejected" || user?.kycStatus === "pending";
-  // Allow access if user is owner OR has engaged with KYC process
-  const canAccessOwnerPortal = isOwner || hasKycEngagement;
+  // STRICT ROLE CHECK: Only allow access if user has 'owner' role
+  // KYC status is used for menu/UI customization, NOT for granting access
+  const canAccessOwnerPortal = isOwner;
   
   const { showModal: showKycPrompt, setShowModal: setShowKycPrompt } = useKycPromptModal(canAccessOwnerPortal, user?.kycStatus);
 
