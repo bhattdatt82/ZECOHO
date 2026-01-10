@@ -75,10 +75,15 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
+    try {
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    } catch (error) {
+      console.error("Error during authentication verify:", error);
+      verified(error as Error, undefined);
+    }
   };
 
   // Keep track of registered strategies
@@ -128,7 +133,13 @@ export async function setupAuth(app: Express) {
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: returnTo,
       failureRedirect: "/api/login",
-    })(req, res, next);
+    })(req, res, (err: any) => {
+      if (err) {
+        console.error("Authentication callback error:", err);
+        return res.status(500).json({ message: "Authentication failed", error: err.message });
+      }
+      next();
+    });
   });
 
   app.get("/api/logout", (req, res) => {
