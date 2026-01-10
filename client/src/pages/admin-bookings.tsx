@@ -60,7 +60,7 @@ export default function AdminBookings() {
   const [actionReason, setActionReason] = useState("");
 
   const { data: bookings, isLoading: bookingsLoading } = useQuery<BookingWithDetails[]>({
-    queryKey: ["/api/admin/bookings", statusFilter],
+    queryKey: ["/api/admin/bookings"],
     enabled: !!user,
   });
 
