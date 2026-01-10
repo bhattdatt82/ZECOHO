@@ -349,7 +349,7 @@ export default function Profile() {
                 </div>
 
                 {/* Multi-role section for platform admin */}
-                {user?.email?.toLowerCase() === 'pushkardatt@gmail.com' && (
+                {user?.email?.toLowerCase() === 'anita@zecoho.com' && (
                   <div className="pt-4 border-t">
                     {isAdmin && isOwner ? (
                       <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
