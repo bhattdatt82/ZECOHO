@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Globe, Check, LayoutDashboard, CalendarCheck, IndianRupee, Star, UserCircle, ArrowRightLeft, Phone, Handshake, Info } from "lucide-react";
+import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Globe, Check, LayoutDashboard, CalendarCheck, IndianRupee, Star, UserCircle, ArrowRightLeft, Phone, Handshake, Info, Calendar, Users, Package } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useKycGuard } from "@/hooks/useKycGuard";
@@ -247,6 +247,25 @@ export function Header() {
                         <Link href="/admin/about-us">
                           <Info className="h-4 w-4 mr-2" />
                           About Us Page
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild data-testid="link-admin-bookings">
+                        <Link href="/admin/bookings">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          Booking Management
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild data-testid="link-admin-owners">
+                        <Link href="/admin/owners">
+                          <Users className="h-4 w-4 mr-2" />
+                          Owner Compliance
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild data-testid="link-admin-inventory">
+                        <Link href="/admin/inventory">
+                          <Package className="h-4 w-4 mr-2" />
+                          Inventory Health
                         </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
