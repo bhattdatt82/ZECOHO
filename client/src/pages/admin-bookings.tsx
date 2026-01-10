@@ -171,7 +171,11 @@ export default function AdminBookings() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-5 mb-8">
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "all" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => setStatusFilter("all")}
+          data-testid="card-total-bookings"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -185,7 +189,11 @@ export default function AdminBookings() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "pending" ? "ring-2 ring-yellow-500" : ""}`}
+          onClick={() => setStatusFilter("pending")}
+          data-testid="card-pending-bookings"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
@@ -199,7 +207,11 @@ export default function AdminBookings() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "confirmed" ? "ring-2 ring-green-500" : ""}`}
+          onClick={() => setStatusFilter("confirmed")}
+          data-testid="card-confirmed-bookings"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -213,7 +225,11 @@ export default function AdminBookings() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "cancelled" ? "ring-2 ring-red-500" : ""}`}
+          onClick={() => setStatusFilter("cancelled")}
+          data-testid="card-cancelled-bookings"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Cancelled</CardTitle>
             <Ban className="h-4 w-4 text-red-500" />
@@ -227,7 +243,11 @@ export default function AdminBookings() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "no_show" ? "ring-2 ring-orange-500" : ""}`}
+          onClick={() => setStatusFilter("no_show")}
+          data-testid="card-noshow-bookings"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">No-Show</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-500" />
@@ -289,7 +309,19 @@ export default function AdminBookings() {
           ) : filteredBookings?.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No bookings found</p>
+              <p className="mb-2">No bookings found</p>
+              {statusFilter !== "all" && (
+                <p className="text-sm">
+                  No bookings with status "{statusFilter.replace("_", " ")}".{" "}
+                  <button 
+                    className="text-primary hover:underline"
+                    onClick={() => setStatusFilter("all")}
+                    data-testid="button-show-all-bookings"
+                  >
+                    Show all bookings
+                  </button>
+                </p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
