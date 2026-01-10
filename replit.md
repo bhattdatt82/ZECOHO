@@ -53,6 +53,11 @@ The backend is built with **Express.js on Node.js**, featuring a **RESTful API**
     - **Policy Display on Property Page**: "Things to know" section dynamically shows cancellation policy using actual owner-configured values (not hardcoded), matching backend calculation logic.
     - **Refund Tracking**: Bookings store `refundAmount` and `refundPercentage` for audit trail.
     - Owner/admin cancellations always receive 100% refund; guest cancellations follow property policy.
+-   **Comprehensive Admin Control System**: Full-featured admin dashboard with three specialized sections:
+    - **Booking Management** (`/admin/bookings`): Admins can view all bookings with status filters, cancel bookings with full refund (100%), mark bookings as no-show, and force check-in/check-out operations. All actions create audit log entries.
+    - **Owner Compliance** (`/admin/owners`): Suspend or reinstate property owners with mandatory reason tracking. Suspension atomically blocks all properties owned by the user. Suspended owners see a dedicated message with suspension reason and support contact when accessing the owner portal.
+    - **Inventory Health** (`/admin/inventory`): Monitor room availability across all properties, identify negative inventory issues, and apply fixes with dry-run preview mode to test changes before applying.
+    - **Audit Logging**: All admin actions (booking changes, owner suspension/reinstatement, inventory fixes) are logged in the `admin_audit_logs` table with timestamps, actor IDs, action types, target IDs, and detailed change data for compliance tracking.
 
 ## Pending Features
 -   **Payment Gateway Integration**: Stripe integration for booking payments is pending. When ready to implement, use the Stripe connector integration or manually configure with STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY secrets.
