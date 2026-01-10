@@ -484,7 +484,7 @@ export default function AdminBookings() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="cancel-reason">Reason for Cancellation</Label>
+              <Label htmlFor="cancel-reason">Reason for Cancellation (required)</Label>
               <Textarea
                 id="cancel-reason"
                 data-testid="textarea-cancel-reason"
@@ -509,7 +509,7 @@ export default function AdminBookings() {
                   });
                 }
               }}
-              disabled={cancelBookingMutation.isPending}
+              disabled={cancelBookingMutation.isPending || !actionReason.trim()}
             >
               {cancelBookingMutation.isPending ? "Cancelling..." : "Confirm Cancellation"}
             </Button>

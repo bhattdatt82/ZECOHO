@@ -23,7 +23,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Ban, RefreshCw, Users, UserCheck, UserX, Clock, Search, Shield, Building } from "lucide-react";
+import { Ban, RefreshCw, Users, UserCheck, UserX, Clock, Search, Shield, Building, Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +43,8 @@ export default function AdminOwners() {
   const [reinstateDialogOpen, setReinstateDialogOpen] = useState(false);
   const [selectedOwner, setSelectedOwner] = useState<UserType | null>(null);
   const [suspensionReason, setSuspensionReason] = useState("");
+  const [activeTab, setActiveTab] = useState("suspended");
+  const [actionFilter, setActionFilter] = useState<string | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useQuery<{
     totalOwners: number;
@@ -149,7 +156,14 @@ export default function AdminOwners() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4 mb-8">
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${actionFilter === "total" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => {
+            setActionFilter("total");
+            setActiveTab("suspended");
+          }}
+          data-testid="card-total-owners"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Owners</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -163,7 +177,14 @@ export default function AdminOwners() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${actionFilter === "active" ? "ring-2 ring-green-500" : ""}`}
+          onClick={() => {
+            setActionFilter("active");
+            setActiveTab("suspended");
+          }}
+          data-testid="card-active-owners"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Owners</CardTitle>
             <UserCheck className="h-4 w-4 text-green-500" />
@@ -177,7 +198,14 @@ export default function AdminOwners() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${actionFilter === "suspended" ? "ring-2 ring-red-500" : ""}`}
+          onClick={() => {
+            setActiveTab("suspended");
+            setActionFilter("suspended");
+          }}
+          data-testid="card-suspended-owners"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Suspended</CardTitle>
             <UserX className="h-4 w-4 text-red-500" />
@@ -191,7 +219,14 @@ export default function AdminOwners() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${actionFilter === "pending" ? "ring-2 ring-yellow-500" : ""}`}
+          onClick={() => {
+            setActionFilter("pending");
+            setActiveTab("suspended");
+          }}
+          data-testid="card-pending-kyc"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending KYC</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
@@ -206,7 +241,7 @@ export default function AdminOwners() {
         </Card>
       </div>
 
-      <Tabs defaultValue="suspended" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="suspended" data-testid="tab-suspended">
             <Ban className="h-4 w-4 mr-2" />
@@ -342,9 +377,23 @@ export default function AdminOwners() {
                           {log.propertyId && <span className="text-sm">Property: {log.propertyId.slice(0, 8)}...</span>}
                         </TableCell>
                         <TableCell>
-                          <div className="max-w-[300px] truncate" title={log.reason || undefined}>
-                            {log.reason || "-"}
-                          </div>
+                          {log.reason ? (
+                            <div className="flex items-center gap-1">
+                              <span className="max-w-[200px] truncate">{log.reason}</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-5 w-5">
+                                    <Info className="h-3 w-3 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[400px]">
+                                  <p className="text-sm">{log.reason}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

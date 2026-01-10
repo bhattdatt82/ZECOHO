@@ -44,6 +44,7 @@ export default function AdminInventory() {
   const [fixDialogOpen, setFixDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryHealthItem | null>(null);
   const [dryRun, setDryRun] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"all" | "healthy" | "issues">("all");
 
   const { data: inventoryHealth, isLoading, refetch } = useQuery<InventoryHealthItem[]>({
     queryKey: ["/api/admin/inventory/health"],
@@ -81,6 +82,13 @@ export default function AdminInventory() {
 
   const issuesCount = inventoryHealth?.filter(item => item.hasNegativeInventory).length || 0;
   const healthyCount = inventoryHealth?.filter(item => !item.hasNegativeInventory).length || 0;
+  
+  const filteredInventory = inventoryHealth?.filter(item => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "healthy") return !item.hasNegativeInventory;
+    if (statusFilter === "issues") return item.hasNegativeInventory;
+    return true;
+  });
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -92,7 +100,11 @@ export default function AdminInventory() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mb-8">
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "all" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => setStatusFilter("all")}
+          data-testid="card-total-room-types"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Room Types</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -106,7 +118,11 @@ export default function AdminInventory() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "healthy" ? "ring-2 ring-green-500" : ""}`}
+          onClick={() => setStatusFilter("healthy")}
+          data-testid="card-healthy"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Healthy</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -120,7 +136,11 @@ export default function AdminInventory() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover-elevate transition-all ${statusFilter === "issues" ? "ring-2 ring-red-500" : ""}`}
+          onClick={() => setStatusFilter("issues")}
+          data-testid="card-issues"
+        >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Issues Found</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -162,10 +182,10 @@ export default function AdminInventory() {
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : inventoryHealth?.length === 0 ? (
+          ) : filteredInventory?.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No room types found</p>
+              <p>{statusFilter === "all" ? "No room types found" : `No ${statusFilter} room types found`}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -182,7 +202,7 @@ export default function AdminInventory() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventoryHealth?.map((item) => (
+                  {filteredInventory?.map((item) => (
                     <TableRow 
                       key={`${item.propertyId}-${item.roomTypeId}`}
                       data-testid={`row-inventory-${item.roomTypeId}`}
