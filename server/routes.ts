@@ -264,11 +264,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "An account with this email already exists" });
       }
 
+      // Fetch current policy versions for consent tracking
+      const currentTerms = await storage.getPublishedPolicy("terms");
+      const currentPrivacy = await storage.getPublishedPolicy("privacy");
+
       // Hash password
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
-      // Create user with unverified email and consent
+      // Create user with unverified email and consent (including version numbers)
       const user = await storage.createLocalUser({
         firstName,
         lastName,
@@ -277,6 +281,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         termsAccepted: true,
         privacyAccepted: true,
         consentCommunication: consentCommunication === true,
+        termsAcceptedVersion: currentTerms?.version ?? undefined,
+        privacyAcceptedVersion: currentPrivacy?.version ?? undefined,
       });
 
       // Generate and send OTP for email verification

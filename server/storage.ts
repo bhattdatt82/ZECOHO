@@ -242,7 +242,7 @@ export interface IStorage {
   createUserFromEmail(email: string): Promise<User>;
 
   // Password-based auth operations
-  createLocalUser(data: { firstName: string; lastName: string; email: string; passwordHash: string; termsAccepted: boolean; privacyAccepted: boolean; consentCommunication?: boolean }): Promise<User>;
+  createLocalUser(data: { firstName: string; lastName: string; email: string; passwordHash: string; termsAccepted: boolean; privacyAccepted: boolean; consentCommunication?: boolean; termsAcceptedVersion?: number; privacyAcceptedVersion?: number }): Promise<User>;
   updateUserEmailVerified(userId: string): Promise<User | undefined>;
   updateUserPassword(userId: string, passwordHash: string): Promise<User | undefined>;
 
@@ -1504,7 +1504,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Password-based auth operations
-  async createLocalUser(data: { firstName: string; lastName: string; email: string; passwordHash: string; termsAccepted: boolean; privacyAccepted: boolean; consentCommunication?: boolean }): Promise<User> {
+  async createLocalUser(data: { firstName: string; lastName: string; email: string; passwordHash: string; termsAccepted: boolean; privacyAccepted: boolean; consentCommunication?: boolean; termsAcceptedVersion?: number; privacyAcceptedVersion?: number }): Promise<User> {
     const now = new Date();
     const [user] = await db
       .insert(users)
@@ -1517,8 +1517,10 @@ export class DatabaseStorage implements IStorage {
         userRole: "guest",
         termsAccepted: data.termsAccepted,
         termsAcceptedAt: data.termsAccepted ? now : null,
+        termsAcceptedVersion: data.termsAcceptedVersion ?? null,
         privacyAccepted: data.privacyAccepted,
         privacyAcceptedAt: data.privacyAccepted ? now : null,
+        privacyAcceptedVersion: data.privacyAcceptedVersion ?? null,
         consentCommunication: data.consentCommunication ?? false,
       })
       .returning();
