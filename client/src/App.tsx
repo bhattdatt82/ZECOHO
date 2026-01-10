@@ -39,6 +39,9 @@ import AdminPolicies from "@/pages/admin-policies";
 import AdminOwnerAgreements from "@/pages/admin-owner-agreements";
 import AdminContactSettings from "@/pages/admin-contact-settings";
 import AdminAboutUs from "@/pages/admin-about-us";
+import AdminBookings from "@/pages/admin-bookings";
+import AdminOwners from "@/pages/admin-owners";
+import AdminInventory from "@/pages/admin-inventory";
 import ContactUs from "@/pages/contact-us";
 import AboutUs from "@/pages/about-us";
 import OwnerAgreementPage from "@/pages/owner-agreement";
@@ -98,6 +101,9 @@ function Router() {
       <Route path="/admin/owner-agreements" component={AdminOwnerAgreements} />
       <Route path="/admin/contact-settings" component={AdminContactSettings} />
       <Route path="/admin/about-us" component={AdminAboutUs} />
+      <Route path="/admin/bookings" component={AdminBookings} />
+      <Route path="/admin/owners" component={AdminOwners} />
+      <Route path="/admin/inventory" component={AdminInventory} />
       <Route path="/contact" component={ContactUs} />
       <Route path="/about-us" component={AboutUs} />
       <Route path="/owner-agreement" component={OwnerAgreementPage} />

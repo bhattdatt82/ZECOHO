@@ -71,6 +71,9 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
   const [location, setLocation] = useLocation();
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   
+  // Check if owner is suspended
+  const isSuspended = user?.suspensionStatus === "suspended";
+  
   // STRICT ROLE CHECK: Only allow access if user has 'owner' role
   // KYC status is used for menu/UI customization, NOT for granting access
   const canAccessOwnerPortal = isOwner;
@@ -124,6 +127,40 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     return (
       <div className="flex items-center justify-center min-h-screen" data-testid="owner-layout-redirecting">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Block suspended owners from accessing the portal
+  if (isSuspended) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4" data-testid="owner-suspended">
+        <div className="max-w-md text-center space-y-6">
+          <div className="w-16 h-16 mx-auto rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+            <XCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Account Suspended</h1>
+          <p className="text-muted-foreground">
+            Your owner account has been suspended by the platform administrator.
+            You are currently unable to access the owner portal or manage your properties.
+          </p>
+          {user?.suspensionReason && (
+            <div className="bg-muted p-4 rounded-lg text-left">
+              <p className="text-sm font-medium text-foreground mb-1">Reason for suspension:</p>
+              <p className="text-sm text-muted-foreground">{user.suspensionReason}</p>
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground">
+            If you believe this is an error or would like to appeal this decision,
+            please contact our support team at <a href="mailto:support@zecoho.com" className="text-primary hover:underline">support@zecoho.com</a>.
+          </p>
+          <Link href="/">
+            <a className="inline-flex items-center gap-2 text-primary hover:underline">
+              <ArrowLeft className="w-4 h-4" />
+              Return to Home
+            </a>
+          </Link>
+        </div>
       </div>
     );
   }
