@@ -52,6 +52,7 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import ForgotPassword from "@/pages/forgot-password";
 import NotFound from "@/pages/not-found";
+import AuthError from "@/pages/auth-error";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import OwnerBookings from "@/pages/owner-bookings";
 import MyBookings from "@/pages/my-bookings";
@@ -122,6 +123,7 @@ function Router() {
       <Route path="/destinations/:id" component={DestinationDetails} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/auth-error" component={AuthError} />
       <Route component={NotFound} />
     </Switch>
   );

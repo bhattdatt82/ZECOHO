@@ -382,13 +382,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // First check if a user with this email already exists (handles case where user 
+    // registered with email/password but now logs in with OIDC)
+    if (userData.email) {
+      const existingUserByEmail = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, userData.email.toLowerCase()))
+        .limit(1);
+      
+      if (existingUserByEmail.length > 0 && existingUserByEmail[0].id !== userData.id) {
+        // User exists with same email but different ID - update existing user with OIDC data
+        const [updatedUser] = await db
+          .update(users)
+          .set({
+            firstName: userData.firstName || existingUserByEmail[0].firstName,
+            lastName: userData.lastName || existingUserByEmail[0].lastName,
+            profileImageUrl: userData.profileImageUrl || existingUserByEmail[0].profileImageUrl,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, existingUserByEmail[0].id))
+          .returning();
+        return updatedUser;
+      }
+    }
+    
+    // Standard upsert by ID
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values({
+        ...userData,
+        email: userData.email?.toLowerCase(),
+      })
       .onConflictDoUpdate({
         target: users.id,
         set: {
           ...userData,
+          email: userData.email?.toLowerCase(),
           updatedAt: new Date(),
         },
       })

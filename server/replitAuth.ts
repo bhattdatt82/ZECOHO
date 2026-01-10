@@ -136,7 +136,9 @@ export async function setupAuth(app: Express) {
     })(req, res, (err: any) => {
       if (err) {
         console.error("Authentication callback error:", err);
-        return res.status(500).json({ message: "Authentication failed", error: err.message });
+        // Redirect to error page with encoded error message instead of showing raw JSON
+        const errorMessage = encodeURIComponent(err.message || "Authentication failed. Please try again or contact support.");
+        return res.redirect(`/auth-error?error=${errorMessage}`);
       }
       next();
     });
