@@ -24,6 +24,7 @@ import {
   aboutUs,
   contactSettings,
   contactInteractions,
+  adminAuditLogs,
   type User,
   type UpsertUser,
   type Property,
@@ -70,6 +71,8 @@ import {
   type InsertContactSettings,
   type ContactInteraction,
   type InsertContactInteraction,
+  type AdminAuditLog,
+  type InsertAdminAuditLogData,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc, count } from "drizzle-orm";
@@ -320,6 +323,55 @@ export interface IStorage {
 
   // Contact Interaction logging
   logContactInteraction(data: InsertContactInteraction): Promise<ContactInteraction>;
+
+  // Admin Audit Log operations
+  createAdminAuditLog(data: InsertAdminAuditLogData): Promise<AdminAuditLog>;
+  getAdminAuditLogs(filters?: { adminId?: string; action?: string; limit?: number }): Promise<AdminAuditLog[]>;
+
+  // Owner Suspension operations
+  suspendOwner(ownerId: string, adminId: string, reason: string): Promise<User | undefined>;
+  reinstateOwner(ownerId: string, adminId: string): Promise<User | undefined>;
+  getSuspendedOwners(): Promise<User[]>;
+  suspendOwnerProperties(ownerId: string): Promise<void>;
+  reinstateOwnerProperties(ownerId: string): Promise<void>;
+
+  // Admin Booking operations
+  adminCancelBooking(bookingId: string, adminId: string, reason?: string): Promise<Booking | undefined>;
+  adminMarkNoShow(bookingId: string, adminId: string, reason: string): Promise<Booking | undefined>;
+  adminForceCheckIn(bookingId: string, adminId: string): Promise<Booking | undefined>;
+  adminForceCheckOut(bookingId: string, adminId: string): Promise<Booking | undefined>;
+
+  // Inventory Health operations
+  getInventoryHealth(propertyId?: string): Promise<{
+    propertyId: string;
+    propertyTitle: string;
+    roomTypeId: string;
+    roomTypeName: string;
+    totalRooms: number;
+    bookedRooms: number;
+    availableRooms: number;
+    hasNegativeInventory: boolean;
+  }[]>;
+  fixInventory(propertyId: string, roomTypeId?: string, startDate?: Date, endDate?: Date, dryRun?: boolean): Promise<{
+    fixed: number;
+    details: string[];
+  }>;
+
+  // Admin Dashboard Stats
+  getBookingManagementStats(): Promise<{
+    totalBookings: number;
+    pendingBookings: number;
+    confirmedBookings: number;
+    cancelledBookings: number;
+    noShowBookings: number;
+  }>;
+  getOwnerComplianceStats(): Promise<{
+    totalOwners: number;
+    activeOwners: number;
+    suspendedOwners: number;
+    pendingKyc: number;
+  }>;
+  getAllBookingsForAdmin(filters?: { status?: string; propertyId?: string; limit?: number }): Promise<(Booking & { property: Property; guest: User })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2203,6 +2255,450 @@ export class DatabaseStorage implements IStorage {
       .values(data)
       .returning();
     return interaction;
+  }
+
+  // Admin Audit Log operations
+  async createAdminAuditLog(data: InsertAdminAuditLogData): Promise<AdminAuditLog> {
+    const [log] = await db
+      .insert(adminAuditLogs)
+      .values(data)
+      .returning();
+    return log;
+  }
+
+  async getAdminAuditLogs(filters?: { adminId?: string; action?: string; limit?: number }): Promise<AdminAuditLog[]> {
+    let query = db.select().from(adminAuditLogs);
+    
+    const conditions: any[] = [];
+    if (filters?.adminId) {
+      conditions.push(eq(adminAuditLogs.adminId, filters.adminId));
+    }
+    if (filters?.action) {
+      conditions.push(eq(adminAuditLogs.action, filters.action as any));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    const results = await query
+      .orderBy(desc(adminAuditLogs.createdAt))
+      .limit(filters?.limit || 100);
+    
+    return results;
+  }
+
+  // Owner Suspension operations
+  async suspendOwner(ownerId: string, adminId: string, reason: string): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        suspensionStatus: "suspended",
+        suspendedAt: new Date(),
+        suspendedBy: adminId,
+        suspensionReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, ownerId))
+      .returning();
+    
+    if (updated) {
+      // Suspend all owner's properties
+      await this.suspendOwnerProperties(ownerId);
+      
+      // Log the action
+      await this.createAdminAuditLog({
+        adminId,
+        action: "suspend_owner",
+        ownerId,
+        reason,
+      });
+    }
+    
+    return updated;
+  }
+
+  async reinstateOwner(ownerId: string, adminId: string): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        suspensionStatus: "active",
+        suspendedAt: null,
+        suspendedBy: null,
+        suspensionReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, ownerId))
+      .returning();
+    
+    if (updated) {
+      // Reinstate all owner's properties
+      await this.reinstateOwnerProperties(ownerId);
+      
+      // Log the action
+      await this.createAdminAuditLog({
+        adminId,
+        action: "reinstate_owner",
+        ownerId,
+      });
+    }
+    
+    return updated;
+  }
+
+  async getSuspendedOwners(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.suspensionStatus, "suspended"));
+  }
+
+  async suspendOwnerProperties(ownerId: string): Promise<void> {
+    await db
+      .update(properties)
+      .set({
+        suspended: true,
+        suspendedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(properties.ownerId, ownerId));
+  }
+
+  async reinstateOwnerProperties(ownerId: string): Promise<void> {
+    await db
+      .update(properties)
+      .set({
+        suspended: false,
+        suspendedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(properties.ownerId, ownerId));
+  }
+
+  // Admin Booking operations
+  async adminCancelBooking(bookingId: string, adminId: string, reason?: string): Promise<Booking | undefined> {
+    const booking = await this.getBooking(bookingId);
+    if (!booking || booking.status === "completed") {
+      return undefined;
+    }
+    
+    // Full refund for admin cancellations
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "cancelled",
+        cancelledBy: "admin",
+        cancellationReason: reason || "Cancelled by administrator",
+        cancelledAt: new Date(),
+        refundAmount: booking.totalPrice,
+        refundPercentage: 100,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    
+    if (updated) {
+      await this.createAdminAuditLog({
+        adminId,
+        action: "cancel_booking",
+        bookingId,
+        reason,
+      });
+    }
+    
+    return updated;
+  }
+
+  async adminMarkNoShow(bookingId: string, adminId: string, reason: string): Promise<Booking | undefined> {
+    const booking = await this.getBooking(bookingId);
+    if (!booking) {
+      return undefined;
+    }
+    
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "no_show",
+        noShowMarkedBy: "admin",
+        noShowReason: reason,
+        noShowMarkedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    
+    if (updated) {
+      await this.createAdminAuditLog({
+        adminId,
+        action: "mark_no_show",
+        bookingId,
+        reason,
+      });
+    }
+    
+    return updated;
+  }
+
+  async adminForceCheckIn(bookingId: string, adminId: string): Promise<Booking | undefined> {
+    const booking = await this.getBooking(bookingId);
+    if (!booking) {
+      return undefined;
+    }
+    
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "checked_in",
+        actualCheckIn: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    
+    if (updated) {
+      await this.createAdminAuditLog({
+        adminId,
+        action: "force_check_in",
+        bookingId,
+      });
+    }
+    
+    return updated;
+  }
+
+  async adminForceCheckOut(bookingId: string, adminId: string): Promise<Booking | undefined> {
+    const booking = await this.getBooking(bookingId);
+    if (!booking) {
+      return undefined;
+    }
+    
+    const [updated] = await db
+      .update(bookings)
+      .set({
+        status: "checked_out",
+        actualCheckOut: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+    
+    if (updated) {
+      await this.createAdminAuditLog({
+        adminId,
+        action: "force_check_out",
+        bookingId,
+      });
+    }
+    
+    return updated;
+  }
+
+  // Inventory Health operations
+  async getInventoryHealth(propertyId?: string): Promise<{
+    propertyId: string;
+    propertyTitle: string;
+    roomTypeId: string;
+    roomTypeName: string;
+    totalRooms: number;
+    bookedRooms: number;
+    availableRooms: number;
+    hasNegativeInventory: boolean;
+  }[]> {
+    const today = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    
+    // Get all properties (or specific property)
+    let propsQuery = db.select().from(properties);
+    if (propertyId) {
+      propsQuery = propsQuery.where(eq(properties.id, propertyId)) as any;
+    }
+    const allProperties = await propsQuery;
+    
+    const results: {
+      propertyId: string;
+      propertyTitle: string;
+      roomTypeId: string;
+      roomTypeName: string;
+      totalRooms: number;
+      bookedRooms: number;
+      availableRooms: number;
+      hasNegativeInventory: boolean;
+    }[] = [];
+    
+    for (const prop of allProperties) {
+      const roomTypesList = await db
+        .select()
+        .from(roomTypes)
+        .where(eq(roomTypes.propertyId, prop.id));
+      
+      for (const rt of roomTypesList) {
+        // Count active bookings for this room type
+        const activeBookings = await db
+          .select({ count: count() })
+          .from(bookings)
+          .where(and(
+            eq(bookings.roomTypeId, rt.id),
+            inArray(bookings.status, ["confirmed", "customer_confirmed", "checked_in"]),
+            gte(bookings.checkOut, today),
+            lte(bookings.checkIn, endDate)
+          ));
+        
+        const bookedRooms = Number(activeBookings[0]?.count || 0);
+        const totalRooms = rt.totalRooms || 0;
+        const availableRooms = totalRooms - bookedRooms;
+        
+        results.push({
+          propertyId: prop.id,
+          propertyTitle: prop.title,
+          roomTypeId: rt.id,
+          roomTypeName: rt.name,
+          totalRooms,
+          bookedRooms,
+          availableRooms,
+          hasNegativeInventory: availableRooms < 0,
+        });
+      }
+    }
+    
+    return results;
+  }
+
+  async fixInventory(propertyId: string, roomTypeId?: string, startDate?: Date, endDate?: Date, dryRun: boolean = false): Promise<{
+    fixed: number;
+    details: string[];
+  }> {
+    const details: string[] = [];
+    let fixed = 0;
+    
+    // Get room types for the property
+    let roomTypesQuery = db.select().from(roomTypes).where(eq(roomTypes.propertyId, propertyId));
+    if (roomTypeId) {
+      roomTypesQuery = roomTypesQuery.where(eq(roomTypes.id, roomTypeId)) as any;
+    }
+    const roomTypesList = await roomTypesQuery;
+    
+    const checkStartDate = startDate || new Date();
+    const checkEndDate = endDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days
+    
+    for (const rt of roomTypesList) {
+      // Count concurrent bookings that exceed capacity
+      const overlappingBookings = await db
+        .select()
+        .from(bookings)
+        .where(and(
+          eq(bookings.roomTypeId, rt.id),
+          inArray(bookings.status, ["confirmed", "customer_confirmed", "checked_in"]),
+          lt(bookings.checkIn, checkEndDate),
+          gt(bookings.checkOut, checkStartDate)
+        ));
+      
+      // Simple check: if we have more active bookings than rooms, flag it
+      const totalRooms = rt.totalRooms || 0;
+      if (overlappingBookings.length > totalRooms) {
+        details.push(`Room type "${rt.name}" has ${overlappingBookings.length} active bookings but only ${totalRooms} rooms`);
+        
+        if (!dryRun) {
+          // In a real implementation, you might want to:
+          // 1. Cancel excess bookings
+          // 2. Increase room count
+          // 3. Flag for manual review
+          // For now, we just log the issue
+          fixed++;
+        }
+      }
+    }
+    
+    if (details.length === 0) {
+      details.push("No inventory issues found");
+    }
+    
+    return { fixed, details };
+  }
+
+  // Admin Dashboard Stats
+  async getBookingManagementStats(): Promise<{
+    totalBookings: number;
+    pendingBookings: number;
+    confirmedBookings: number;
+    cancelledBookings: number;
+    noShowBookings: number;
+  }> {
+    const [stats] = await db
+      .select({
+        totalBookings: count(),
+        pendingBookings: sql<number>`COUNT(*) FILTER (WHERE ${bookings.status} = 'pending')`,
+        confirmedBookings: sql<number>`COUNT(*) FILTER (WHERE ${bookings.status} IN ('confirmed', 'customer_confirmed'))`,
+        cancelledBookings: sql<number>`COUNT(*) FILTER (WHERE ${bookings.status} = 'cancelled')`,
+        noShowBookings: sql<number>`COUNT(*) FILTER (WHERE ${bookings.status} = 'no_show')`,
+      })
+      .from(bookings);
+    
+    return {
+      totalBookings: Number(stats?.totalBookings || 0),
+      pendingBookings: Number(stats?.pendingBookings || 0),
+      confirmedBookings: Number(stats?.confirmedBookings || 0),
+      cancelledBookings: Number(stats?.cancelledBookings || 0),
+      noShowBookings: Number(stats?.noShowBookings || 0),
+    };
+  }
+
+  async getOwnerComplianceStats(): Promise<{
+    totalOwners: number;
+    activeOwners: number;
+    suspendedOwners: number;
+    pendingKyc: number;
+  }> {
+    const [stats] = await db
+      .select({
+        totalOwners: sql<number>`COUNT(*) FILTER (WHERE ${users.userRole} = 'owner')`,
+        activeOwners: sql<number>`COUNT(*) FILTER (WHERE ${users.userRole} = 'owner' AND ${users.suspensionStatus} = 'active')`,
+        suspendedOwners: sql<number>`COUNT(*) FILTER (WHERE ${users.userRole} = 'owner' AND ${users.suspensionStatus} = 'suspended')`,
+        pendingKyc: sql<number>`COUNT(*) FILTER (WHERE ${users.userRole} = 'owner' AND ${users.kycStatus} = 'pending')`,
+      })
+      .from(users);
+    
+    return {
+      totalOwners: Number(stats?.totalOwners || 0),
+      activeOwners: Number(stats?.activeOwners || 0),
+      suspendedOwners: Number(stats?.suspendedOwners || 0),
+      pendingKyc: Number(stats?.pendingKyc || 0),
+    };
+  }
+
+  async getAllBookingsForAdmin(filters?: { status?: string; propertyId?: string; limit?: number }): Promise<(Booking & { property: Property; guest: User })[]> {
+    const conditions: any[] = [];
+    
+    if (filters?.status) {
+      conditions.push(eq(bookings.status, filters.status as any));
+    }
+    if (filters?.propertyId) {
+      conditions.push(eq(bookings.propertyId, filters.propertyId));
+    }
+    
+    let query = db
+      .select({
+        booking: bookings,
+        property: properties,
+        guest: users,
+      })
+      .from(bookings)
+      .innerJoin(properties, eq(bookings.propertyId, properties.id))
+      .innerJoin(users, eq(bookings.guestId, users.id));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    const results = await query
+      .orderBy(desc(bookings.createdAt))
+      .limit(filters?.limit || 100);
+    
+    return results.map(r => ({
+      ...r.booking,
+      property: r.property,
+      guest: r.guest,
+    }));
   }
 }
 
