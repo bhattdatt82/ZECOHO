@@ -29,17 +29,6 @@ function AnimatedCounter({ end, duration = 2000, suffix = "" }: { end: number; d
 
 export default function Landing() {
   const [, setLocation] = useLocation();
-  const [showStickySearch, setShowStickySearch] = useState(false);
-
-  // Track scroll position for sticky search bar
-  useEffect(() => {
-    const handleScroll = () => {
-      // Show sticky bar after scrolling past 400px (past the hero search bar)
-      setShowStickySearch(window.scrollY > 400);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const { data: properties = [], isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
@@ -77,55 +66,34 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen">
-      {/* Sticky Search Bar - Appears on Scroll (positioned below main header) */}
-      <div 
-        className={`fixed top-16 left-0 right-0 z-40 transition-all duration-300 ${
-          showStickySearch 
-            ? "translate-y-0 opacity-100" 
-            : "-translate-y-full opacity-0 pointer-events-none"
-        }`}
-        data-testid="sticky-search-bar"
-      >
-        <div className="bg-white dark:bg-background border-b shadow-lg">
-          <div className="container mx-auto px-4 py-2">
-            <div className="flex items-center gap-4">
-              {/* Compact Search Bar */}
-              <div className="flex-1">
-                <SearchBar onSearch={handleSearch} compact={true} showDates={true} showGuests={true} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Hero Section - Clean Modern Design */}
       <div className="relative min-h-[450px] md:min-h-[480px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
         
         <div className="relative z-10 container px-4 md:px-6 text-center py-8">
           {/* Premium Badge - Subtle */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-3">
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-foreground/80 text-xs font-medium">India's First Zero Commission Platform</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 mb-4">
+            <BadgeCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-emerald-700 dark:text-emerald-300 text-xs font-semibold">ZERO Commission Hotel Booking</span>
           </div>
 
           {/* Main Headline - Responsive Typography */}
           <h1 
-            className="text-hero-title font-extrabold text-foreground tracking-tight mb-1" 
+            className="text-hero-title font-extrabold text-foreground tracking-tight mb-2" 
             data-testid="text-hero-title"
           >
-            Book Hotels at True Prices —
+            Same Hotel. Same Room.
           </h1>
           <h1 
-            className="text-hero-subtitle font-extrabold tracking-tight mb-2.5 md:mb-3 bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 bg-clip-text text-transparent"
+            className="text-hero-subtitle font-extrabold tracking-tight mb-3 md:mb-4 bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 bg-clip-text text-transparent"
           >
-            Cheaper Than OTAs
+            15–25% Less Than Other OTAs
           </h1>
           
           {/* Subheadline */}
           <p 
-            className="text-base md:text-xl text-muted-foreground font-normal md:font-medium leading-[1.4] mb-7 md:mb-8 max-w-2xl mx-auto"
+            className="text-base md:text-lg text-muted-foreground font-normal leading-relaxed mb-6 md:mb-8 max-w-xl mx-auto"
           >
-            Direct booking. Zero commission. Zero hidden fees. Save 15–25% instantly.
+            We don't charge hotels commission — so they pass the savings to you. No hidden fees. No surprises.
           </p>
 
           {/* Airbnb-Style Search Bar */}
@@ -142,29 +110,29 @@ export default function Landing() {
           </div>
 
           {/* USPs Under Search Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-500" />
-              <span className="text-muted-foreground text-sm">Save ₹500–₹1500/night</span>
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
+            <div className="flex items-center gap-1.5 bg-white/80 dark:bg-muted/50 px-3 py-1.5 rounded-full">
+              <Percent className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="text-foreground/80 text-xs font-medium">0% Commission</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-500" />
-              <span className="text-muted-foreground text-sm">Direct hotel contact</span>
+            <div className="flex items-center gap-1.5 bg-white/80 dark:bg-muted/50 px-3 py-1.5 rounded-full">
+              <MessageCircle className="h-3.5 w-3.5 text-blue-600" />
+              <span className="text-foreground/80 text-xs font-medium">Direct Hotel Contact</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-500" />
-              <span className="text-muted-foreground text-sm">Zero convenience fees</span>
+            <div className="flex items-center gap-1.5 bg-white/80 dark:bg-muted/50 px-3 py-1.5 rounded-full">
+              <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+              <span className="text-foreground/80 text-xs font-medium">Verified Properties</span>
             </div>
           </div>
           
           {/* Property Owner CTA */}
-          <div className="mt-4">
+          <div className="mt-5">
             <span 
-              className="text-muted-foreground text-sm hover:text-foreground cursor-pointer transition-colors"
+              className="text-muted-foreground text-sm hover:text-primary cursor-pointer transition-colors underline-offset-2 hover:underline"
               onClick={() => setLocation("/login?returnTo=/list-property")}
               data-testid="link-owner-cta-hero"
             >
-              Own a hotel or homestay? Get listed on ZECOHO →
+              Are you a hotelier? List your property — 0% commission
             </span>
           </div>
         </div>
