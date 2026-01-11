@@ -73,6 +73,7 @@ import { OwnerAgreementConsentModal } from "@/components/OwnerAgreementConsentMo
 import { CompareProvider } from "@/contexts/CompareContext";
 import { CompareBar } from "@/components/CompareBar";
 import ComparePage from "@/pages/compare";
+import LogoGallery from "@/pages/logo-gallery";
 
 function Router() {
   return (
@@ -129,6 +130,7 @@ function Router() {
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/compare" component={ComparePage} />
+      <Route path="/logo-gallery" component={LogoGallery} />
       <Route path="/auth-error" component={AuthError} />
       <Route component={NotFound} />
     </Switch>
