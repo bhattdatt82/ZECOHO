@@ -268,6 +268,12 @@ export function Header() {
                           Inventory Health
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild data-testid="link-admin-users">
+                        <Link href="/admin/users">
+                          <User className="h-4 w-4 mr-2" />
+                          User Management
+                        </Link>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </>
