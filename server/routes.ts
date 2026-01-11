@@ -424,6 +424,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Check if user is deactivated
+      if (user.isDeactivated) {
+        return res.status(403).json({ 
+          message: "Your account has been deactivated. Please contact support for assistance.",
+          code: "ACCOUNT_DEACTIVATED"
+        });
+      }
+
       // Create session
       req.user = {
         claims: { sub: user.id, email: user.email },

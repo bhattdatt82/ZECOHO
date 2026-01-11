@@ -163,6 +163,20 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  // Check if user is deactivated
+  const userId = user.claims?.sub;
+  if (userId) {
+    const dbUser = await storage.getUser(userId);
+    if (dbUser?.isDeactivated) {
+      // Log out the deactivated user
+      req.logout(() => {});
+      return res.status(403).json({ 
+        message: "Your account has been deactivated. Please contact support for assistance.",
+        code: "ACCOUNT_DEACTIVATED"
+      });
+    }
+  }
+
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
     return next();
