@@ -70,6 +70,9 @@ import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import { ConsentModal } from "@/components/ConsentModal";
 import { OwnerAgreementConsentModal } from "@/components/OwnerAgreementConsentModal";
+import { CompareProvider } from "@/contexts/CompareContext";
+import { CompareBar } from "@/components/CompareBar";
+import ComparePage from "@/pages/compare";
 
 function Router() {
   return (
@@ -125,6 +128,7 @@ function Router() {
       <Route path="/destinations/:id" component={DestinationDetails} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
+      <Route path="/compare" component={ComparePage} />
       <Route path="/auth-error" component={AuthError} />
       <Route component={NotFound} />
     </Switch>
@@ -207,27 +211,30 @@ function AppContent() {
   const showOwnerAgreementModal = needsOwnerAgreementConsent && !isOwnerAgreementPage && !showConsentModal;
 
   return (
-    <KycRouteGuard>
-      <div className="flex flex-col min-h-screen">
-        <ScrollToTop />
-        {showHeader && <Header />}
-        <div className="flex-1">
-          <Router />
+    <CompareProvider>
+      <KycRouteGuard>
+        <div className="flex flex-col min-h-screen">
+          <ScrollToTop />
+          {showHeader && <Header />}
+          <div className="flex-1">
+            <Router />
+          </div>
+          <Footer />
+          <CompareBar />
+          <Toaster />
+          <ConsentModal 
+            open={showConsentModal} 
+            userName={user?.firstName || undefined}
+            isVersionUpdate={needsVersionUpdate && !hasNeverAccepted}
+          />
+          <OwnerAgreementConsentModal
+            open={showOwnerAgreementModal}
+            userName={user?.firstName || undefined}
+            isVersionUpdate={ownerNeedsVersionUpdate && !ownerHasNeverAccepted}
+          />
         </div>
-        <Footer />
-        <Toaster />
-        <ConsentModal 
-          open={showConsentModal} 
-          userName={user?.firstName || undefined}
-          isVersionUpdate={needsVersionUpdate && !hasNeverAccepted}
-        />
-        <OwnerAgreementConsentModal
-          open={showOwnerAgreementModal}
-          userName={user?.firstName || undefined}
-          isVersionUpdate={ownerNeedsVersionUpdate && !ownerHasNeverAccepted}
-        />
-      </div>
-    </KycRouteGuard>
+      </KycRouteGuard>
+    </CompareProvider>
   );
 }
 

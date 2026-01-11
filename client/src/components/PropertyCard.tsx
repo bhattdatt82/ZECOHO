@@ -1,13 +1,14 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, MapPin, Star, Users, Share2, Phone, MessageCircle, BadgeCheck, Clock, ArrowRight, Check } from "lucide-react";
+import { Heart, MapPin, Star, Users, Share2, Phone, MessageCircle, BadgeCheck, Clock, ArrowRight, Check, GitCompare } from "lucide-react";
 import type { Property } from "@shared/schema";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompare } from "@/contexts/CompareContext";
 
 interface OwnerContact {
   phone: string | null;
@@ -39,7 +40,30 @@ export function PropertyCard({ property, onWishlistToggle, searchParams }: Prope
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const { addToCompare, removeFromCompare, isInCompare, maxCompareItems } = useCompare();
   const mainImage = property.images?.[0] || "/placeholder-property.jpg";
+  const inCompare = isInCompare(property.id);
+
+  const handleCompareToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (inCompare) {
+      removeFromCompare(property.id);
+      toast({ title: "Removed from compare" });
+    } else {
+      const added = addToCompare(property as any);
+      if (added) {
+        toast({ title: "Added to compare", description: "You can compare up to 4 properties" });
+      } else {
+        toast({ 
+          title: "Compare limit reached", 
+          description: `You can only compare ${maxCompareItems} properties at once`,
+          variant: "destructive"
+        });
+      }
+    }
+  };
   
   // Build property URL with search params
   const buildPropertyUrl = () => {
@@ -347,6 +371,15 @@ export function PropertyCard({ property, onWishlistToggle, searchParams }: Prope
               </div>
             )}
             <div className="flex items-center gap-1 ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCompareToggle}
+                className={inCompare ? "text-primary" : "text-muted-foreground"}
+                data-testid={`button-compare-${property.id}`}
+              >
+                <GitCompare className={`h-4 w-4 ${inCompare ? "text-primary" : ""}`} />
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
