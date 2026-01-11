@@ -19,6 +19,26 @@ export default function LogoGallery() {
       name: "Option 4: Badge Shield",
       description: "Green shield with gold border and 0%",
       src: "/logos/zecoho_badge_shield_logo.png"
+    },
+    {
+      name: "Option 5: Minimalist Z",
+      description: "Simple Z icon with roof element - great for favicon",
+      src: "/logos/zecoho_minimalist_z_icon.png"
+    },
+    {
+      name: "Option 6: Wordmark Pin",
+      description: "Bold typography with O as location pin",
+      src: "/logos/zecoho_wordmark_with_pin_o.png"
+    },
+    {
+      name: "Option 7: Luxury Gold",
+      description: "Elegant serif with gold and navy - premium feel",
+      src: "/logos/zecoho_luxury_gold_logo.png"
+    },
+    {
+      name: "Option 8: Friendly Coral",
+      description: "Warm, approachable design with house icon",
+      src: "/logos/zecoho_friendly_coral_logo.png"
     }
   ];
 
