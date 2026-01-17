@@ -76,6 +76,7 @@ import { CompareBar } from "@/components/CompareBar";
 import ComparePage from "@/pages/compare";
 import LogoGallery from "@/pages/logo-gallery";
 import { SupportChat } from "@/components/SupportChat";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 function Router() {
   return (
@@ -221,11 +222,12 @@ function AppContent() {
         <div className="flex flex-col min-h-screen">
           <ScrollToTop />
           {showHeader && <Header />}
-          <div className="flex-1">
+          <div className="flex-1 pb-16 md:pb-0">
             <Router />
           </div>
           <Footer />
           <CompareBar />
+          <MobileBottomNav />
           {user && <SupportChat />}
           <Toaster />
           <ConsentModal 
