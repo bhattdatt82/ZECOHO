@@ -215,8 +215,8 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
         </>
       )}
       <SidebarProvider style={sidebarStyle}>
-        <div className="flex h-screen w-full">
-          <Sidebar>
+        <div className="flex min-h-[calc(100vh-4rem)] md:h-screen w-full">
+          <Sidebar className="hidden md:flex">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
@@ -289,9 +289,9 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex flex-col">
-          <header className="flex h-14 items-center gap-4 border-b px-4 lg:px-6">
-            <SidebarTrigger data-testid="sidebar-toggle" />
+        <SidebarInset className="flex flex-col flex-1">
+          <header className="flex h-14 items-center gap-4 border-b px-4 lg:px-6 sticky top-0 bg-background z-40">
+            <SidebarTrigger data-testid="sidebar-toggle" className="hidden md:flex" />
             <div className="flex-1">
               <h1 className="text-lg font-semibold" data-testid="page-title">
                 {menuItems.find((item) => item.path === location)?.title || "Owner Portal"}
@@ -312,7 +312,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
             </Link>
           )}
           
-          <main className="flex-1 overflow-auto p-4 lg:p-6">
+          <main className="flex-1 overflow-auto p-4 lg:p-6 pb-20 md:pb-6">
             {children}
           </main>
         </SidebarInset>

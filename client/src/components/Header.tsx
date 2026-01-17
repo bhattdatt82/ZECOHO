@@ -117,12 +117,12 @@ export function Header() {
   };
 
   return (
-    <header className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ${
+    <header className={`fixed md:sticky top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${
       isScrolled 
         ? "bg-background/98 backdrop-blur-lg shadow-md border-border/50" 
         : "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     }`}>
-      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
+      <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between px-4 md:px-6 overflow-hidden">
         <Link href="/">
           <div className="flex items-center gap-2.5 cursor-pointer group" data-testid="link-home">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg transition-opacity duration-200 group-hover:opacity-90" style={{ boxShadow: '0 10px 15px -3px hsl(var(--primary) / 0.2)' }}>

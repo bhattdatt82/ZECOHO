@@ -222,7 +222,7 @@ function AppContent() {
         <div className="flex flex-col min-h-screen">
           <ScrollToTop />
           {showHeader && <Header />}
-          <div className="flex-1 pb-16 md:pb-0">
+          <div className="flex-1 pt-16 md:pt-0 pb-16 md:pb-0">
             <Router />
           </div>
           <Footer />

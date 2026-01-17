@@ -120,28 +120,32 @@ export default function OwnerPropertyManage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
-            <TabsTrigger value="rooms" data-testid="tab-rooms">
-              <Bed className="h-4 w-4 mr-2" />
-              Rooms
-            </TabsTrigger>
-            <TabsTrigger value="cancellation" data-testid="tab-cancellation">
-              <FileX className="h-4 w-4 mr-2" />
-              Cancellation
-            </TabsTrigger>
-            <TabsTrigger value="availability" data-testid="tab-availability">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Availability
-            </TabsTrigger>
-            <TabsTrigger value="location" data-testid="tab-location">
-              <MapPin className="h-4 w-4 mr-2" />
-              Location
-            </TabsTrigger>
-            <TabsTrigger value="status" data-testid="tab-status">
-              <Settings className="h-4 w-4 mr-2" />
-              Status
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+            <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-5 md:w-full md:max-w-3xl gap-1">
+              <TabsTrigger value="rooms" data-testid="tab-rooms" className="flex-shrink-0 whitespace-nowrap px-3">
+                <Bed className="h-4 w-4 mr-1 md:mr-2" />
+                <span>Rooms</span>
+              </TabsTrigger>
+              <TabsTrigger value="cancellation" data-testid="tab-cancellation" className="flex-shrink-0 whitespace-nowrap px-3">
+                <FileX className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Cancellation</span>
+                <span className="sm:hidden">Cancel</span>
+              </TabsTrigger>
+              <TabsTrigger value="availability" data-testid="tab-availability" className="flex-shrink-0 whitespace-nowrap px-3">
+                <CalendarIcon className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Availability</span>
+                <span className="sm:hidden">Avail</span>
+              </TabsTrigger>
+              <TabsTrigger value="location" data-testid="tab-location" className="flex-shrink-0 whitespace-nowrap px-3">
+                <MapPin className="h-4 w-4 mr-1 md:mr-2" />
+                <span>Location</span>
+              </TabsTrigger>
+              <TabsTrigger value="status" data-testid="tab-status" className="flex-shrink-0 whitespace-nowrap px-3">
+                <Settings className="h-4 w-4 mr-1 md:mr-2" />
+                <span>Status</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="rooms" className="mt-6">
             <RoomsSection 
