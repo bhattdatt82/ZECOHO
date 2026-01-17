@@ -5,6 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 export function MobileBottomNav() {
   const [location] = useLocation();
   const { isAuthenticated, isOwner } = useAuth();
+  
+  // Hide on property details pages (they have their own booking bar)
+  const isPropertyDetailsPage = location.match(/^\/properties\/[^/]+$/);
+  if (isPropertyDetailsPage) {
+    return null;
+  }
 
   const navItems = [
     {

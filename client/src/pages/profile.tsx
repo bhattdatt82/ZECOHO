@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/select";
 import { insertUserPreferencesSchema } from "@shared/schema";
 import { z } from "zod";
-import { KeyRound, Eye, EyeOff, Check } from "lucide-react";
+import { KeyRound, Eye, EyeOff, Check, User, Settings, HelpCircle, Shield, LogOut, ChevronRight, History, Heart, Calendar } from "lucide-react";
+import { Link } from "wouter";
 
 const preferencesFormSchema = insertUserPreferencesSchema.extend({
   userId: z.string(),
@@ -268,66 +269,185 @@ export default function Profile() {
     }
   };
 
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
+  // Menu items for Airbnb-style profile menu
+  const menuItems = [
+    {
+      icon: User,
+      label: "View Profile",
+      description: "See your profile details",
+      onClick: () => {
+        const profileSection = document.getElementById("profile-details");
+        profileSection?.scrollIntoView({ behavior: "smooth" });
+      },
+      testId: "menu-view-profile",
+    },
+    {
+      icon: Settings,
+      label: "Account Settings",
+      description: "Password and security",
+      onClick: () => {
+        const settingsSection = document.getElementById("account-settings");
+        settingsSection?.scrollIntoView({ behavior: "smooth" });
+      },
+      testId: "menu-account-settings",
+    },
+    {
+      icon: Heart,
+      label: "Wishlist",
+      href: "/wishlist",
+      description: "Your saved properties",
+      testId: "menu-wishlist",
+    },
+    {
+      icon: Calendar,
+      label: "My Bookings",
+      href: "/my-bookings",
+      description: "View your reservations",
+      testId: "menu-bookings",
+    },
+    {
+      icon: History,
+      label: "Search History",
+      href: "/search-history",
+      description: "Your recent searches",
+      testId: "menu-search-history",
+    },
+    {
+      icon: HelpCircle,
+      label: "Get Help",
+      href: "/contact",
+      description: "Contact support",
+      testId: "menu-get-help",
+    },
+    {
+      icon: Shield,
+      label: "Privacy",
+      href: "/privacy",
+      description: "Privacy policy",
+      testId: "menu-privacy",
+    },
+  ];
+
   return (
     <div className="min-h-screen pb-16">
-      <div className="container px-4 md:px-6 py-8 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-semibold mb-8">Profile & Settings</h1>
+      <div className="container px-4 md:px-6 py-6 max-w-4xl mx-auto">
+        {/* Profile Header - Airbnb style */}
+        <div className="flex items-center gap-4 mb-6">
+          <Avatar className="h-16 w-16 md:h-20 md:w-20">
+            <AvatarImage src={user?.profileImageUrl || undefined} className="object-cover" />
+            <AvatarFallback className="text-xl md:text-2xl">{getInitials()}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <h1 className="text-xl md:text-2xl font-semibold">
+              {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email}
+            </h1>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {isAdmin && <Badge variant="default" className="text-xs">Admin</Badge>}
+              {isOwner && <Badge variant="secondary" className="text-xs">Property Owner</Badge>}
+              {!isAdmin && !isOwner && <Badge variant="outline" className="text-xs">Guest</Badge>}
+            </div>
+          </div>
+        </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
-            {user?.userRole === "guest" && (
-              <TabsTrigger value="preferences" data-testid="tab-preferences">Preferences</TabsTrigger>
-            )}
-          </TabsList>
+        {/* Quick Menu - Airbnb style */}
+        <Card className="mb-6">
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const content = (
+                  <div className="flex items-center justify-between p-4 hover-elevate cursor-pointer">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
+                        <Icon className="h-5 w-5 text-foreground" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{item.label}</p>
+                        <p className="text-sm text-muted-foreground">{item.description}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                );
 
-          <TabsContent value="profile" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+                if (item.href) {
+                  return (
+                    <Link key={item.label} href={item.href} data-testid={item.testId}>
+                      {content}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <div key={item.label} onClick={item.onClick} data-testid={item.testId}>
+                    {content}
+                  </div>
+                );
+              })}
+
+              {/* Logout Button */}
+              <div 
+                className="flex items-center justify-between p-4 hover-elevate cursor-pointer"
+                onClick={handleLogout}
+                data-testid="menu-logout"
+              >
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={user?.profileImageUrl || undefined} className="object-cover" />
-                    <AvatarFallback className="text-2xl">{getInitials()}</AvatarFallback>
-                  </Avatar>
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10">
+                    <LogOut className="h-5 w-5 text-destructive" />
+                  </div>
                   <div>
-                    <p className="font-semibold text-lg">{user?.firstName || user?.email}</p>
-                    <p className="text-muted-foreground">{user?.email}</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {isAdmin && <Badge variant="default">Admin</Badge>}
-                      {isOwner && <Badge variant="secondary">Property Owner</Badge>}
-                      {!isAdmin && !isOwner && <Badge variant="outline">Guest</Badge>}
+                    <p className="font-medium text-destructive">Log out</p>
+                    <p className="text-sm text-muted-foreground">Sign out of your account</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Profile Details Section */}
+        <div id="profile-details" className="scroll-mt-20">
+          <Tabs defaultValue="profile" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="profile" data-testid="tab-profile">Profile Details</TabsTrigger>
+              {user?.userRole === "guest" && (
+                <TabsTrigger value="preferences" data-testid="tab-preferences">Preferences</TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="profile" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <Label className="text-muted-foreground">First name</Label>
+                      <p className="text-base font-medium">{user?.firstName || "Not provided"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Last name</Label>
+                      <p className="text-base font-medium">{user?.lastName || "Not provided"}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-muted-foreground">Email</Label>
+                      <p className="text-base font-medium">{user?.email || "Not provided"}</p>
                     </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="space-y-4">
-                  <div>
-                    <Label>First name</Label>
-                    <p className="text-lg">{user?.firstName || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <Label>Last name</Label>
-                    <p className="text-lg">{user?.lastName || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <Label>Email</Label>
-                    <p className="text-lg">{user?.email || "Not provided"}</p>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Account information is managed through your authentication provider
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Set Password Section - Only show for OTP-only accounts */}
-            {!passwordStatusLoading && passwordStatus && !passwordStatus.hasPassword && !passwordSet && (
+            {/* Account Settings Section */}
+            <div id="account-settings" className="scroll-mt-20 space-y-6">
+              {/* Set Password Section - Only show for OTP-only accounts */}
+              {!passwordStatusLoading && passwordStatus && !passwordStatus.hasPassword && !passwordSet && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
@@ -560,35 +680,36 @@ export default function Profile() {
               </Card>
             )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Switch Account</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Want to login with a different account? You can sign in with a different email address or phone number.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => window.location.href = "/otp-login?method=email"}
-                    data-testid="button-login-different-email"
-                  >
-                    Login with Different Email
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => window.location.href = "/otp-login?method=phone"}
-                    data-testid="button-login-different-phone"
-                  >
-                    Login with Different Phone
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Note: This will sign you out of your current account.
-                </p>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Switch Account</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Want to login with a different account? You can sign in with a different email address or phone number.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.location.href = "/otp-login?method=email"}
+                      data-testid="button-login-different-email"
+                    >
+                      Login with Different Email
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => window.location.href = "/otp-login?method=phone"}
+                      data-testid="button-login-different-phone"
+                    >
+                      Login with Different Phone
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Note: This will sign you out of your current account.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {user?.userRole === "guest" && (
@@ -675,6 +796,7 @@ export default function Profile() {
             </TabsContent>
           )}
         </Tabs>
+        </div>
       </div>
     </div>
   );

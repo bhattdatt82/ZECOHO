@@ -86,6 +86,7 @@ const parseLocalDate = (dateStr: string): Date => {
 };
 import type { LucideIcon } from "lucide-react";
 import { PropertyMap } from "@/components/PropertyMap";
+import { MobileBookingBar } from "@/components/MobileBookingBar";
 import type { Property, Amenity } from "@shared/schema";
 import { insertReviewSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -924,8 +925,39 @@ export default function PropertyDetails() {
   const mainImage = property.images?.[0] || "/placeholder-property.jpg";
   const additionalImages = property.images?.slice(1, 5) || [];
 
+  // Get minimum price from room types for mobile booking bar
+  const minPrice = useMemo(() => {
+    if (roomTypes.length > 0) {
+      const prices = roomTypes.map((rt: any) => Number(rt.basePrice));
+      return Math.min(...prices);
+    }
+    return Number(property?.pricePerNight) || 0;
+  }, [roomTypes, property?.pricePerNight]);
+
+  // Prepare booked dates for calendar
+  const bookedDatesForCalendar = useMemo(() => {
+    if (!calendarAvailability.length) return [];
+    return calendarAvailability
+      .filter((day) => day.availableRooms === 0)
+      .map((day) => parseLocalDate(day.date));
+  }, [calendarAvailability]);
+
+  // Prepare blocked dates for calendar
+  const blockedDatesForCalendar = useMemo(() => {
+    if (!blockedDates.length) return [];
+    const dates: Date[] = [];
+    blockedDates.forEach((range) => {
+      const current = new Date(range.startDate);
+      while (current <= range.endDate) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+    });
+    return dates;
+  }, [blockedDates]);
+
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-24 md:pb-16">
       <div className="container px-4 md:px-6 py-6">
         {/* Title and Actions */}
         <div className="mb-6">
@@ -2302,6 +2334,46 @@ export default function PropertyDetails() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Booking Bar - Airbnb style */}
+      <MobileBookingBar
+        property={{
+          id: property.id,
+          name: property.title,
+          rating: property.rating ? Number(property.rating) : undefined,
+          reviewCount: property.reviewCount || undefined,
+          minPrice: minPrice,
+        }}
+        roomTypes={roomTypes}
+        checkIn={checkIn}
+        checkOut={checkOut}
+        adults={adults}
+        children={children}
+        rooms={rooms}
+        selectedRoomTypeId={selectedRoomTypeId}
+        selectedMealOptionId={selectedMealOptionId}
+        onCheckInChange={setCheckIn}
+        onCheckOutChange={setCheckOut}
+        onAdultsChange={setAdults}
+        onChildrenChange={setChildren}
+        onRoomsChange={setRooms}
+        onRoomTypeSelect={setSelectedRoomTypeId}
+        onMealOptionSelect={setSelectedMealOptionId}
+        onReserve={handleBooking}
+        isReserving={bookingMutation.isPending}
+        isDisabled={isBookingDisabled || !checkIn || !checkOut || !selectedRoomTypeId || hasDateOverlap || hasBlockedDateOverlap}
+        disabledReason={
+          !selectedRoomTypeId ? "Select Room Type" : 
+          isBookingDisabled ? "Not Available" : 
+          undefined
+        }
+        totalPrice={totalPrice}
+        nights={nights}
+        hasDateOverlap={hasDateOverlap}
+        hasBlockedDateOverlap={hasBlockedDateOverlap}
+        bookedDates={bookedDatesForCalendar}
+        blockedDates={blockedDatesForCalendar}
+      />
     </div>
   );
 }
