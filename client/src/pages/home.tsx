@@ -81,9 +81,9 @@ export default function Home() {
         
         <div className="relative z-10 container px-4 md:px-6 text-center py-6 md:py-12">
           {/* Mobile Layout: Search First, then Tagline */}
-          <div className="flex flex-col md:hidden">
+          <div className="md:hidden">
             {/* Search Bar - First on Mobile */}
-            <div className="mb-6 order-1">
+            <div className="mb-6">
               <div className="max-w-4xl mx-auto">
                 <div className="bg-background rounded-2xl shadow-xl border p-3">
                   <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
@@ -92,7 +92,7 @@ export default function Home() {
             </div>
 
             {/* Tagline Section - Second on Mobile */}
-            <div className="order-2 mb-6">
+            <div className="mb-6 text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
                 <BadgeCheck className="h-4 w-4 text-emerald-500" />
                 <span className="text-foreground/80 text-xs font-medium">ZERO Commission Hotel Booking</span>
@@ -109,7 +109,7 @@ export default function Home() {
             </div>
 
             {/* Mobile Trust Badges */}
-            <div className="order-3 flex flex-wrap items-center justify-center gap-2 mb-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
               <div className="flex items-center gap-1 bg-muted/50 rounded-full px-3 py-1.5">
                 <Hotel className="h-3 w-3 text-amber-500" />
                 <span className="text-foreground/80 text-xs">Direct from Hotel</span>
