@@ -77,72 +77,107 @@ export default function Home() {
       <LocationPermissionDialog isAuthenticated={isAuthenticated} />
       
       {/* Hero Section - Clean & Modern */}
-      <div className="relative min-h-[600px] md:min-h-[680px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
+      <div className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
         
-        <div className="relative z-10 container px-4 md:px-6 text-center py-12">
-          {/* Mobile: Search Bar First */}
-          <div className="md:hidden mb-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-background rounded-2xl shadow-xl border p-3">
-                <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
+        <div className="relative z-10 container px-4 md:px-6 text-center py-6 md:py-12">
+          {/* Mobile Layout: Search First, then Tagline */}
+          <div className="flex flex-col md:hidden">
+            {/* Search Bar - First on Mobile */}
+            <div className="mb-6 order-1">
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-background rounded-2xl shadow-xl border p-3">
+                  <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
+                </div>
+              </div>
+            </div>
+
+            {/* Tagline Section - Second on Mobile */}
+            <div className="order-2 mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
+                <BadgeCheck className="h-4 w-4 text-emerald-500" />
+                <span className="text-foreground/80 text-xs font-medium">ZERO Commission Hotel Booking</span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Same Hotel. Same Room.
+              </h2>
+              <p className="text-lg font-semibold bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 bg-clip-text text-transparent mb-3">
+                15–25% Less Than Other OTAs
+              </p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                We don't charge hotels commission — so they pass the savings to you. No hidden fees. No surprises.
+              </p>
+            </div>
+
+            {/* Mobile Trust Badges */}
+            <div className="order-3 flex flex-wrap items-center justify-center gap-2 mb-4">
+              <div className="flex items-center gap-1 bg-muted/50 rounded-full px-3 py-1.5">
+                <Hotel className="h-3 w-3 text-amber-500" />
+                <span className="text-foreground/80 text-xs">Direct from Hotel</span>
+              </div>
+              <div className="flex items-center gap-1 bg-muted/50 rounded-full px-3 py-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                <span className="text-foreground/80 text-xs">No Hidden Fees</span>
               </div>
             </div>
           </div>
 
-          {/* Premium Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
-            <Sparkles className="h-4 w-4 text-amber-500" />
-            <span className="text-foreground/80 text-sm font-medium">India's First Zero Commission Platform</span>
-          </div>
+          {/* Desktop Layout: Original Order */}
+          <div className="hidden md:block">
+            {/* Premium Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <span className="text-foreground/80 text-sm font-medium">India's First Zero Commission Platform</span>
+            </div>
 
-          {/* Main Headline - Responsive Typography */}
-          <h1 className="text-hero-title font-bold text-foreground mb-4 tracking-tight">
-            Book Hotels at Guaranteed Lowest Prices{" "}
-            <span className="bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 bg-clip-text text-transparent">
-              — Cheaper Than OTAs
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            <span className="font-semibold text-foreground">Save 15–25% instantly.</span>{" "}
-            Zero commission. Zero convenience fees.
-          </p>
+            {/* Main Headline */}
+            <h1 className="text-hero-title font-bold text-foreground mb-4 tracking-tight">
+              Book Hotels at Guaranteed Lowest Prices{" "}
+              <span className="bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 bg-clip-text text-transparent">
+                — Cheaper Than OTAs
+              </span>
+            </h1>
+            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+              <span className="font-semibold text-foreground">Save 15–25% instantly.</span>{" "}
+              Zero commission. Zero convenience fees.
+            </p>
 
-          {/* Desktop: Search Bar */}
-          <div className="hidden md:block max-w-4xl mx-auto mb-4">
-            <div className="bg-background rounded-2xl shadow-xl border p-4">
-              <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
+            {/* Desktop: Search Bar */}
+            <div className="max-w-4xl mx-auto mb-4">
+              <div className="bg-background rounded-2xl shadow-xl border p-4">
+                <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
+              </div>
             </div>
-          </div>
 
-          {/* Trust Badges Under Search Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
-            <div className="flex items-center gap-1.5">
-              <BadgeCheck className="h-4 w-4 text-emerald-500" />
-              <span className="text-muted-foreground text-sm">100% Verified Stays</span>
+            {/* Trust Badges Under Search Bar */}
+            <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
+              <div className="flex items-center gap-1.5">
+                <BadgeCheck className="h-4 w-4 text-emerald-500" />
+                <span className="text-muted-foreground text-sm">100% Verified Stays</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Star className="h-4 w-4 text-amber-500" />
+                <span className="text-muted-foreground text-sm">Real Guest Ratings</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Hotel className="h-4 w-4 text-rose-500" />
+                <span className="text-muted-foreground text-sm">Direct Contact with Hotel</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Star className="h-4 w-4 text-amber-500" />
-              <span className="text-muted-foreground text-sm">Real Guest Ratings</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Hotel className="h-4 w-4 text-rose-500" />
-              <span className="text-muted-foreground text-sm">Direct Contact with Hotel</span>
-            </div>
-          </div>
 
-          {/* Bottom Trust Icons */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
-            <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
-              <Hotel className="h-4 w-4 text-amber-500" />
-              <span className="text-foreground/80 text-sm">Direct from Hotel</span>
-            </div>
-            <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              <span className="text-foreground/80 text-sm">No Hidden Fees</span>
-            </div>
-            <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
-              <MessageCircle className="h-4 w-4 text-green-500" />
-              <span className="text-foreground/80 text-sm">WhatsApp Confirmation</span>
+            {/* Bottom Trust Icons */}
+            <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
+              <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
+                <Hotel className="h-4 w-4 text-amber-500" />
+                <span className="text-foreground/80 text-sm">Direct from Hotel</span>
+              </div>
+              <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                <span className="text-foreground/80 text-sm">No Hidden Fees</span>
+              </div>
+              <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
+                <MessageCircle className="h-4 w-4 text-green-500" />
+                <span className="text-foreground/80 text-sm">WhatsApp Confirmation</span>
+              </div>
             </div>
           </div>
         </div>
