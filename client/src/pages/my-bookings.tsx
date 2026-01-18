@@ -1413,18 +1413,21 @@ export default function MyBookings() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5" data-testid="booking-tabs">
-            <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
-            <TabsTrigger value="pending" data-testid="tab-pending">
-              Pending {pendingCount > 0 && <Badge variant="outline" className="ml-1 h-5 px-1.5 text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-300">{pendingCount}</Badge>}
+          <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-5" data-testid="booking-tabs">
+            <TabsTrigger value="all" className="flex-shrink-0 px-3 md:px-4" data-testid="tab-all">All</TabsTrigger>
+            <TabsTrigger value="pending" className="flex-shrink-0 px-3 md:px-4" data-testid="tab-pending">
+              <span>Pending</span>
+              {pendingCount > 0 && <Badge variant="outline" className="ml-1 h-5 px-1.5 text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-300">{pendingCount}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="upcoming" data-testid="tab-upcoming">
-              Upcoming {upcomingCount > 0 && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{upcomingCount}</Badge>}
+            <TabsTrigger value="upcoming" className="flex-shrink-0 px-3 md:px-4" data-testid="tab-upcoming">
+              <span>Upcoming</span>
+              {upcomingCount > 0 && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">{upcomingCount}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="ongoing" data-testid="tab-ongoing">
-              Ongoing {ongoingCount > 0 && <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs bg-green-600">{ongoingCount}</Badge>}
+            <TabsTrigger value="ongoing" className="flex-shrink-0 px-3 md:px-4" data-testid="tab-ongoing">
+              <span>Ongoing</span>
+              {ongoingCount > 0 && <Badge variant="default" className="ml-1 h-5 px-1.5 text-xs bg-green-600">{ongoingCount}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="past" data-testid="tab-past">Past</TabsTrigger>
+            <TabsTrigger value="past" className="flex-shrink-0 px-3 md:px-4" data-testid="tab-past">Past</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
