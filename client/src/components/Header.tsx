@@ -162,8 +162,9 @@ export function Header() {
               )}
               
 
+              {/* Admin dropdown - hidden on mobile (moved to bottom nav) */}
               {isAdmin && (
-                <>
+                <div className="hidden md:block">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button 
@@ -172,8 +173,8 @@ export function Header() {
                         className="font-medium text-sm"
                         data-testid="button-admin-menu"
                       >
-                        <Shield className="h-4 w-4 md:mr-2" />
-                        <span className="hidden md:inline">Admin</span>
+                        <Shield className="h-4 w-4 mr-2" />
+                        <span>Admin</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
@@ -261,7 +262,7 @@ export function Header() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </>
+                </div>
               )}
 
               {/* Messages - hidden on mobile for all users (moved to bottom nav) except on property detail pages where bottom nav is hidden */}

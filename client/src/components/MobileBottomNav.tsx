@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Search, Heart, User, Building, MessageCircle, CalendarCheck, LucideIcon } from "lucide-react";
+import { Home, Search, Heart, User, Building, MessageCircle, CalendarCheck, Shield, LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ interface NavItem {
 
 export function MobileBottomNav() {
   const [location] = useLocation();
-  const { isAuthenticated, isOwner } = useAuth();
+  const { isAuthenticated, isOwner, isAdmin } = useAuth();
   
   // Fetch unread message count for all authenticated users
   const { data: conversations = [] } = useQuery<ConversationWithUnread[]>({
@@ -101,7 +101,43 @@ export function MobileBottomNav() {
     },
   ];
 
-  const navItems = isOwner ? ownerNavItems : guestNavItems;
+  // Admin nav items - Admin tab in bottom nav with Wishlist
+  const adminNavItems: NavItem[] = [
+    {
+      href: "/",
+      icon: Home,
+      label: "Home",
+      active: location === "/",
+    },
+    {
+      href: "/admin/properties",
+      icon: Shield,
+      label: "Admin",
+      active: location.startsWith("/admin"),
+    },
+    {
+      href: "/messages",
+      icon: MessageCircle,
+      label: "Messages",
+      active: location === "/messages",
+      badge: totalUnreadCount > 0 ? (totalUnreadCount > 9 ? "9+" : String(totalUnreadCount)) : undefined,
+    },
+    {
+      href: "/wishlist",
+      icon: Heart,
+      label: "Wishlist",
+      active: location === "/wishlist",
+    },
+    {
+      href: "/profile",
+      icon: User,
+      label: "Profile",
+      active: location === "/profile",
+    },
+  ];
+
+  // Priority: Admin > Owner > Guest
+  const navItems = isAdmin ? adminNavItems : (isOwner ? ownerNavItems : guestNavItems);
 
   return (
     <nav 
