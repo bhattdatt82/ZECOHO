@@ -169,9 +169,9 @@ export function Header() {
               )}
 
               {/* Show Owner Portal for owners OR users who have engaged with KYC (pending/rejected) */}
-              {/* Hidden on mobile for owners since it's in bottom nav */}
+              {/* Hidden on mobile for owners except on property detail pages where bottom nav is hidden */}
               {(isOwner || isKycRejected || isKycPending) && (
-                <Link href="/owner/dashboard" className={isOwner ? "hidden md:block" : ""}>
+                <Link href="/owner/dashboard" className={isOwner && !location.match(/^\/properties\/[^/]+$/) ? "hidden md:block" : ""}>
                   <Button 
                     variant={location.startsWith("/owner") ? "secondary" : "ghost"}
                     size="sm"
@@ -300,10 +300,10 @@ export function Header() {
                 </>
               )}
 
-              {/* Messages - hidden on mobile for owners (moved to bottom nav) */}
+              {/* Messages - hidden on mobile for owners except on property detail pages where bottom nav is hidden */}
               <Link 
                 href={(isOwner || isKycRejected || isKycPending) ? "/owner/messages" : "/messages"}
-                className={isOwner ? "hidden md:block" : ""}
+                className={isOwner && !location.match(/^\/properties\/[^/]+$/) ? "hidden md:block" : ""}
               >
                 <Button 
                   variant={location === "/messages" || location === "/owner/messages" ? "secondary" : "ghost"}
