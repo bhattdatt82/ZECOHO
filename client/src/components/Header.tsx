@@ -454,15 +454,15 @@ export function Header() {
             </>
           ) : (
             <div className="flex items-center gap-2 md:gap-3">
-              <Link href="/login?returnTo=/list-property">
+              <Link href="/login?returnTo=/list-property" className="hidden sm:block">
                 <Button 
                   variant="ghost" 
                   size="sm"
                   className="text-sm font-medium"
                   data-testid="link-own-property"
                 >
-                  <Building className="h-4 w-4 md:mr-1" />
-                  <span className="hidden sm:inline">Own a Property</span>
+                  <Building className="h-4 w-4 mr-1" />
+                  <span>Own a Property</span>
                 </Button>
               </Link>
               <Link href="/login">
