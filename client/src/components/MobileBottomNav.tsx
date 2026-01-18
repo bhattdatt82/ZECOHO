@@ -18,10 +18,10 @@ export function MobileBottomNav() {
   const [location] = useLocation();
   const { isAuthenticated, isOwner } = useAuth();
   
-  // Fetch unread message count for owners
+  // Fetch unread message count for all authenticated users
   const { data: conversations = [] } = useQuery<ConversationWithUnread[]>({
     queryKey: ["/api/conversations"],
-    enabled: !!isAuthenticated && isOwner,
+    enabled: !!isAuthenticated,
   });
   
   const totalUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
@@ -79,6 +79,13 @@ export function MobileBottomNav() {
       icon: Search,
       label: "Search",
       active: location.startsWith("/search"),
+    },
+    {
+      href: isAuthenticated ? "/messages" : "/login?returnTo=/messages",
+      icon: MessageCircle,
+      label: "Messages",
+      active: location === "/messages",
+      badge: isAuthenticated && totalUnreadCount > 0 ? (totalUnreadCount > 9 ? "9+" : String(totalUnreadCount)) : undefined,
     },
     {
       href: isAuthenticated ? "/wishlist" : "/login?returnTo=/wishlist",

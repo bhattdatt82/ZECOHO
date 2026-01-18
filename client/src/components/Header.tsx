@@ -142,7 +142,8 @@ export function Header() {
             <>
               {user?.userRole === "guest" && (
                 <>
-                  <Link href="/wishlist">
+                  {/* Wishlist - hidden on mobile (moved to bottom nav) except on property detail pages */}
+                  <Link href="/wishlist" className={!location.match(/^\/properties\/[^/]+$/) ? "hidden md:block" : ""}>
                     <Button 
                       variant={location === "/wishlist" ? "secondary" : "ghost"}
                       size="sm"
@@ -154,7 +155,8 @@ export function Header() {
                     </Button>
                   </Link>
 
-                  <Link href="/search-history">
+                  {/* Search History - desktop only */}
+                  <Link href="/search-history" className="hidden md:block">
                     <Button 
                       variant={location === "/search-history" ? "secondary" : "ghost"}
                       size="sm"
@@ -300,10 +302,10 @@ export function Header() {
                 </>
               )}
 
-              {/* Messages - hidden on mobile for owners except on property detail pages where bottom nav is hidden */}
+              {/* Messages - hidden on mobile for all users (moved to bottom nav) except on property detail pages where bottom nav is hidden */}
               <Link 
                 href={(isOwner || isKycRejected || isKycPending) ? "/owner/messages" : "/messages"}
-                className={isOwner && !location.match(/^\/properties\/[^/]+$/) ? "hidden md:block" : ""}
+                className={!location.match(/^\/properties\/[^/]+$/) ? "hidden md:block" : ""}
               >
                 <Button 
                   variant={location === "/messages" || location === "/owner/messages" ? "secondary" : "ghost"}
