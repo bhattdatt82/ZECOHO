@@ -110,7 +110,7 @@ export function MobileBottomNav() {
       active: location === "/",
     },
     {
-      href: "/admin/properties",
+      href: "/admin",
       icon: Shield,
       label: "Admin",
       active: location.startsWith("/admin"),

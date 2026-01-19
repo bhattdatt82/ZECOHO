@@ -44,6 +44,7 @@ import AdminOwners from "@/pages/admin-owners";
 import AdminInventory from "@/pages/admin-inventory";
 import AdminUsers from "@/pages/admin-users";
 import AdminSupport from "@/pages/admin-support";
+import AdminHome from "@/pages/admin-home";
 import ContactUs from "@/pages/contact-us";
 import AboutUs from "@/pages/about-us";
 import OwnerAgreementPage from "@/pages/owner-agreement";
@@ -103,6 +104,7 @@ function Router() {
       <Route path="/search-history" component={SearchHistoryPage} />
       <Route path="/messages" component={Messages} />
       <Route path="/profile" component={Profile} />
+      <Route path="/admin" component={AdminHome} />
       <Route path="/admin/destinations" component={AdminDestinations} />
       <Route path="/admin/properties" component={AdminProperties} />
       <Route path="/admin/kyc" component={AdminKYC} />
