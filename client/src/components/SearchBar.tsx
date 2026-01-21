@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
-import { Search, MapPin, Calendar as CalendarIcon, Users, Loader2, Building2, Minus, Plus, ChevronDown, Star, ChevronRight } from "lucide-react";
+import { Search, MapPin, Calendar as CalendarIcon, Users, Loader2, Building2, Minus, Plus, ChevronDown, Star, ChevronRight, Navigation } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -93,9 +93,11 @@ export function SearchBar({
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
   const [matchedCity, setMatchedCity] = useState<string | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const autocompleteServiceRef = useRef<any>(null);
   const guestsInputRef = useRef<HTMLInputElement>(null);
+  const geocoderRef = useRef<any>(null);
   
   // Mobile detection
   const isMobile = useIsMobile();
@@ -179,6 +181,7 @@ export function SearchBar({
         const checkGoogle = () => {
           if ((window as any).google?.maps?.places) {
             autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+            geocoderRef.current = new (window as any).google.maps.Geocoder();
             setGoogleMapsLoaded(true);
           } else {
             setTimeout(checkGoogle, 100);
@@ -195,13 +198,85 @@ export function SearchBar({
       script.onload = () => {
         if ((window as any).google) {
           autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+          geocoderRef.current = new (window as any).google.maps.Geocoder();
           setGoogleMapsLoaded(true);
         }
       };
       document.head.appendChild(script);
     } else if ((window as any).google?.maps?.places) {
       autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+      geocoderRef.current = new (window as any).google.maps.Geocoder();
       setGoogleMapsLoaded(true);
+    }
+  }, []);
+
+  // Handle "Use your location" - get current GPS position and reverse geocode to city
+  const handleUseCurrentLocation = useCallback(async () => {
+    if (!navigator.geolocation) {
+      console.error("Geolocation is not supported by this browser");
+      return;
+    }
+
+    setIsGettingLocation(true);
+    setShowSuggestions(false);
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000, // Cache for 5 minutes
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // Use Google Maps Geocoder to get city name from coordinates
+      if (geocoderRef.current) {
+        geocoderRef.current.geocode(
+          { location: { lat: latitude, lng: longitude } },
+          (results: any[], status: string) => {
+            setIsGettingLocation(false);
+            if (status === "OK" && results && results.length > 0) {
+              // Find the city/locality from the address components
+              let cityName = "";
+              let stateName = "";
+              
+              for (const result of results) {
+                const addressComponents = result.address_components || [];
+                for (const component of addressComponents) {
+                  const types = component.types || [];
+                  if (types.includes("locality") && !cityName) {
+                    cityName = component.long_name;
+                  }
+                  if (types.includes("administrative_area_level_2") && !cityName) {
+                    cityName = component.long_name;
+                  }
+                  if (types.includes("administrative_area_level_1") && !stateName) {
+                    stateName = component.long_name;
+                  }
+                }
+                if (cityName) break;
+              }
+
+              if (cityName) {
+                setDestination(cityName);
+              } else {
+                // Fallback to formatted address
+                setDestination(results[0].formatted_address.split(",")[0]);
+              }
+            } else {
+              console.error("Geocoding failed:", status);
+            }
+          }
+        );
+      } else {
+        setIsGettingLocation(false);
+        console.error("Geocoder not initialized");
+      }
+    } catch (error: any) {
+      setIsGettingLocation(false);
+      console.error("Error getting location:", error.message);
     }
   }, []);
 
