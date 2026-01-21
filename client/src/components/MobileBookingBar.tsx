@@ -7,24 +7,11 @@ import {
   SheetTitle,
   SheetTrigger 
 } from "@/components/ui/sheet";
-import { Star, X, ChevronDown, ChevronUp, Minus, Plus } from "lucide-react";
+import { Star, ChevronDown, ChevronUp, Minus, Plus } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-
-interface RoomType {
-  id: string;
-  name: string;
-  basePrice: string;
-  originalPrice?: string | null;
-  maxGuests: number;
-  mealOptions?: {
-    id: string;
-    name: string;
-    description?: string;
-    priceAdjustment: string;
-  }[];
-}
+import { RoomTypeCard, RoomTypeData, RoomInventory } from "@/components/RoomTypeCard";
 
 interface MobileBookingBarProps {
   property: {
@@ -34,7 +21,8 @@ interface MobileBookingBarProps {
     reviewCount?: number;
     minPrice: number;
   };
-  roomTypes: RoomType[];
+  roomTypes: RoomTypeData[];
+  roomInventory?: RoomInventory[];
   checkIn: string;
   checkOut: string;
   adults: number;
@@ -69,6 +57,7 @@ const parseLocalDate = (dateStr: string): Date => {
 export function MobileBookingBar({
   property,
   roomTypes,
+  roomInventory = [],
   checkIn,
   checkOut,
   adults,
@@ -361,90 +350,30 @@ export function MobileBookingBar({
                   )}
                 </div>
 
-                {/* Room Type Selection */}
+                {/* Room Type Selection with integrated Meal Options */}
                 <div className="space-y-3">
                   <h3 className="font-semibold">Select Room Type</h3>
-                  <div className="space-y-2">
-                    {roomTypes.map((roomType) => (
-                      <button
-                        key={roomType.id}
-                        onClick={() => onRoomTypeSelect(roomType.id)}
-                        className={`w-full p-4 rounded-lg border text-left transition-all ${
-                          selectedRoomTypeId === roomType.id
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        data-testid={`mobile-room-type-${roomType.id}`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">{roomType.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Up to {roomType.maxGuests} guests
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            {roomType.originalPrice && parseFloat(roomType.originalPrice) > parseFloat(roomType.basePrice) && (
-                              <p className="text-sm text-muted-foreground line-through">
-                                ₹{Number(roomType.originalPrice).toLocaleString('en-IN')}
-                              </p>
-                            )}
-                            <p className="font-semibold text-primary">
-                              ₹{Number(roomType.basePrice).toLocaleString('en-IN')}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                  <div className="space-y-3">
+                    {roomTypes.map((roomType) => {
+                      const inventory = roomInventory.find(ri => ri.roomTypeId === roomType.id);
+                      return (
+                        <RoomTypeCard
+                          key={roomType.id}
+                          roomType={roomType}
+                          isSelected={selectedRoomTypeId === roomType.id}
+                          selectedMealOptionId={selectedMealOptionId}
+                          onSelect={(id) => {
+                            onRoomTypeSelect(id);
+                            onMealOptionSelect(null);
+                          }}
+                          onMealOptionSelect={onMealOptionSelect}
+                          inventory={inventory}
+                          showDatesContext={!!(checkIn && checkOut)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
-
-                {/* Meal Options */}
-                {selectedRoomType?.mealOptions && selectedRoomType.mealOptions.length > 0 && (
-                  <div className="space-y-3">
-                    <h3 className="font-semibold">Meal Options</h3>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => onMealOptionSelect(null)}
-                        className={`w-full p-3 rounded-lg border text-left transition-all ${
-                          !selectedMealOptionId
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                        data-testid="mobile-meal-none"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span>Room only (no meals)</span>
-                          <span className="text-muted-foreground">Included</span>
-                        </div>
-                      </button>
-                      {selectedRoomType.mealOptions.map((option) => (
-                        <button
-                          key={option.id}
-                          onClick={() => onMealOptionSelect(option.id)}
-                          className={`w-full p-3 rounded-lg border text-left transition-all ${
-                            selectedMealOptionId === option.id
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                          data-testid={`mobile-meal-${option.id}`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">{option.name}</p>
-                              {option.description && (
-                                <p className="text-xs text-muted-foreground">{option.description}</p>
-                              )}
-                            </div>
-                            <span className="text-primary font-medium">
-                              +₹{Number(option.priceAdjustment).toLocaleString('en-IN')}/person
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Errors */}
                 {hasDateOverlap && (
