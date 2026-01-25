@@ -100,9 +100,12 @@ export function Header() {
       <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between px-4 md:px-6 overflow-hidden">
         <Link href="/">
           <div className="flex items-center gap-1.5 md:gap-2.5 cursor-pointer group flex-shrink-0" data-testid="link-home">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-primary flex items-center justify-center shadow-lg transition-opacity duration-200 group-hover:opacity-90" style={{ boxShadow: '0 10px 15px -3px hsl(var(--primary) / 0.2)' }}>
-              <span className="text-white font-bold text-lg md:text-xl">Z</span>
-            </div>
+            <img 
+              src="/zecoho-logo.jpg" 
+              alt="ZECOHO" 
+              className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl shadow-lg transition-opacity duration-200 group-hover:opacity-90 object-cover"
+              style={{ boxShadow: '0 10px 15px -3px rgba(249, 115, 22, 0.2)' }}
+            />
             <div className="flex items-baseline">
               <span className="font-bold text-base md:text-xl text-foreground tracking-tight">
                 ZECOHO
