@@ -28,7 +28,10 @@ export function MobileBottomNav() {
   
   // Hide on property details pages (they have their own booking bar)
   const isPropertyDetailsPage = location.match(/^\/properties\/[^/]+$/);
-  if (isPropertyDetailsPage) {
+  // Hide on messages page (it has its own input bar)
+  const isMessagesPage = location === "/messages" || location === "/owner/messages";
+  
+  if (isPropertyDetailsPage || isMessagesPage) {
     return null;
   }
 

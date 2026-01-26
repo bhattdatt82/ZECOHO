@@ -5598,16 +5598,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all properties for this owner
-      const properties = await storage.getPropertiesByOwner(userId);
-      const propertyIds = properties.map(p => p.id);
+      const properties = await storage.getOwnerProperties(userId);
+      const propertyIds = properties.map((p: any) => p.id);
 
       // Get all bookings for these properties
-      const allBookings = [];
+      const allBookings: any[] = [];
       for (const propId of propertyIds) {
         const bookings = await storage.getBookingsByProperty(propId);
         allBookings.push(...bookings);
       }
-      const bookingIds = allBookings.map(b => b.id);
+      const bookingIds = allBookings.map((b: any) => b.id);
 
       // Fetch contact interactions for these bookings
       const interactions = await db.select()
@@ -5618,15 +5618,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate statistics
       const stats = {
         totalCalls: interactions.filter(i => i.actionType === 'call').length,
-        totalChats: interactions.filter(i => i.actionType === 'chat').length,
         totalWhatsapp: interactions.filter(i => i.actionType === 'whatsapp').length,
         receivedCalls: interactions.filter(i => i.actionType === 'call' && i.targetRole === 'owner').length,
-        receivedChats: interactions.filter(i => (i.actionType === 'chat' || i.actionType === 'whatsapp') && i.targetRole === 'owner').length,
+        receivedWhatsapp: interactions.filter(i => i.actionType === 'whatsapp' && i.targetRole === 'owner').length,
         initiatedCalls: interactions.filter(i => i.actionType === 'call' && i.actorRole === 'owner').length,
-        initiatedChats: interactions.filter(i => (i.actionType === 'chat' || i.actionType === 'whatsapp') && i.actorRole === 'owner').length,
+        initiatedWhatsapp: interactions.filter(i => i.actionType === 'whatsapp' && i.actorRole === 'owner').length,
         last30Days: {
           calls: interactions.filter(i => i.actionType === 'call' && new Date(i.createdAt!) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length,
-          chats: interactions.filter(i => (i.actionType === 'chat' || i.actionType === 'whatsapp') && new Date(i.createdAt!) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length,
+          whatsapp: interactions.filter(i => i.actionType === 'whatsapp' && new Date(i.createdAt!) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length,
         },
         recentInteractions: interactions.slice(0, 20).map(i => ({
           id: i.id,
@@ -5656,16 +5655,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all properties for this owner
-      const properties = await storage.getPropertiesByOwner(userId);
-      const propertyIds = properties.map(p => p.id);
+      const properties = await storage.getOwnerProperties(userId);
+      const propertyIds = properties.map((p: any) => p.id);
 
       // Get all bookings for these properties
-      const allBookings = [];
+      const allBookings: any[] = [];
       for (const propId of propertyIds) {
         const bookings = await storage.getBookingsByProperty(propId);
         allBookings.push(...bookings);
       }
-      const bookingIds = allBookings.map(b => b.id);
+      const bookingIds = allBookings.map((b: any) => b.id);
 
       // Fetch contact interactions for these bookings
       const interactions = await db.select()
@@ -5675,8 +5674,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Enrich with booking and property info
       const enrichedInteractions = await Promise.all(interactions.map(async (i) => {
-        const booking = allBookings.find(b => b.id === i.bookingId);
-        const property = booking ? properties.find(p => p.id === booking.propertyId) : null;
+        const booking = allBookings.find((b: any) => b.id === i.bookingId);
+        const property = booking ? properties.find((p: any) => p.id === booking.propertyId) : null;
         const actor = await storage.getUser(i.actorUserId);
         
         return {
@@ -5700,8 +5699,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Get contact interaction statistics for specific owner
-  app.get("/api/admin/owners/:ownerId/contact-interactions/stats", isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get("/api/admin/owners/:ownerId/contact-interactions/stats", isAuthenticated, async (req: any, res) => {
     try {
+      const adminUserId = req.user.claims.sub;
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.userRole !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
       const { ownerId } = req.params;
       const owner = await storage.getUser(ownerId);
       
@@ -5710,16 +5715,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all properties for this owner
-      const properties = await storage.getPropertiesByOwner(ownerId);
-      const propertyIds = properties.map(p => p.id);
+      const properties = await storage.getOwnerProperties(ownerId);
+      const propertyIds = properties.map((p: any) => p.id);
 
       // Get all bookings for these properties
-      const allBookings = [];
+      const allBookings: any[] = [];
       for (const propId of propertyIds) {
         const bookings = await storage.getBookingsByProperty(propId);
         allBookings.push(...bookings);
       }
-      const bookingIds = allBookings.map(b => b.id);
+      const bookingIds = allBookings.map((b: any) => b.id);
 
       // Fetch contact interactions for these bookings
       const interactions = await db.select()
@@ -5732,15 +5737,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerId,
         ownerName: `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || owner.email,
         totalCalls: interactions.filter(i => i.actionType === 'call').length,
-        totalChats: interactions.filter(i => i.actionType === 'chat').length,
         totalWhatsapp: interactions.filter(i => i.actionType === 'whatsapp').length,
         receivedCalls: interactions.filter(i => i.actionType === 'call' && i.targetRole === 'owner').length,
-        receivedChats: interactions.filter(i => (i.actionType === 'chat' || i.actionType === 'whatsapp') && i.targetRole === 'owner').length,
+        receivedWhatsapp: interactions.filter(i => i.actionType === 'whatsapp' && i.targetRole === 'owner').length,
         initiatedCalls: interactions.filter(i => i.actionType === 'call' && i.actorRole === 'owner').length,
-        initiatedChats: interactions.filter(i => (i.actionType === 'chat' || i.actionType === 'whatsapp') && i.actorRole === 'owner').length,
+        initiatedWhatsapp: interactions.filter(i => i.actionType === 'whatsapp' && i.actorRole === 'owner').length,
         last30Days: {
           calls: interactions.filter(i => i.actionType === 'call' && new Date(i.createdAt!) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length,
-          chats: interactions.filter(i => (i.actionType === 'chat' || i.actionType === 'whatsapp') && new Date(i.createdAt!) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length,
+          whatsapp: interactions.filter(i => i.actionType === 'whatsapp' && new Date(i.createdAt!) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length,
         },
         recentInteractions: interactions.slice(0, 20).map(i => ({
           id: i.id,
@@ -5760,8 +5764,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Get all contact interactions for specific owner (for download)
-  app.get("/api/admin/owners/:ownerId/contact-interactions", isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get("/api/admin/owners/:ownerId/contact-interactions", isAuthenticated, async (req: any, res) => {
     try {
+      const adminUserId = req.user.claims.sub;
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.userRole !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
       const { ownerId } = req.params;
       const owner = await storage.getUser(ownerId);
       
@@ -5770,16 +5780,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all properties for this owner
-      const properties = await storage.getPropertiesByOwner(ownerId);
-      const propertyIds = properties.map(p => p.id);
+      const properties = await storage.getOwnerProperties(ownerId);
+      const propertyIds = properties.map((p: any) => p.id);
 
       // Get all bookings for these properties
-      const allBookings = [];
+      const allBookings: any[] = [];
       for (const propId of propertyIds) {
         const bookings = await storage.getBookingsByProperty(propId);
         allBookings.push(...bookings);
       }
-      const bookingIds = allBookings.map(b => b.id);
+      const bookingIds = allBookings.map((b: any) => b.id);
 
       // Fetch contact interactions for these bookings
       const interactions = await db.select()
@@ -5789,8 +5799,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Enrich with booking and property info
       const enrichedInteractions = await Promise.all(interactions.map(async (i) => {
-        const booking = allBookings.find(b => b.id === i.bookingId);
-        const property = booking ? properties.find(p => p.id === booking.propertyId) : null;
+        const booking = allBookings.find((b: any) => b.id === i.bookingId);
+        const property = booking ? properties.find((p: any) => p.id === booking.propertyId) : null;
         const actor = await storage.getUser(i.actorUserId);
         
         return {
@@ -5814,15 +5824,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: Get all owners with contact interaction summary
-  app.get("/api/admin/contact-interactions/summary", isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get("/api/admin/contact-interactions/summary", isAuthenticated, async (req: any, res) => {
     try {
+      const adminUserId = req.user.claims.sub;
+      const adminUser = await storage.getUser(adminUserId);
+      if (!adminUser || adminUser.userRole !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
       // Get all owners
       const allUsers = await db.select().from(users).where(eq(users.userRole, 'owner'));
       
       const ownerSummaries = await Promise.all(allUsers.map(async (owner) => {
         // Get all properties for this owner
-        const properties = await storage.getPropertiesByOwner(owner.id);
-        const propertyIds = properties.map(p => p.id);
+        const properties = await storage.getOwnerProperties(owner.id);
+        const propertyIds = properties.map((p: any) => p.id);
 
         // Get all bookings for these properties
         const allBookings = [];
@@ -5844,7 +5860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ownerEmail: owner.email,
           propertyCount: properties.length,
           totalCalls: interactions.filter(i => i.actionType === 'call').length,
-          totalChats: interactions.filter(i => i.actionType === 'chat' || i.actionType === 'whatsapp').length,
+          totalWhatsapp: interactions.filter(i => i.actionType === 'whatsapp').length,
           totalInteractions: interactions.length,
         };
       }));

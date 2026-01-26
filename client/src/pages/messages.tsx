@@ -408,15 +408,6 @@ export default function Messages() {
           <span className="font-medium text-sm">{getUserDisplayName(otherParticipant)}</span>
           <span className="text-xs text-muted-foreground">Property Owner</span>
         </div>
-        
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="text-sm font-medium"
-          data-testid="button-conversation-details"
-        >
-          Details
-        </Button>
       </div>
 
       {/* Messages area */}
@@ -808,9 +799,6 @@ export default function Messages() {
                 <h2 className="font-semibold">{getUserDisplayName(otherParticipant)}</h2>
                 <p className="text-sm text-muted-foreground">Property Owner</p>
               </div>
-              <Button variant="outline" size="sm" data-testid="button-conversation-details-desktop">
-                Details
-              </Button>
             </div>
 
             {/* Messages */}

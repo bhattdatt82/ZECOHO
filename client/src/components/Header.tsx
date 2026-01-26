@@ -322,7 +322,7 @@ export function Header() {
                 </Link>
               ) : isOwner && isKycVerified ? (
                 null
-              ) : (
+              ) : location === "/" ? (
                 <Link href={getListPropertyLink()}>
                   <Button 
                     size="sm"
@@ -335,7 +335,7 @@ export function Header() {
                     <span className="md:hidden">List FREE</span>
                   </Button>
                 </Link>
-              )}
+              ) : null}
 
               {/* Owner Context Indicator - shows when user is in owner mode */}
               {isOwner && location.startsWith("/owner") && (
