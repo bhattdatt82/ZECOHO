@@ -106,7 +106,15 @@ export function Header() {
       <div className="w-full max-w-screen-2xl mx-auto flex h-20 items-center justify-between px-4 md:px-6 overflow-hidden">
         <Link href="/">
           <div className="flex items-center cursor-pointer group flex-shrink-0" data-testid="link-home">
-            <span style={{ color: 'var(--brand-zecoho-orange)', fontWeight: 700, fontSize: '24px', letterSpacing: '0.5px' }} className="transition-opacity duration-200 group-hover:opacity-90">
+            <span style={{ 
+              background: 'var(--brand-zecoho-orange)', 
+              color: 'var(--brand-zecoho-white)', 
+              fontWeight: 700, 
+              fontSize: '20px', 
+              letterSpacing: '0.5px',
+              padding: '8px 16px',
+              borderRadius: '8px'
+            }} className="transition-opacity duration-200 group-hover:opacity-90">
               ZECOHO
             </span>
           </div>
