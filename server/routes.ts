@@ -10,6 +10,7 @@ import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertW
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
 import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail, sendBookingCancelledOwnerEmail, sendReviewRequestEmail, sendAdminDeactivationRequestEmail } from "./emailService";
+import { createNotification } from "./services/notificationService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { WebSocketServer, WebSocket } from "ws";
@@ -3537,6 +3538,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (msgError) {
         console.error('Failed to send booking message to owner:', msgError);
         // Don't fail the booking if message fails
+      }
+      
+      // Create in-app notification for owner
+      try {
+        await createNotification({
+          userId: property.ownerId,
+          title: "New Booking Request",
+          body: `${guest?.firstName || 'A guest'} has requested to book ${property.title}`,
+          type: "booking_request",
+          entityId: booking.id,
+          entityType: "booking"
+        });
+      } catch (notifError) {
+        console.error('Failed to create booking notification:', notifError);
       }
       
       res.json(booking);
