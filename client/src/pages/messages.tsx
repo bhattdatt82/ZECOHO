@@ -3,17 +3,17 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useKycGuard } from "@/hooks/useKycGuard";
 import { RestrictedAccess } from "@/components/RestrictedAccess";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Send, MessageCircle, Paperclip, X, Image, FileText, Film, Download } from "lucide-react";
+import { Send, MessageCircle, Paperclip, X, Image, FileText, Film, Download, ArrowLeft, Settings, Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { BookingActionCard } from "@/components/BookingActionCard";
+import { format } from "date-fns";
 import type { Conversation, Message, User, Property, MessageAttachment, Booking } from "@shared/schema";
 
 type PendingAttachment = {
@@ -29,12 +29,15 @@ type ConversationWithDetails = Conversation & {
   guest: User;
   owner: User;
   unreadCount: number;
+  lastMessage?: Message;
 };
 
 type MessageWithSender = Message & {
   sender: User;
   booking?: Booking;
 };
+
+type FilterTab = "all" | "booking" | "support";
 
 export default function Messages() {
   const { user, isOwner } = useAuth();
@@ -45,6 +48,7 @@ export default function Messages() {
   if (isOwner && shouldBlockAccess) {
     return <RestrictedAccess description="Your KYC has been rejected. Please fix your KYC to access messages." />;
   }
+
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -55,6 +59,7 @@ export default function Messages() {
   const [messageInput, setMessageInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -91,19 +96,16 @@ export default function Messages() {
           const data = JSON.parse(event.data);
           
           if (data.type === "new_message") {
-            // If we're viewing this conversation, instantly add the message to display
             if (data.conversationId === selectedConversationIdRef.current && data.message) {
               queryClient.setQueryData(
                 ["/api/conversations", selectedConversationIdRef.current, "messages"],
                 (old: MessageWithSender[] = []) => {
-                  // Avoid duplicates
                   if (old.some(m => m.id === data.message.id)) return old;
                   return [...old, data.message];
                 }
               );
             }
             
-            // Show toast notification for new message only if it's from someone else
             const senderId = data.message?.senderId || data.message?.sender?.id;
             if (senderId && senderId !== userIdRef.current) {
               const senderName = data.message?.sender?.firstName 
@@ -116,7 +118,6 @@ export default function Messages() {
               });
             }
             
-            // Refresh conversations list to update unread counts (without auto-refetch to prevent message flicker)
             queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
           }
         } catch (e) {
@@ -126,7 +127,6 @@ export default function Messages() {
 
       ws.onclose = () => {
         console.log("WebSocket disconnected, reconnecting in 3s...");
-        // Reconnect after 3 seconds
         setTimeout(() => {
           if (wsRef.current === ws) {
             connectWebSocket();
@@ -141,7 +141,6 @@ export default function Messages() {
 
     connectWebSocket();
 
-    // Cleanup on unmount
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
@@ -156,15 +155,13 @@ export default function Messages() {
     staleTime: 0,
   });
 
-  const { data: messages = [], isLoading: messagesLoading, isSuccess: messagesSuccess } = useQuery<MessageWithSender[]>({
+  const { data: messages = [], isLoading: messagesLoading } = useQuery<MessageWithSender[]>({
     queryKey: ["/api/conversations", selectedConversationId, "messages"],
     enabled: !!selectedConversationId,
     refetchOnMount: "always",
     staleTime: 0,
   });
 
-
-  // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -180,25 +177,17 @@ export default function Messages() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const maxSize = 25 * 1024 * 1024; // 25MB max
+    const maxSize = 25 * 1024 * 1024;
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     
     for (const file of Array.from(files)) {
       if (file.size > maxSize) {
-        toast({
-          title: "File too large",
-          description: `${file.name} exceeds 25MB limit`,
-          variant: "destructive",
-        });
+        toast({ title: "File too large", description: `${file.name} exceeds 25MB limit`, variant: "destructive" });
         continue;
       }
       
       if (!allowedTypes.some(type => file.type.startsWith(type.split('/')[0]) || file.type === type)) {
-        toast({
-          title: "Unsupported file type",
-          description: `${file.name} is not a supported file type`,
-          variant: "destructive",
-        });
+        toast({ title: "Unsupported file type", description: `${file.name} is not supported`, variant: "destructive" });
         continue;
       }
 
@@ -206,20 +195,14 @@ export default function Messages() {
         ? URL.createObjectURL(file)
         : '';
 
-      setPendingAttachments(prev => [...prev, {
-        file,
-        preview,
-        uploading: false,
-      }]);
+      setPendingAttachments(prev => [...prev, { file, preview, uploading: false }]);
     }
     
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Remove pending attachment
   const removeAttachment = (index: number) => {
     setPendingAttachments(prev => {
       const updated = [...prev];
@@ -231,27 +214,19 @@ export default function Messages() {
     });
   };
 
-  // Upload a single attachment
   const uploadAttachment = async (attachment: PendingAttachment): Promise<MessageAttachment | null> => {
     try {
-      // Get upload URL
       const uploadResponse = await apiRequest("POST", "/api/messages/upload", {});
       const { uploadURL, accessPath, uploadToken } = await uploadResponse.json();
 
-      // Upload file directly to storage
       const uploadResult = await fetch(uploadURL, {
         method: "PUT",
         body: attachment.file,
-        headers: {
-          "Content-Type": attachment.file.type,
-        },
+        headers: { "Content-Type": attachment.file.type },
       });
 
-      if (!uploadResult.ok) {
-        throw new Error("Upload failed");
-      }
+      if (!uploadResult.ok) throw new Error("Upload failed");
 
-      // Finalize upload (set ACL)
       await apiRequest("POST", "/api/messages/upload/finalize", {
         accessPath,
         uploadToken,
@@ -281,7 +256,6 @@ export default function Messages() {
       return await response.json() as MessageWithSender;
     },
     onSuccess: (newMessage) => {
-      console.log("[MESSAGE] Send success, newMessage:", newMessage);
       if (newMessage && selectedConversationId) {
         queryClient.setQueryData(
           ["/api/conversations", selectedConversationId, "messages"],
@@ -297,7 +271,6 @@ export default function Messages() {
       setTimeout(() => messageInputRef.current?.focus(), 0);
     },
     onError: (error) => {
-      console.error("Failed to send message:", error);
       toast({
         title: "Failed to send message",
         description: error instanceof Error ? error.message : "Please try again",
@@ -315,39 +288,26 @@ export default function Messages() {
     setIsSending(true);
     
     try {
-      // Upload all attachments first
       const uploadedAttachments: MessageAttachment[] = [];
       for (const attachment of pendingAttachments) {
         const result = await uploadAttachment(attachment);
-        if (result) {
-          uploadedAttachments.push(result);
-        }
+        if (result) uploadedAttachments.push(result);
       }
       
-      // Send message with attachments
-      sendMessageMutation.mutate({ 
-        content: messageInput.trim(), 
-        attachments: uploadedAttachments 
-      });
+      sendMessageMutation.mutate({ content: messageInput.trim(), attachments: uploadedAttachments });
     } catch (error) {
-      toast({
-        title: "Failed to send message",
-        description: "Please try again",
-        variant: "destructive",
-      });
+      toast({ title: "Failed to send message", description: "Please try again", variant: "destructive" });
     } finally {
       setIsSending(false);
     }
   };
 
-  // Helper to get file icon
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) return <Image className="h-4 w-4" />;
     if (fileType.startsWith('video/')) return <Film className="h-4 w-4" />;
     return <FileText className="h-4 w-4" />;
   };
 
-  // Format file size
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -378,6 +338,46 @@ export default function Messages() {
     return user.email || "Unknown";
   };
 
+  const getLastMessagePreview = (conversation: ConversationWithDetails) => {
+    const lastMsg = conversation.lastMessage;
+    if (!lastMsg) return conversation.property.title;
+    if (lastMsg.content) return lastMsg.content.substring(0, 40) + (lastMsg.content.length > 40 ? '...' : '');
+    return "Sent attachment";
+  };
+
+  const getMessageDate = (conversation: ConversationWithDetails) => {
+    const date = conversation.lastMessage?.createdAt || conversation.createdAt;
+    if (!date) return "";
+    const msgDate = new Date(date);
+    const today = new Date();
+    const diffDays = Math.floor((today.getTime() - msgDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return format(msgDate, "h:mm a");
+    if (diffDays < 7) return format(msgDate, "EEE");
+    return format(msgDate, "d/MM");
+  };
+
+  // Filter tabs
+  const filterTabs: { id: FilterTab; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "booking", label: "Booking" },
+    { id: "support", label: "Support" },
+  ];
+
+  const filteredConversations = conversations.filter(conv => {
+    if (activeFilter === "all") return true;
+    // For now, show all in each tab - can be enhanced with message type filtering
+    return true;
+  });
+
+  const handleBackToList = () => {
+    setSelectedConversationId(null);
+    // Update URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('conversationId');
+    window.history.replaceState({}, '', url.toString());
+  };
+
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -386,53 +386,398 @@ export default function Messages() {
     );
   }
 
-  return (
+  // Mobile conversation view
+  const renderMobileConversation = () => (
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-background">
+      {/* Header with back button, centered avatar */}
+      <div className="flex items-center justify-between p-3 border-b bg-background sticky top-0 z-10">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={handleBackToList}
+          data-testid="button-back-to-messages"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        
+        <div className="flex flex-col items-center flex-1">
+          <Avatar className="h-10 w-10 mb-1">
+            <AvatarImage src={otherParticipant?.profileImageUrl || undefined} />
+            <AvatarFallback>{getInitials(otherParticipant)}</AvatarFallback>
+          </Avatar>
+          <span className="font-medium text-sm">{getUserDisplayName(otherParticipant)}</span>
+          <span className="text-xs text-muted-foreground">Property Owner</span>
+        </div>
+        
+        <Button 
+          variant="ghost" 
+          size="sm"
+          className="text-sm font-medium"
+          data-testid="button-conversation-details"
+        >
+          Details
+        </Button>
+      </div>
+
+      {/* Messages area */}
+      <ScrollArea className="flex-1 px-4 py-2">
+        {messagesLoading ? (
+          <div className="text-center text-muted-foreground py-8">Loading messages...</div>
+        ) : messages.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            <p>No messages yet</p>
+            <p className="text-sm mt-1">Send a message to start the conversation</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((message, index) => {
+              const isCurrentUser = message.senderId === user.id;
+              const showAvatar = !isCurrentUser && (index === 0 || messages[index - 1]?.senderId === user.id);
+              
+              // Booking-related messages
+              if ((message.messageType === "booking_request" || message.messageType === "booking_update") && message.booking) {
+                return (
+                  <div key={message.id} className="max-w-[85%]" data-testid={`message-${message.id}`}>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {isCurrentUser ? 'You' : `${message.sender?.firstName || 'Owner'}`} • {new Date(message.createdAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    {message.content && (
+                      <p className="text-sm text-muted-foreground mb-2">{message.content}</p>
+                    )}
+                    <BookingActionCard 
+                      booking={message.booking as any}
+                      isOwner={false}
+                      onStatusChange={() => {
+                        queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversationId, "messages"] });
+                      }}
+                    />
+                  </div>
+                );
+              }
+              
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                  data-testid={`message-${message.id}`}
+                >
+                  <div className={`flex items-end gap-2 max-w-[80%] ${isCurrentUser ? "flex-row-reverse" : ""}`}>
+                    {!isCurrentUser && (
+                      <Avatar className={`h-7 w-7 shrink-0 ${showAvatar ? 'visible' : 'invisible'}`}>
+                        <AvatarImage src={message.sender.profileImageUrl || undefined} />
+                        <AvatarFallback className="text-xs">{getInitials(message.sender)}</AvatarFallback>
+                      </Avatar>
+                    )}
+                    
+                    <div className={`rounded-2xl px-4 py-2.5 ${
+                      isCurrentUser 
+                        ? "bg-primary text-primary-foreground rounded-br-md" 
+                        : "bg-muted rounded-bl-md"
+                    }`}>
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="space-y-2 mb-2">
+                          {message.attachments.map((att: MessageAttachment) => (
+                            <div key={att.id} className="rounded-md overflow-hidden">
+                              {att.fileType.startsWith('image/') ? (
+                                <img 
+                                  src={att.url} 
+                                  alt={att.fileName}
+                                  className="max-w-full max-h-48 rounded cursor-pointer hover:opacity-90"
+                                  onClick={() => setPreviewImage(att.url)}
+                                  data-testid={`attachment-image-${att.id}`}
+                                />
+                              ) : att.fileType.startsWith('video/') ? (
+                                <video 
+                                  src={att.url} 
+                                  controls 
+                                  className="max-w-full max-h-48 rounded"
+                                  data-testid={`attachment-video-${att.id}`}
+                                />
+                              ) : (
+                                <a 
+                                  href={att.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className={`flex items-center gap-2 p-2 rounded ${isCurrentUser ? 'hover:bg-primary-foreground/10' : 'hover:bg-background'}`}
+                                  data-testid={`attachment-file-${att.id}`}
+                                >
+                                  {getFileIcon(att.fileType)}
+                                  <span className="text-sm truncate flex-1">{att.fileName}</span>
+                                  <Download className="h-4 w-4" />
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {message.content && message.content !== "Sent attachment(s)" && (
+                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                      )}
+                      <p className={`text-xs mt-1 ${isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        {new Date(message.createdAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </ScrollArea>
+
+      {/* Message input */}
+      <form onSubmit={handleSendMessage} className="p-3 border-t bg-background">
+        {pendingAttachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {pendingAttachments.map((att, index) => (
+              <div key={index} className="relative group">
+                {att.file.type.startsWith('image/') ? (
+                  <img src={att.preview} alt={att.file.name} className="h-14 w-14 object-cover rounded-lg border" />
+                ) : (
+                  <div className="h-14 w-14 bg-muted rounded-lg border flex items-center justify-center">
+                    {att.file.type.startsWith('video/') ? <Film className="h-5 w-5 text-muted-foreground" /> : <FileText className="h-5 w-5 text-muted-foreground" />}
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-5 w-5 rounded-full"
+                  onClick={() => removeAttachment(index)}
+                  data-testid={`button-remove-attachment-${index}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            multiple
+            accept="image/*,video/*,.pdf,.doc,.docx"
+            className="hidden"
+            data-testid="input-file-attachment"
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSending || sendMessageMutation.isPending}
+            data-testid="button-attach-file"
+          >
+            <Image className="h-5 w-5 text-muted-foreground" />
+          </Button>
+          
+          <div className="flex-1 relative">
+            <Input
+              ref={messageInputRef}
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder="Write a message . . ."
+              disabled={isSending || sendMessageMutation.isPending}
+              className="rounded-full pr-10 border-border"
+              data-testid="input-message"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              variant="ghost"
+              disabled={(!messageInput.trim() && pendingAttachments.length === 0) || isSending || sendMessageMutation.isPending}
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+              data-testid="button-send-message"
+            >
+              <Send className={`h-4 w-4 ${messageInput.trim() || pendingAttachments.length > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+            </Button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+
+  // Mobile messages list view
+  const renderMobileMessagesList = () => (
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <h1 className="text-2xl font-bold">Messages</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" data-testid="button-search-messages">
+            <Search className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" data-testid="button-messages-settings">
+            <Settings className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex gap-2 px-4 pb-3">
+        {filterTabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveFilter(tab.id)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              activeFilter === tab.id 
+                ? "bg-foreground text-background" 
+                : "bg-muted text-foreground hover-elevate"
+            }`}
+            data-testid={`filter-tab-${tab.id}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Conversations list */}
+      <ScrollArea className="flex-1">
+        {conversationsLoading ? (
+          <div className="p-4 text-center text-muted-foreground">Loading...</div>
+        ) : filteredConversations.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">
+            <MessageCircle className="mx-auto h-12 w-12 mb-3 opacity-50" />
+            <p className="font-medium">No conversations yet</p>
+            <p className="text-sm mt-1">Start messaging property owners about their listings</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {filteredConversations.map((conversation) => {
+              const participant = isGuest ? conversation.owner : conversation.guest;
+              return (
+                <button
+                  key={conversation.id}
+                  onClick={() => {
+                    setSelectedConversationId(conversation.id);
+                    // Update URL
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('conversationId', conversation.id);
+                    window.history.replaceState({}, '', url.toString());
+                  }}
+                  className="w-full px-4 py-3 text-left hover-elevate active-elevate-2 transition-colors"
+                  data-testid={`conversation-${conversation.id}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={participant.profileImageUrl || undefined} />
+                      <AvatarFallback>{getInitials(participant)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-medium">{getUserDisplayName(participant)}</h3>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {getMessageDate(conversation)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">
+                        {getLastMessagePreview(conversation)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Property Owner
+                      </p>
+                    </div>
+                    {conversation.unreadCount > 0 && (
+                      <Badge variant="default" className="shrink-0 ml-2" data-testid={`unread-badge-${conversation.id}`}>
+                        {conversation.unreadCount}
+                      </Badge>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+
+  // Desktop layout (split view)
+  const renderDesktopLayout = () => (
     <div className="flex h-[calc(100vh-64px)]">
-      <div className="w-96 border-r flex flex-col">
+      {/* Conversations sidebar */}
+      <div className="w-96 border-r flex flex-col bg-background">
         <div className="p-4 border-b">
-          <h1 className="text-3xl font-semibold">Messages</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold">Messages</h1>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" data-testid="button-search-messages-desktop">
+                <Search className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" data-testid="button-messages-settings-desktop">
+                <Settings className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Filter tabs */}
+          <div className="flex gap-2">
+            {filterTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveFilter(tab.id)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  activeFilter === tab.id 
+                    ? "bg-foreground text-background" 
+                    : "bg-muted text-foreground hover-elevate"
+                }`}
+                data-testid={`filter-tab-desktop-${tab.id}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
           {conversationsLoading ? (
             <div className="p-4 text-center text-muted-foreground">Loading...</div>
-          ) : conversations.length === 0 ? (
+          ) : filteredConversations.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
               <MessageCircle className="mx-auto h-12 w-12 mb-2 opacity-50" />
               <p>No conversations yet</p>
-              <p className="text-sm mt-1">Start messaging property owners about their listings</p>
             </div>
           ) : (
             <div className="divide-y">
-              {conversations.map((conversation) => {
+              {filteredConversations.map((conversation) => {
                 const participant = isGuest ? conversation.owner : conversation.guest;
                 return (
                   <button
                     key={conversation.id}
                     onClick={() => setSelectedConversationId(conversation.id)}
-                    className={`w-full p-4 text-left hover-elevate active-elevate-2 transition-colors ${
+                    className={`w-full px-4 py-3 text-left hover-elevate active-elevate-2 transition-colors ${
                       selectedConversationId === conversation.id ? "bg-accent" : ""
                     }`}
-                    data-testid={`conversation-${conversation.id}`}
+                    data-testid={`conversation-desktop-${conversation.id}`}
                   >
                     <div className="flex items-start gap-3">
-                      <Avatar>
+                      <Avatar className="h-11 w-11">
                         <AvatarImage src={participant.profileImageUrl || undefined} />
                         <AvatarFallback>{getInitials(participant)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="font-medium truncate">{getUserDisplayName(participant)}</h3>
-                          {conversation.unreadCount > 0 && (
-                            <Badge variant="default" className="shrink-0" data-testid={`unread-badge-${conversation.id}`}>
-                              {conversation.unreadCount}
-                            </Badge>
-                          )}
+                          <h3 className="font-medium">{getUserDisplayName(participant)}</h3>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {getMessageDate(conversation)}
+                          </span>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate mt-1">
-                          {conversation.property.title}
+                        <p className="text-sm text-muted-foreground truncate mt-0.5">
+                          {getLastMessagePreview(conversation)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Property Owner
                         </p>
                       </div>
+                      {conversation.unreadCount > 0 && (
+                        <Badge variant="default" className="shrink-0" data-testid={`unread-badge-desktop-${conversation.id}`}>
+                          {conversation.unreadCount}
+                        </Badge>
+                      )}
                     </div>
                   </button>
                 );
@@ -442,7 +787,8 @@ export default function Messages() {
         </ScrollArea>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      {/* Conversation panel */}
+      <div className="flex-1 flex flex-col bg-background">
         {!selectedConversationId ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-muted-foreground">
@@ -452,42 +798,43 @@ export default function Messages() {
           </div>
         ) : (
           <>
-            <div className="p-4 border-b flex items-center gap-3">
-              <Avatar>
+            {/* Header */}
+            <div className="p-4 border-b flex items-center gap-4">
+              <Avatar className="h-10 w-10">
                 <AvatarImage src={otherParticipant?.profileImageUrl || undefined} />
                 <AvatarFallback>{getInitials(otherParticipant)}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <h2 className="font-semibold">{getUserDisplayName(otherParticipant)}</h2>
-                {selectedConversation && (
-                  <p className="text-sm text-muted-foreground">{selectedConversation.property.title}</p>
-                )}
+                <p className="text-sm text-muted-foreground">Property Owner</p>
               </div>
+              <Button variant="outline" size="sm" data-testid="button-conversation-details-desktop">
+                Details
+              </Button>
             </div>
 
+            {/* Messages */}
             <ScrollArea className="flex-1 p-4">
               {messagesLoading ? (
                 <div className="text-center text-muted-foreground">Loading messages...</div>
               ) : messages.length === 0 ? (
-                <div className="text-center text-muted-foreground">
+                <div className="text-center text-muted-foreground py-8">
                   <p>No messages yet</p>
                   <p className="text-sm mt-1">Send a message to start the conversation</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {messages.map((message) => {
+                <div className="space-y-3">
+                  {messages.map((message, index) => {
                     const isCurrentUser = message.senderId === user.id;
+                    const showAvatar = !isCurrentUser && (index === 0 || messages[index - 1]?.senderId === user.id);
                     
-                    // Check if this is a booking-related message
                     if ((message.messageType === "booking_request" || message.messageType === "booking_update") && message.booking) {
                       return (
-                        <div key={message.id} className="max-w-[85%]" data-testid={`message-${message.id}`}>
+                        <div key={message.id} className="max-w-[85%]" data-testid={`message-desktop-${message.id}`}>
                           <p className="text-xs text-muted-foreground mb-2">
                             {isCurrentUser ? 'You' : `${message.sender?.firstName || 'Owner'}`} • {new Date(message.createdAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
-                          {message.content && (
-                            <p className="text-sm text-muted-foreground mb-2">{message.content}</p>
-                          )}
+                          {message.content && <p className="text-sm text-muted-foreground mb-2">{message.content}</p>}
                           <BookingActionCard 
                             booking={message.booking as any}
                             isOwner={false}
@@ -503,14 +850,21 @@ export default function Messages() {
                       <div
                         key={message.id}
                         className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
-                        data-testid={`message-${message.id}`}
+                        data-testid={`message-desktop-${message.id}`}
                       >
-                        <div className={`flex gap-2 max-w-[70%] ${isCurrentUser ? "flex-row-reverse" : ""}`}>
-                          <Avatar className="h-8 w-8 shrink-0">
-                            <AvatarImage src={message.sender.profileImageUrl || undefined} />
-                            <AvatarFallback>{getInitials(message.sender)}</AvatarFallback>
-                          </Avatar>
-                          <Card className={`p-3 ${isCurrentUser ? "bg-primary text-primary-foreground" : ""}`}>
+                        <div className={`flex items-end gap-2 max-w-[70%] ${isCurrentUser ? "flex-row-reverse" : ""}`}>
+                          {!isCurrentUser && (
+                            <Avatar className={`h-8 w-8 shrink-0 ${showAvatar ? 'visible' : 'invisible'}`}>
+                              <AvatarImage src={message.sender.profileImageUrl || undefined} />
+                              <AvatarFallback>{getInitials(message.sender)}</AvatarFallback>
+                            </Avatar>
+                          )}
+                          
+                          <div className={`rounded-2xl px-4 py-2.5 ${
+                            isCurrentUser 
+                              ? "bg-primary text-primary-foreground rounded-br-md" 
+                              : "bg-muted rounded-bl-md"
+                          }`}>
                             {message.attachments && message.attachments.length > 0 && (
                               <div className="space-y-2 mb-2">
                                 {message.attachments.map((att: MessageAttachment) => (
@@ -521,22 +875,22 @@ export default function Messages() {
                                         alt={att.fileName}
                                         className="max-w-full max-h-48 rounded cursor-pointer hover:opacity-90"
                                         onClick={() => setPreviewImage(att.url)}
-                                        data-testid={`attachment-image-${att.id}`}
+                                        data-testid={`attachment-image-desktop-${att.id}`}
                                       />
                                     ) : att.fileType.startsWith('video/') ? (
                                       <video 
                                         src={att.url} 
                                         controls 
                                         className="max-w-full max-h-48 rounded"
-                                        data-testid={`attachment-video-${att.id}`}
+                                        data-testid={`attachment-video-desktop-${att.id}`}
                                       />
                                     ) : (
                                       <a 
                                         href={att.url} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className={`flex items-center gap-2 p-2 rounded border ${isCurrentUser ? 'border-primary-foreground/20 hover:bg-primary-foreground/10' : 'border-border hover:bg-muted'}`}
-                                        data-testid={`attachment-file-${att.id}`}
+                                        className={`flex items-center gap-2 p-2 rounded ${isCurrentUser ? 'hover:bg-primary-foreground/10' : 'hover:bg-background'}`}
+                                        data-testid={`attachment-file-desktop-${att.id}`}
                                       >
                                         {getFileIcon(att.fileType)}
                                         <span className="text-sm truncate flex-1">{att.fileName}</span>
@@ -554,7 +908,7 @@ export default function Messages() {
                             <p className={`text-xs mt-1 ${isCurrentUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                               {new Date(message.createdAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
-                          </Card>
+                          </div>
                         </div>
                       </div>
                     );
@@ -564,6 +918,7 @@ export default function Messages() {
               )}
             </ScrollArea>
 
+            {/* Message input */}
             <form onSubmit={handleSendMessage} className="p-4 border-t">
               {pendingAttachments.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -571,13 +926,9 @@ export default function Messages() {
                     <div key={index} className="relative group">
                       {att.file.type.startsWith('image/') ? (
                         <img src={att.preview} alt={att.file.name} className="h-16 w-16 object-cover rounded border" />
-                      ) : att.file.type.startsWith('video/') ? (
-                        <div className="h-16 w-16 bg-muted rounded border flex items-center justify-center">
-                          <Film className="h-6 w-6 text-muted-foreground" />
-                        </div>
                       ) : (
                         <div className="h-16 w-16 bg-muted rounded border flex items-center justify-center">
-                          <FileText className="h-6 w-6 text-muted-foreground" />
+                          {att.file.type.startsWith('video/') ? <Film className="h-6 w-6 text-muted-foreground" /> : <FileText className="h-6 w-6 text-muted-foreground" />}
                         </div>
                       )}
                       <Button
@@ -586,11 +937,10 @@ export default function Messages() {
                         variant="destructive"
                         className="absolute -top-2 -right-2 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => removeAttachment(index)}
-                        data-testid={`button-remove-attachment-${index}`}
+                        data-testid={`button-remove-attachment-desktop-${index}`}
                       >
                         <X className="h-3 w-3" />
                       </Button>
-                      <p className="text-xs text-muted-foreground truncate w-16 mt-1">{att.file.name}</p>
                     </div>
                   ))}
                 </div>
@@ -603,7 +953,7 @@ export default function Messages() {
                   multiple
                   accept="image/*,video/*,.pdf,.doc,.docx"
                   className="hidden"
-                  data-testid="input-file-attachment"
+                  data-testid="input-file-attachment-desktop"
                 />
                 <Button
                   type="button"
@@ -611,7 +961,7 @@ export default function Messages() {
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isSending || sendMessageMutation.isPending}
-                  data-testid="button-attach-file"
+                  data-testid="button-attach-file-desktop"
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
@@ -619,15 +969,16 @@ export default function Messages() {
                   ref={messageInputRef}
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type a message..."
+                  placeholder="Write a message . . ."
                   disabled={isSending || sendMessageMutation.isPending}
-                  data-testid="input-message"
+                  className="flex-1"
+                  data-testid="input-message-desktop"
                 />
                 <Button
                   type="submit"
                   size="icon"
                   disabled={(!messageInput.trim() && pendingAttachments.length === 0) || isSending || sendMessageMutation.isPending}
-                  data-testid="button-send-message"
+                  data-testid="button-send-message-desktop"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -636,7 +987,22 @@ export default function Messages() {
           </>
         )}
       </div>
+    </div>
+  );
 
+  return (
+    <>
+      {/* Mobile view */}
+      <div className="md:hidden">
+        {selectedConversationId ? renderMobileConversation() : renderMobileMessagesList()}
+      </div>
+      
+      {/* Desktop view */}
+      <div className="hidden md:block">
+        {renderDesktopLayout()}
+      </div>
+
+      {/* Image preview dialog */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-4xl p-0">
           {previewImage && (
@@ -644,6 +1010,6 @@ export default function Messages() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
