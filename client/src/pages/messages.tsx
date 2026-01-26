@@ -388,7 +388,7 @@ export default function Messages() {
 
   // Mobile conversation view
   const renderMobileConversation = () => (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-background">
+    <div className="flex flex-col h-[calc(100vh-80px)] bg-background">
       {/* Header with back button, centered avatar */}
       <div className="flex items-center justify-between p-3 border-b bg-background sticky top-0 z-10">
         <Button 
@@ -593,7 +593,7 @@ export default function Messages() {
 
   // Mobile messages list view
   const renderMobileMessagesList = () => (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-background">
+    <div className="flex flex-col h-[calc(100vh-80px)] bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <h1 className="text-2xl font-bold">Messages</h1>
@@ -688,7 +688,7 @@ export default function Messages() {
 
   // Desktop layout (split view)
   const renderDesktopLayout = () => (
-    <div className="flex h-[calc(100vh-64px)]">
+    <div className="flex h-[calc(100vh-80px)]">
       {/* Conversations sidebar */}
       <div className="w-96 border-r flex flex-col bg-background">
         <div className="p-4 border-b">

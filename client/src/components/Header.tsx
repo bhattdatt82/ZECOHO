@@ -97,13 +97,13 @@ export function Header() {
         ? "bg-background/98 backdrop-blur-lg shadow-md border-border/50" 
         : "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     }`}>
-      <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between px-4 md:px-6 overflow-hidden">
+      <div className="w-full max-w-screen-2xl mx-auto flex h-20 items-center justify-between px-4 md:px-6 overflow-hidden">
         <Link href="/">
           <div className="flex items-center cursor-pointer group flex-shrink-0" data-testid="link-home">
             <img 
               src="/zecoho-logo.jpg" 
               alt="ZECOHO" 
-              className="h-14 w-14 md:h-16 md:w-16 rounded-xl transition-opacity duration-200 group-hover:opacity-90 object-cover"
+              className="h-16 w-16 md:h-20 md:w-20 rounded-xl transition-opacity duration-200 group-hover:opacity-90 object-cover"
             />
           </div>
         </Link>
