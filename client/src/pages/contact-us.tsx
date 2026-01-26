@@ -3,9 +3,11 @@ import { Phone, Mail, MapPin, Clock, Building2, Shield, Users, Briefcase } from 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
 import type { ContactSettings } from "@shared/schema";
 
 export default function ContactUs() {
+  const { isOwner } = useAuth();
   const { data: settings, isLoading } = useQuery<ContactSettings>({
     queryKey: ["/api/contact-settings"],
   });
@@ -26,7 +28,8 @@ export default function ContactUs() {
   }
 
   const hasCustomerSupport = settings?.customerSupportEmail || settings?.customerSupportPhone;
-  const hasOwnerSupport = settings?.ownerSupportEmail || settings?.ownerSupportPhone;
+  const hasOwnerSupportData = settings?.ownerSupportEmail || settings?.ownerSupportPhone;
+  const showOwnerSupport = hasOwnerSupportData && isOwner;
   const hasGrievanceOfficer = settings?.grievanceOfficerName || settings?.grievanceOfficerEmail;
   const hasPrivacyContact = settings?.privacyEmail || settings?.dataProtectionOfficerName;
   const hasBusinessContact = settings?.businessEmail || settings?.businessPhone;
@@ -92,7 +95,7 @@ export default function ContactUs() {
               </Card>
             )}
 
-            {hasOwnerSupport && (
+            {showOwnerSupport && (
               <Card data-testid="card-owner-support">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -327,7 +330,7 @@ export default function ContactUs() {
             )}
           </div>
 
-        {!hasCustomerSupport && !hasOwnerSupport && !hasGrievanceOfficer && 
+        {!hasCustomerSupport && !showOwnerSupport && !hasGrievanceOfficer && 
          !hasPrivacyContact && !hasBusinessContact && !hasRegisteredOffice && (
           <div className="text-center py-16">
             <p className="text-muted-foreground">
