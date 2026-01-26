@@ -4,14 +4,17 @@
 
 /* ZECOHO Brand Logo - LOCKED */
 .logo {
-  background: var(--brand-zecoho-orange);
+  background: linear-gradient(180deg, var(--brand-zecoho-orange-light) 0%, var(--brand-zecoho-orange) 100%);
   color: var(--brand-zecoho-white);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 /* LIGHT MODE - Swiggy-inspired Design */
 :root {
   /* ZECOHO Brand Colors - LOCKED */
-  --brand-zecoho-orange: #FF7A00;
+  --brand-zecoho-orange: #F37021;
+  --brand-zecoho-orange-light: #F9A03F;
   --brand-zecoho-white: #FFFFFF;
   
   --button-outline: rgba(0,0,0, .10);
@@ -28,15 +31,15 @@
   --sidebar: 30 5% 97%;
   --sidebar-foreground: 40 5% 15%;
   --sidebar-border: 30 10% 90%;
-  --sidebar-primary: 27 97% 54%;
+  --sidebar-primary: 24 91% 54%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 30 10% 92%;
   --sidebar-accent-foreground: 40 5% 15%;
-  --sidebar-ring: 27 97% 54%;
+  --sidebar-ring: 24 91% 54%;
   --popover: 30 10% 97%;
   --popover-foreground: 40 5% 15%;
   --popover-border: 30 10% 88%;
-  --primary: 27 97% 54%;
+  --primary: 24 91% 54%;
   --primary-foreground: 0 0% 100%;
   --secondary: 30 10% 92%;
   --secondary-foreground: 40 5% 15%;
@@ -47,8 +50,8 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
   --input: 30 10% 88%;
-  --ring: 27 97% 54%;
-  --chart-1: 27 97% 54%;
+  --ring: 24 91% 54%;
+  --chart-1: 24 91% 54%;
   --chart-2: 173 58% 45%;
   --chart-3: 197 37% 50%;
   --chart-4: 43 74% 55%;
@@ -112,15 +115,15 @@
   --sidebar: 30 5% 10%;
   --sidebar-foreground: 30 10% 95%;
   --sidebar-border: 30 5% 16%;
-  --sidebar-primary: 27 97% 54%;
+  --sidebar-primary: 24 91% 54%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 30 5% 18%;
   --sidebar-accent-foreground: 30 10% 95%;
-  --sidebar-ring: 27 97% 54%;
+  --sidebar-ring: 24 91% 54%;
   --popover: 30 5% 14%;
   --popover-foreground: 30 10% 95%;
   --popover-border: 30 5% 20%;
-  --primary: 27 97% 54%;
+  --primary: 24 91% 54%;
   --primary-foreground: 0 0% 100%;
   --secondary: 30 5% 18%;
   --secondary-foreground: 30 10% 95%;
@@ -131,7 +134,7 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
   --input: 30 5% 22%;
-  --ring: 27 97% 54%;
+  --ring: 24 91% 54%;
   --chart-1: 27 97% 60%;
   --chart-2: 173 58% 65%;
   --chart-3: 197 37% 70%;
