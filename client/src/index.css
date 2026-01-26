@@ -6,12 +6,6 @@
 .logo {
   background: var(--brand-zecoho-orange);
   color: var(--brand-zecoho-white);
-  font-weight: 700;
-  font-size: 20px;
-  letter-spacing: 0.5px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  display: inline-block;
 }
 
 /* LIGHT MODE - Swiggy-inspired Design */

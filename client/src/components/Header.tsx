@@ -106,7 +106,7 @@ export function Header() {
       <div className="w-full max-w-screen-2xl mx-auto flex h-20 items-center justify-between px-4 md:px-6 overflow-hidden">
         <Link href="/">
           <div className="flex items-center cursor-pointer group flex-shrink-0 transition-opacity duration-200 group-hover:opacity-90" data-testid="link-home">
-            <div className="logo">ZECOHO</div>
+            <div className="logo font-bold text-xl px-4 py-2 rounded-lg">ZECOHO</div>
           </div>
         </Link>
 
