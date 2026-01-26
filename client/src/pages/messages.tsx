@@ -545,7 +545,7 @@ export default function Messages() {
           </div>
         )}
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <input
             type="file"
             ref={fileInputRef}
@@ -558,35 +558,34 @@ export default function Messages() {
           <Button
             type="button"
             size="icon"
-            variant="ghost"
+            variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={isSending || sendMessageMutation.isPending}
+            className="h-10 w-10 flex-shrink-0"
             data-testid="button-attach-file"
           >
-            <Image className="h-5 w-5 text-muted-foreground" />
+            <Paperclip className="h-5 w-5" />
           </Button>
           
-          <div className="flex-1 relative">
-            <Input
-              ref={messageInputRef}
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              placeholder="Write a message . . ."
-              disabled={isSending || sendMessageMutation.isPending}
-              className="rounded-full pr-10 border-border"
-              data-testid="input-message"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              variant="ghost"
-              disabled={(!messageInput.trim() && pendingAttachments.length === 0) || isSending || sendMessageMutation.isPending}
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-              data-testid="button-send-message"
-            >
-              <Send className={`h-4 w-4 ${messageInput.trim() || pendingAttachments.length > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
-            </Button>
-          </div>
+          <Input
+            ref={messageInputRef}
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            placeholder="Write a message..."
+            disabled={isSending || sendMessageMutation.isPending}
+            className="flex-1 rounded-full border-border"
+            data-testid="input-message"
+          />
+          
+          <Button
+            type="submit"
+            size="icon"
+            disabled={(!messageInput.trim() && pendingAttachments.length === 0) || isSending || sendMessageMutation.isPending}
+            className="h-10 w-10 flex-shrink-0"
+            data-testid="button-send-message"
+          >
+            <Send className="h-5 w-5" />
+          </Button>
         </div>
       </form>
     </div>
