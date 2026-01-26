@@ -1,0 +1,101 @@
+echo "Implementing owner in-app notifications + auto refresh..." \
+&& cat << 'EOF' > server/routes/notifications.ts
+import { Router } from "express";
+import { requireAuth } from "../middleware/auth";
+import { db } from "../db";
+
+const router = Router();
+
+router.get("/", requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  const notifications = await db
+    .selectFrom("notifications")
+    .selectAll()
+    .where("user_id", "=", userId)
+    .orderBy("created_at desc")
+    .execute();
+  res.json(notifications);
+});
+
+router.post("/:id/read", requireAuth, async (req, res) => {
+  await db
+    .updateTable("notifications")
+    .set({ is_read: true })
+    .where("id", "=", req.params.id)
+    .execute();
+  res.json({ success: true });
+});
+
+export default router;
+EOF \
+&& cat << 'EOF' >> server/routes.ts
+import notifications from "./routes/notifications";
+app.use("/api/notifications", notifications);
+EOF \
+&& cat << 'EOF' >> server/services/notificationService.ts
+export async function createNotification(db, {
+  userId,
+  title,
+  body,
+  type,
+  entityId,
+  entityType
+}) {
+  await db.insertInto("notifications").values({
+    user_id: userId,
+    title,
+    body,
+    type,
+    entity_id: entityId,
+    entity_type: entityType,
+    is_read: false,
+    created_at: new Date()
+  }).execute();
+}
+EOF \
+&& cat << 'EOF' >> client/src/hooks/useNotifications.ts
+import { useEffect, useState } from "react";
+
+export function useNotifications() {
+  const [items, setItems] = useState([]);
+
+  async function fetchNotifications() {
+    const res = await fetch("/api/notifications");
+    if (res.ok) setItems(await res.json());
+  }
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return { items };
+}
+EOF \
+&& cat << 'EOF' >> client/src/components/OwnerHeader.tsx
+import { useNotifications } from "@/hooks/useNotifications";
+
+const { items } = useNotifications();
+const unread = items.filter(n => !n.is_read).length;
+
+<button className="relative">
+  🔔
+  {unread > 0 && (
+    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
+      {unread}
+    </span>
+  )}
+</button>
+EOF \
+&& cat << 'EOF' >> client/src/hooks/useAutoRefresh.ts
+import { useEffect } from "react";
+
+export function useAutoRefresh(refetchFn) {
+  useEffect(() => {
+    const interval = setInterval(refetchFn, 15000);
+    return () => clearInterval(interval);
+  }, [refetchFn]);
+}
+EOF \
+&& echo "✅ Owner notifications + auto refresh added. Restart server & preview."

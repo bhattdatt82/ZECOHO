@@ -3,8 +3,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, sql, inArray, desc } from "drizzle-orm";
-import { users, contactInteractions } from "@shared/schema";
+import { eq, sql, inArray, desc, and } from "drizzle-orm";
+import { users, contactInteractions, notifications } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertWishlistSchema, insertUserPreferencesSchema, insertBookingSchema, insertMessageSchema, insertReviewSchema, insertDestinationSchema, insertSearchHistorySchema, updateKYCSchema, becomeOwnerSchema, insertKycApplicationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
@@ -8662,6 +8662,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching owner conversations:", error);
       res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  // ==================== NOTIFICATION ROUTES ====================
+
+  // Get user's notifications
+  app.get("/api/notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userNotifications = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, userId))
+        .orderBy(desc(notifications.createdAt))
+        .limit(50);
+      res.json(userNotifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Mark single notification as read
+  app.post("/api/notifications/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const notificationId = req.params.id;
+      
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, userId)
+        ));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post("/api/notifications/read-all", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.userId, userId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark notifications as read" });
     }
   });
 

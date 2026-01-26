@@ -1373,4 +1373,52 @@ export const supportTicketsRelations = relations(supportTickets, ({ one }) => ({
     fields: [supportTickets.assignedTo],
     references: [users.id],
   }),
+}));
+
+// Notification type enum
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "booking_request",
+  "booking_confirmed",
+  "booking_cancelled",
+  "booking_completed",
+  "review_received",
+  "message_received",
+  "kyc_approved",
+  "kyc_rejected",
+  "property_approved",
+  "property_rejected",
+  "system"
+]);
+
+// In-app notifications table
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull().references(() => users.id),
+    title: varchar("title", { length: 255 }).notNull(),
+    body: text("body").notNull(),
+    type: notificationTypeEnum("type").notNull().default("system"),
+    entityId: varchar("entity_id"),
+    entityType: varchar("entity_type", { length: 50 }),
+    isRead: boolean("is_read").default(false),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("IDX_notification_user").on(table.userId),
+    index("IDX_notification_read").on(table.isRead),
+    index("IDX_notification_created").on(table.createdAt),
+  ],
+);
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+
+// Notification relations
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
 }))
