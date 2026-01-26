@@ -6,12 +6,10 @@ function getAppBaseUrl(): string {
   return process.env.APP_BASE_URL || 'https://www.zecoho.com';
 }
 
-const ZECOHO_LOGO_URL = 'https://www.zecoho.com/brand/zecoho-logo.svg';
-
 function getEmailHeader(): string {
   return `
-    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
-      <img src="${ZECOHO_LOGO_URL}" alt="ZECOHO" style="height: 40px; width: auto; display: block; margin: 0 auto 12px auto;" />
+    <div style="background: linear-gradient(135deg, #FF7A00 0%, #e56700 100%); padding: 32px; text-align: center;">
+      <h1 style="color: white; margin: 0 0 8px 0; font-size: 28px; font-weight: 700; letter-spacing: 0.5px;">ZECOHO</h1>
       <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;">Zero Commission Hotel Booking</p>
     </div>
   `;
