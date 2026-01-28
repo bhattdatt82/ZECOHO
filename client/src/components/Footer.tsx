@@ -47,6 +47,14 @@ export function Footer() {
             >
               Contact Us
             </Link>
+            <span className="text-muted-foreground/40">|</span>
+            <Link 
+              href="/logo-gallery" 
+              className="text-muted-foreground hover:text-primary transition-colors whitespace-nowrap"
+              data-testid="link-footer-logo-gallery"
+            >
+              Brand Assets
+            </Link>
           </div>
 
           {/* Email - Single line */}
