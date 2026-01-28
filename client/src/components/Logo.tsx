@@ -9,7 +9,7 @@ export function Logo({ className = "" }: { className?: string }) {
         aria-hidden="true"
       >
         <path 
-          d="M 5.64 5.64 A 9 9 0 1 1 3.5 10" 
+          d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" 
           stroke="currentColor" 
           strokeWidth="2.5" 
           strokeLinecap="round"
@@ -32,7 +32,7 @@ export function LogoText({ className = "" }: { className?: string }) {
         aria-hidden="true"
       >
         <path 
-          d="M 5.64 5.64 A 9 9 0 1 1 3.5 10" 
+          d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" 
           stroke="currentColor" 
           strokeWidth="2.5" 
           strokeLinecap="round"

@@ -31,7 +31,7 @@ function LogoSVG({ size = 200 }: { size?: number }) {
       </text>
       <g transform="translate(152, 85)">
         <path 
-          d="M 4.7 4.7 A 15 15 0 1 1 2.9 8.3" 
+          d="M 15.3 4.7 A 15 15 0 1 0 17.1 8.3" 
           stroke="white" 
           strokeWidth="4" 
           strokeLinecap="round"
@@ -54,7 +54,7 @@ function downloadSVG() {
   <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
   <text x="28" y="118" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" letter-spacing="1">ZECOH</text>
   <g transform="translate(152, 85)">
-    <path d="M 4.7 4.7 A 15 15 0 1 1 2.9 8.3" stroke="white" stroke-width="4" stroke-linecap="round" fill="none" />
+    <path d="M 15.3 4.7 A 15 15 0 1 0 17.1 8.3" stroke="white" stroke-width="4" stroke-linecap="round" fill="none" />
     <circle cx="10" cy="10" r="4" fill="white" />
   </g>
 </svg>`;
@@ -106,7 +106,7 @@ function downloadPNG(size: number) {
   const oRadius = size * 0.075;
   
   ctx.beginPath();
-  ctx.arc(oX, oY, oRadius, 0.4 * Math.PI, 2.3 * Math.PI);
+  ctx.arc(oX, oY, oRadius, -0.3 * Math.PI, 1.6 * Math.PI);
   ctx.strokeStyle = 'white';
   ctx.lineWidth = size * 0.02;
   ctx.lineCap = 'round';
