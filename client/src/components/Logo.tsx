@@ -8,7 +8,13 @@ export function Logo({ className = "" }: { className?: string }) {
         className="w-[1em] h-[1em] ml-[0.02em]"
         aria-hidden="true"
       >
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" fill="none" />
+        <path 
+          d="M 5.5 5.5 A 9 9 0 1 0 12 3 A 9 9 0 0 0 5.5 5.5" 
+          stroke="currentColor" 
+          strokeWidth="3" 
+          strokeLinecap="round"
+          fill="none" 
+        />
         <circle cx="12" cy="12" r="3" fill="currentColor" />
       </svg>
     </div>
@@ -25,7 +31,13 @@ export function LogoText({ className = "" }: { className?: string }) {
         className="w-[1em] h-[1em] ml-[0.02em] inline-block"
         aria-hidden="true"
       >
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" fill="none" />
+        <path 
+          d="M 5.5 5.5 A 9 9 0 1 0 12 3 A 9 9 0 0 0 5.5 5.5" 
+          stroke="currentColor" 
+          strokeWidth="3" 
+          strokeLinecap="round"
+          fill="none" 
+        />
         <circle cx="12" cy="12" r="3" fill="currentColor" />
       </svg>
     </span>
