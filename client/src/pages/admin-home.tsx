@@ -21,6 +21,7 @@ import {
   MessageSquare,
   MessageCircle,
   Clock,
+  Palette,
 } from "lucide-react";
 
 interface CommunicationAnalytics {
@@ -118,6 +119,13 @@ const adminSections = [
     icon: Phone,
     href: "/admin/contact-settings",
     testId: "admin-nav-contact",
+  },
+  {
+    title: "Brand Assets",
+    description: "Download logo files",
+    icon: Palette,
+    href: "/logo-gallery",
+    testId: "admin-nav-brand-assets",
   },
 ];
 
