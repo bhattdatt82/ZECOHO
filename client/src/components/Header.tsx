@@ -326,7 +326,7 @@ export function Header() {
                 </Link>
               ) : isOwner && isKycVerified ? (
                 null
-              ) : location === "/" ? (
+              ) : location === "/" && !isAdmin ? (
                 <Link href={getListPropertyLink()}>
                   <Button 
                     size="sm"
