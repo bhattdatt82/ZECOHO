@@ -787,8 +787,23 @@ export default function PropertyDetails() {
     
     if (pricePerNight <= 0) return 0;
     
-    // Calculate base price: room rate (per room per night) + meal cost (per person per night)
-    const roomCost = nights * pricePerNight * rooms;
+    // Calculate occupancy adjustment based on adults per room
+    let occupancyAdjustment = 0;
+    if (selectedRoomType) {
+      const adultsPerRoom = Math.ceil(adults / rooms);
+      const singleOccupancyBase = selectedRoomType.singleOccupancyBase || 1;
+      
+      if (adultsPerRoom >= 3 && selectedRoomType.tripleOccupancyAdjustment) {
+        // 3+ adults per room - apply triple occupancy adjustment
+        occupancyAdjustment = Number(selectedRoomType.tripleOccupancyAdjustment);
+      } else if (adultsPerRoom >= 2 && adultsPerRoom > singleOccupancyBase && selectedRoomType.doubleOccupancyAdjustment) {
+        // 2 adults per room (exceeding single base) - apply double occupancy adjustment
+        occupancyAdjustment = Number(selectedRoomType.doubleOccupancyAdjustment);
+      }
+    }
+    
+    // Calculate base price: room rate (per room per night) + occupancy adjustment + meal cost (per person per night)
+    const roomCost = nights * (pricePerNight + occupancyAdjustment) * rooms;
     const mealCost = nights * mealOptionPrice * guests;
     let basePrice = roomCost + mealCost;
     
@@ -804,7 +819,7 @@ export default function PropertyDetails() {
     return Math.round(basePrice);
   };
 
-  const totalPrice = useMemo(() => calculateTotalPrice(), [checkIn, checkOut, property, rooms, guests, selectedRoomTypeId, selectedMealOptionId, roomTypes]);
+  const totalPrice = useMemo(() => calculateTotalPrice(), [checkIn, checkOut, property, rooms, guests, adults, selectedRoomTypeId, selectedMealOptionId, roomTypes]);
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
     const start = new Date(checkIn);
@@ -2056,11 +2071,27 @@ export default function PropertyDetails() {
                   const selectedRoomType = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
                   if (!selectedRoomType) return null;
                   
-                  const effectivePrice = Number(selectedRoomType.basePrice);
+                  const basePrice = Number(selectedRoomType.basePrice);
                   const roomTypeName = selectedRoomType.name;
                   let originalPrice: number | null = null;
                   let mealOptionName = "";
                   let mealOptionPrice = 0;
+                  
+                  // Calculate occupancy adjustment
+                  let occupancyAdjustment = 0;
+                  let occupancyLabel = "";
+                  const adultsPerRoom = Math.ceil(adults / rooms);
+                  const singleOccupancyBase = selectedRoomType.singleOccupancyBase || 1;
+                  
+                  if (adultsPerRoom >= 3 && selectedRoomType.tripleOccupancyAdjustment) {
+                    occupancyAdjustment = Number(selectedRoomType.tripleOccupancyAdjustment);
+                    occupancyLabel = "Triple occupancy";
+                  } else if (adultsPerRoom >= 2 && adultsPerRoom > singleOccupancyBase && selectedRoomType.doubleOccupancyAdjustment) {
+                    occupancyAdjustment = Number(selectedRoomType.doubleOccupancyAdjustment);
+                    occupancyLabel = "Double occupancy";
+                  }
+                  
+                  const effectivePrice = basePrice + occupancyAdjustment;
                   
                   // Check for original price (strikethrough)
                   if (selectedRoomType.originalPrice && parseFloat(selectedRoomType.originalPrice) > parseFloat(selectedRoomType.basePrice)) {
@@ -2082,6 +2113,7 @@ export default function PropertyDetails() {
                   
                   const discountPercent = hasBulkDiscount ? Number(property.bulkBookingDiscountPercent) : 0;
                   const roomSubtotal = nights * effectivePrice * rooms;
+                  const occupancySubtotal = nights * occupancyAdjustment * rooms;
                   const mealSubtotal = nights * mealOptionPrice * guests;
                   const subtotal = roomSubtotal + mealSubtotal;
                   
@@ -2105,8 +2137,13 @@ export default function PropertyDetails() {
                         <span className="text-muted-foreground">
                           <span className="font-medium">{roomTypeName}: </span>
                           <span className={originalPrice ? 'text-green-600 dark:text-green-400' : ''}>
-                            ₹{effectivePrice.toLocaleString('en-IN')}
+                            ₹{basePrice.toLocaleString('en-IN')}
                           </span>
+                          {occupancyAdjustment > 0 && (
+                            <span className="text-orange-600 dark:text-orange-400">
+                              {' + ₹'}{occupancyAdjustment.toLocaleString('en-IN')} ({occupancyLabel})
+                            </span>
+                          )}
                           {' × '}{nights} {nights === 1 ? 'night' : 'nights'} × {rooms} {rooms === 1 ? 'room' : 'rooms'}
                         </span>
                         <span className="font-semibold">₹{roomSubtotal.toLocaleString('en-IN')}</span>
