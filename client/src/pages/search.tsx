@@ -292,7 +292,7 @@ export default function Search() {
       />
 
       {/* Horizontal Filters Bar - MakeMyTrip style */}
-      <div className="border-b bg-muted/30 sticky top-[57px] z-40">
+      <div className="border-b bg-muted/30 sticky top-14 z-40">
           <div className="container px-4 md:px-6 py-3">
             {/* Mobile: Filter Toggle Button */}
             <div className="md:hidden flex items-center justify-between mb-3">
