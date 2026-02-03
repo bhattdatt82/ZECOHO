@@ -151,17 +151,18 @@ export function MobileBottomNav() {
 
   return (
     <nav 
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t safe-area-bottom"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       data-testid="mobile-bottom-nav"
     >
-      <div className="flex items-center justify-around h-16">
+      <div className="flex items-center justify-around h-12">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link 
               key={item.href} 
               href={item.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full px-3 py-2 transition-colors relative ${
+              className={`flex flex-col items-center justify-center flex-1 h-full px-2 py-1 transition-colors relative ${
                 item.active
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
@@ -169,18 +170,18 @@ export function MobileBottomNav() {
               data-testid={`nav-${item.label.toLowerCase()}`}
             >
               <div className="relative">
-                <Icon className={`h-5 w-5 ${item.active ? "fill-current" : ""}`} />
+                <Icon className={`h-[18px] w-[18px] ${item.active ? "fill-current" : ""}`} />
                 {item.badge && (
                   <Badge 
                     variant="destructive" 
-                    className="absolute -top-2 -right-3 h-4 min-w-4 flex items-center justify-center p-0 text-[10px] rounded-full"
+                    className="absolute -top-1.5 -right-2.5 h-3.5 min-w-3.5 flex items-center justify-center p-0 text-[9px] rounded-full"
                     data-testid="badge-unread-mobile"
                   >
                     {item.badge}
                   </Badge>
                 )}
               </div>
-              <span className="text-xs mt-1 font-medium">{item.label}</span>
+              <span className="text-[10px] mt-0.5 font-medium">{item.label}</span>
             </Link>
           );
         })}

@@ -111,7 +111,7 @@ export function Header() {
         ? "bg-background/98 backdrop-blur-lg shadow-md border-border/50" 
         : "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     }`}>
-      <div className="w-full max-w-screen-2xl mx-auto flex h-20 items-center justify-between px-4 md:px-6 overflow-hidden">
+      <div className="w-full max-w-screen-2xl mx-auto flex h-14 items-center justify-between px-3 md:px-6 overflow-hidden">
         <Link href="/">
           <div className="flex items-center cursor-pointer group flex-shrink-0 transition-opacity duration-200 group-hover:opacity-90" data-testid="link-home">
             <Logo />
