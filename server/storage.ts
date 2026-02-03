@@ -28,6 +28,7 @@ import {
   supportConversations,
   supportMessages,
   supportTickets,
+  pushSubscriptions,
   type User,
   type UpsertUser,
   type Property,
@@ -387,6 +388,12 @@ export interface IStorage {
     pendingKyc: number;
   }>;
   getAllBookingsForAdmin(filters?: { status?: string; propertyId?: string; limit?: number }): Promise<(Booking & { property: Property; guest: User })[]>;
+
+  // Push subscription operations
+  createPushSubscription(subscription: { userId: string; endpoint: string; p256dh: string; auth: string; userAgent?: string }): Promise<void>;
+  getPushSubscriptions(userId: string): Promise<{ endpoint: string; p256dh: string; auth: string }[]>;
+  deletePushSubscription(endpoint: string): Promise<void>;
+  deletePushSubscriptionsByUser(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3115,6 +3122,49 @@ export class DatabaseStorage implements IStorage {
       resolvedAt: new Date(),
       resolutionNotes: notes,
     });
+  }
+
+  // Push subscription operations
+  async createPushSubscription(subscription: { userId: string; endpoint: string; p256dh: string; auth: string; userAgent?: string }): Promise<void> {
+    await db
+      .insert(pushSubscriptions)
+      .values({
+        userId: subscription.userId,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+        userAgent: subscription.userAgent,
+      })
+      .onConflictDoUpdate({
+        target: pushSubscriptions.endpoint,
+        set: {
+          userId: subscription.userId,
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
+          userAgent: subscription.userAgent,
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  async getPushSubscriptions(userId: string): Promise<{ endpoint: string; p256dh: string; auth: string }[]> {
+    const subs = await db
+      .select({
+        endpoint: pushSubscriptions.endpoint,
+        p256dh: pushSubscriptions.p256dh,
+        auth: pushSubscriptions.auth,
+      })
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, userId));
+    return subs;
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  }
+
+  async deletePushSubscriptionsByUser(userId: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
   }
 }
 
