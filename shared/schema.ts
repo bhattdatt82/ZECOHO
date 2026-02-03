@@ -1503,4 +1503,33 @@ export const callLogsRelations = relations(callLogs, ({ one }) => ({
     fields: [callLogs.propertyId],
     references: [properties.id],
   }),
+}));
+
+// Push notification subscriptions
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").references(() => users.id).notNull(),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    index("IDX_push_sub_user").on(table.userId),
+    uniqueIndex("IDX_push_sub_endpoint").on(table.endpoint),
+  ],
+);
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
+
+export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [pushSubscriptions.userId],
+    references: [users.id],
+  }),
 }))
