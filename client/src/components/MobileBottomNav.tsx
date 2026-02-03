@@ -77,6 +77,9 @@ export function MobileBottomNav() {
     },
   ];
 
+  // Hide Search tab when already on search page (to avoid redundancy with sticky search bar)
+  const isOnSearchPage = location.startsWith("/search");
+
   const guestNavItems: NavItem[] = [
     {
       href: "/",
@@ -84,12 +87,13 @@ export function MobileBottomNav() {
       label: "Home",
       active: location === "/",
     },
-    {
+    // Only show Search tab when not already on search page
+    ...(isOnSearchPage ? [] : [{
       href: "/search",
       icon: Search,
       label: "Search",
-      active: location.startsWith("/search"),
-    },
+      active: false,
+    }]),
     {
       href: isAuthenticated ? "/messages" : "/login?returnTo=/messages",
       icon: MessageCircle,

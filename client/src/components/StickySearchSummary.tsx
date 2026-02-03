@@ -139,6 +139,7 @@ export function StickySearchSummary({
               initialChildren={children}
               initialRooms={rooms}
               ctaText="Update Search"
+              autoSearchOnChange={true}
             />
           </div>
         )}

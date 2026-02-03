@@ -42,6 +42,7 @@ interface SearchBarProps {
   initialChildren?: number;
   initialRooms?: number;
   ctaText?: string;
+  autoSearchOnChange?: boolean; // Trigger search automatically when destination changes
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -73,6 +74,7 @@ export function SearchBar({
   initialChildren = 0,
   initialRooms = 1,
   ctaText = "Book Now",
+  autoSearchOnChange = false,
 }: SearchBarProps) {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
@@ -524,6 +526,25 @@ export function SearchBar({
       });
     }
   };
+
+  // Auto-search when destination changes (debounced) - useful for edit mode
+  const debouncedAutoSearch = useDebounce(destination, 500);
+  const prevAutoSearchRef = useRef(initialDestination);
+  
+  // Sync ref when initialDestination prop changes (avoid redundant auto-search on prop updates)
+  useEffect(() => {
+    prevAutoSearchRef.current = initialDestination;
+  }, [initialDestination]);
+  
+  useEffect(() => {
+    // Only trigger auto-search if enabled and destination has actually changed from initial
+    if (autoSearchOnChange && debouncedAutoSearch !== prevAutoSearchRef.current) {
+      prevAutoSearchRef.current = debouncedAutoSearch;
+      const checkIn = checkInDate ? format(checkInDate, 'yyyy-MM-dd') : '';
+      const checkOut = checkOutDate ? format(checkOutDate, 'yyyy-MM-dd') : '';
+      onSearch?.({ destination: debouncedAutoSearch.trim(), checkIn, checkOut, guests, adults, children, rooms });
+    }
+  }, [debouncedAutoSearch, autoSearchOnChange, checkInDate, checkOutDate, guests, adults, children, rooms, onSearch]);
 
   // Handler for check-in date selection - auto opens check-out
   const handleCheckInSelect = (date: Date | undefined) => {
