@@ -9,9 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Check, LayoutDashboard, CalendarCheck, IndianRupee, Star, Phone, Handshake, Info, Calendar, Users, Package, Bell } from "lucide-react";
+import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Check, LayoutDashboard, CalendarCheck, IndianRupee, Star, Phone, Handshake, Info, Calendar, Users, Package } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { useNotifications } from "@/hooks/useNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,7 +23,6 @@ type ConversationWithUnread = Conversation & { unreadCount: number };
 export function Header() {
   const { user, isAuthenticated, isAdmin, isOwner } = useAuth();
   const { hasRejectedKyc, isKycNotStarted, isKycPending, isKycVerified } = useKycGuard();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [location] = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -49,8 +47,7 @@ export function Header() {
 
   const totalUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
 
-  // Play sound when new notifications or messages arrive
-  useNotificationSound(unreadCount, !!isAuthenticated, true);
+  // Play sound when new messages arrive
   useNotificationSound(totalUnreadCount, !!isAuthenticated, true);
 
   // Check if KYC is rejected - from either user.kycStatus OR kycApplication.status
@@ -345,79 +342,6 @@ export function Header() {
                   </Button>
                 </Link>
               ) : null}
-
-              {/* Notification Bell with integrated push notification toggle */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
-                    <Bell className="h-5 w-5" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                        {unreadCount > 9 ? "9+" : unreadCount}
-                      </span>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <p className="text-sm font-semibold">Notifications</p>
-                    <div className="flex items-center gap-1">
-                      {unreadCount > 0 && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-xs h-7"
-                          onClick={() => markAllAsRead()}
-                          data-testid="button-mark-all-read"
-                        >
-                          Mark all read
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <div className="px-3 py-6 text-center text-muted-foreground text-sm">
-                        No notifications yet
-                      </div>
-                    ) : (
-                      notifications.slice(0, 10).map((notification) => (
-                        <DropdownMenuItem 
-                          key={notification.id}
-                          className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${!notification.isRead ? "bg-muted/50" : ""}`}
-                          onClick={() => {
-                            if (!notification.isRead) {
-                              markAsRead(notification.id);
-                            }
-                            if (notification.entityType === "booking" && notification.entityId) {
-                              window.location.href = `/my-bookings?highlight=${notification.entityId}`;
-                            } else if (notification.entityType === "conversation" && notification.entityId) {
-                              window.location.href = `/messages/${notification.entityId}`;
-                            } else if (notification.entityType === "property" && notification.entityId) {
-                              window.location.href = `/owner/properties`;
-                            }
-                          }}
-                          data-testid={`notification-item-${notification.id}`}
-                        >
-                          <div className="flex items-start gap-2 w-full">
-                            {!notification.isRead && (
-                              <span className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{notification.title}</p>
-                              <p className="text-xs text-muted-foreground line-clamp-2">{notification.body}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {notification.createdAt ? new Date(notification.createdAt).toLocaleDateString() : ""}
-                              </p>
-                            </div>
-                          </div>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
