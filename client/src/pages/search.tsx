@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { PropertyCard } from "@/components/PropertyCard";
-import { SearchBar } from "@/components/SearchBar";
+import { StickySearchSummary } from "@/components/StickySearchSummary";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -280,33 +280,58 @@ export default function Search() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Search Header - Sticky to remain visible on scroll */}
-      <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container px-4 md:px-6 py-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <SearchBar 
-                onSearch={handleSearch}
-                showDates={true}
-                showGuests={true}
-                initialDestination={initialSearchValues.destination}
-                initialCheckIn={initialSearchValues.checkIn}
-                initialCheckOut={initialSearchValues.checkOut}
-                initialGuests={initialSearchValues.guests}
-                initialAdults={initialSearchValues.adults}
-                initialChildren={initialSearchValues.children}
-                initialRooms={initialSearchValues.rooms}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* MakeMyTrip-style Sticky Search Summary with Edit Option */}
+      <StickySearchSummary
+        destination={initialSearchValues.destination}
+        checkIn={initialSearchValues.checkIn}
+        checkOut={initialSearchValues.checkOut}
+        adults={initialSearchValues.adults}
+        children={initialSearchValues.children}
+        rooms={initialSearchValues.rooms}
+        onSearch={handleSearch}
+      />
 
-      {/* Horizontal Filters Bar - All filters in one scrollable row on desktop */}
-      <div className="border-b bg-muted/30">
-          <div className="container px-4 md:px-6 py-4">
-            {/* Single Row of All Filters - horizontal scroll on mobile, single line on desktop */}
-            <div className="flex items-end gap-3 overflow-x-auto pb-2 lg:overflow-x-visible lg:flex-nowrap scrollbar-thin">
+      {/* Horizontal Filters Bar - MakeMyTrip style */}
+      <div className="border-b bg-muted/30 sticky top-[57px] z-40">
+          <div className="container px-4 md:px-6 py-3">
+            {/* Mobile: Filter Toggle Button */}
+            <div className="md:hidden flex items-center justify-between mb-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMoreFilters(!showMoreFilters)}
+                className="gap-2"
+                data-testid="button-toggle-filters"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full text-xs">
+                    {selectedTypes.length + selectedBudgets.length + selectedRatings.length + 
+                     selectedAmenities.length + selectedStarRatings.length + 
+                     (coupleFriendly ? 1 : 0) + (hourlyAvailability ? 1 : 0) + 
+                     (localIdAllowed ? 1 : 0) + (foreignGuestsAllowed ? 1 : 0) + 
+                     (selectedLocality ? 1 : 0)}
+                  </Badge>
+                )}
+                {showMoreFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  data-testid="button-clear-filters-mobile"
+                  className="text-destructive"
+                >
+                  Clear All
+                </Button>
+              )}
+            </div>
+
+            {/* Filters Row - Always visible on desktop, toggle on mobile */}
+            <div className={`${showMoreFilters ? 'block' : 'hidden'} md:block`}>
+              <div className="flex items-end gap-3 overflow-x-auto pb-2 lg:overflow-x-visible lg:flex-nowrap scrollbar-thin">
               {/* Property Type Filter */}
               <div className="flex-shrink-0">
                 <MultiSelectFilter
@@ -463,9 +488,9 @@ export default function Search() {
                 </Select>
               </div>
 
-              {/* Clear Filters Button - inline with filters */}
+              {/* Clear Filters Button - inline with filters (desktop only) */}
               {hasActiveFilters && (
-                <div className="flex-shrink-0 self-end">
+                <div className="flex-shrink-0 self-end hidden md:block">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -478,6 +503,7 @@ export default function Search() {
                   </Button>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
