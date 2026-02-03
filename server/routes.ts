@@ -3944,6 +3944,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Don't fail the request if messaging fails
         }
         
+        // Send push notification to owner about customer confirmation
+        try {
+          const { sendBookingPush } = require('./services/pushService');
+          await sendBookingPush(property.ownerId, 'customer_confirmed', property.title, booking.id);
+        } catch (pushError) {
+          console.error('Failed to send customer confirmation push notification:', pushError);
+        }
+        
         // STATE: CUSTOMER_CONFIRMED - Send confirmation emails to both guest and owner
         const checkInFormatted = new Date(booking.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
         const checkOutFormatted = new Date(booking.checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });

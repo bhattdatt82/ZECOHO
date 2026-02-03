@@ -82,7 +82,7 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
 
 export async function sendBookingPush(
   userId: string, 
-  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'booking_rejected',
+  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'booking_rejected' | 'customer_confirmed',
   propertyName: string,
   bookingId: string
 ) {
@@ -106,6 +106,11 @@ export async function sendBookingPush(
       title: 'Booking Not Available',
       body: `Your booking request at ${propertyName} could not be accommodated`,
       url: `/bookings?highlight=${bookingId}`,
+    },
+    customer_confirmed: {
+      title: 'Booking Confirmed by Guest',
+      body: `A guest has confirmed their booking at ${propertyName}`,
+      url: `/owner/bookings?highlight=${bookingId}`,
     },
   };
 
