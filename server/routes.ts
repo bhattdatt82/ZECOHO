@@ -10,7 +10,7 @@ import { insertPropertySchema, insertRoomSchema, insertRoomOptionSchema, insertW
 import { ObjectStorageService, ObjectNotFoundError, generateUploadToken, verifyUploadToken } from "./objectStorage";
 import { ObjectPermission, setObjectAclPolicy } from "./objectAcl";
 import { sendOtpEmail, sendKycSubmittedEmail, sendKycApprovedEmail, sendKycRejectedEmail, sendPropertyLiveEmail, sendPasswordChangedEmail, sendPropertyStatusEmail, sendBookingConfirmationEmail, sendBookingRequestToOwnerEmail, sendBookingCreatedGuestEmail, sendBookingOwnerAcceptedEmail, sendBookingConfirmedGuestEmail, sendBookingConfirmedOwnerEmail, sendBookingDeclinedEmail, sendBookingNoShowEmail, sendBookingCancelledOwnerEmail, sendReviewRequestEmail, sendAdminDeactivationRequestEmail } from "./emailService";
-import { createNotification } from "./services/notificationService";
+import { createNotification, createBookingNotification } from "./services/notificationService";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { WebSocketServer, WebSocket } from "ws";
@@ -3499,6 +3499,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ).catch(console.error);
       }
       
+      // Create in-app notification for owner about new booking request
+      const guestFullName = guest?.firstName && guest?.lastName 
+        ? `${guest.firstName} ${guest.lastName}` 
+        : guest?.email || 'Guest';
+      createBookingNotification(
+        property.ownerId,
+        booking.id,
+        guestFullName,
+        property.title,
+        "booking_request"
+      ).catch(console.error);
+      
       // Create/get conversation and send automated message with booking details
       try {
         const conversation = await storage.getOrCreateConversation(validatedData.propertyId, userId);
@@ -3944,6 +3956,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Don't fail the request if messaging fails
         }
         
+        // Create in-app notification for owner about customer confirmation
+        const guestFullName = guest?.firstName && guest?.lastName 
+          ? `${guest.firstName} ${guest.lastName}` 
+          : guest?.email || 'Guest';
+        createNotification({
+          userId: property.ownerId,
+          title: "Booking Confirmed",
+          body: `${guestFullName} has confirmed their booking at ${property.title}. Get ready to welcome them!`,
+          type: "booking_confirmed",
+          entityId: booking.id,
+          entityType: "booking",
+        }).catch(console.error);
+        
         // Send push notification to owner about customer confirmation
         try {
           const { sendBookingPush } = require('./services/pushService');
@@ -4311,6 +4336,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`[BOOKING:CANCELLED] Guest ${userId} cancelled booking ${bookingId}, refund: ${updated?.refundPercentage}% (${updated?.refundAmount})`);
+      
+      // Create in-app notification for owner about guest cancellation
+      const guestFullName = guest?.firstName && guest?.lastName 
+        ? `${guest.firstName} ${guest.lastName}` 
+        : guest?.email || 'Guest';
+      createBookingNotification(
+        property.ownerId,
+        bookingId,
+        guestFullName,
+        property.title,
+        "booking_cancelled"
+      ).catch(console.error);
       
       res.json({ 
         ...updated, 
@@ -8047,6 +8084,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
         broadcastToUser(guest.id, notification);
+      }
+      
+      // Create in-app notification for guest about booking status change
+      if (status === "confirmed") {
+        createNotification({
+          userId: booking.guestId,
+          title: "Booking Accepted",
+          body: `Your booking at ${property.title} has been accepted by the owner. Please confirm to complete your reservation.`,
+          type: "booking_confirmed",
+          entityId: booking.id,
+          entityType: "booking",
+        }).catch(console.error);
+      } else if (status === "rejected") {
+        createNotification({
+          userId: booking.guestId,
+          title: "Booking Declined",
+          body: `Your booking request at ${property.title} was declined.${responseMessage ? ` Reason: ${responseMessage}` : ''}`,
+          type: "booking_cancelled",
+          entityId: booking.id,
+          entityType: "booking",
+        }).catch(console.error);
       }
       
       // Send push notification to guest about booking status

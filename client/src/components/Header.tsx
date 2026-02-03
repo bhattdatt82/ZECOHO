@@ -347,10 +347,7 @@ export function Header() {
                 </Link>
               ) : null}
 
-              {/* Push Notification Toggle */}
-              <PushNotificationButton />
-
-              {/* Notification Bell */}
+              {/* Notification Bell with integrated push notification toggle */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
@@ -365,17 +362,20 @@ export function Header() {
                 <DropdownMenuContent align="end" className="w-80">
                   <div className="flex items-center justify-between px-3 py-2">
                     <p className="text-sm font-semibold">Notifications</p>
-                    {unreadCount > 0 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-xs h-7"
-                        onClick={() => markAllAsRead()}
-                        data-testid="button-mark-all-read"
-                      >
-                        Mark all read
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {unreadCount > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-xs h-7"
+                          onClick={() => markAllAsRead()}
+                          data-testid="button-mark-all-read"
+                        >
+                          Mark all read
+                        </Button>
+                      )}
+                      <PushNotificationButton variant="ghost" size="sm" />
+                    </div>
                   </div>
                   <DropdownMenuSeparator />
                   <div className="max-h-80 overflow-y-auto">
