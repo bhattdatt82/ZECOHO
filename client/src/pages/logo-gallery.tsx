@@ -19,7 +19,7 @@ function LogoSVG({ size = 200 }: { size?: number }) {
       </defs>
       <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
       <text 
-        x="20" 
+        x="18" 
         y="118" 
         fill="white" 
         fontFamily="system-ui, -apple-system, sans-serif" 
@@ -29,17 +29,17 @@ function LogoSVG({ size = 200 }: { size?: number }) {
       >
         ZECOH
       </text>
-      {/* Special O symbol - matches header logo */}
-      <g transform="translate(152, 78)">
+      {/* Special O symbol - exact match to header logo */}
+      <svg x="145" y="75" width="40" height="40" viewBox="0 0 24 24">
         <path 
-          d="M 18.36 5.64 A 15 15 0 1 0 22 14" 
+          d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" 
           stroke="white" 
-          strokeWidth="4" 
+          strokeWidth="2.5" 
           strokeLinecap="round"
           fill="none" 
         />
-        <circle cx="12" cy="18" r="4" fill="white" />
-      </g>
+        <circle cx="12" cy="12" r="2.5" fill="white" />
+      </svg>
     </svg>
   );
 }
@@ -53,11 +53,11 @@ function downloadSVG() {
     </linearGradient>
   </defs>
   <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
-  <text x="20" y="118" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" letter-spacing="1">ZECOH</text>
-  <g transform="translate(152, 78)">
-    <path d="M 18.36 5.64 A 15 15 0 1 0 22 14" stroke="white" stroke-width="4" stroke-linecap="round" fill="none" />
-    <circle cx="12" cy="18" r="4" fill="white" />
-  </g>
+  <text x="18" y="118" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" letter-spacing="1">ZECOH</text>
+  <svg x="145" y="75" width="40" height="40" viewBox="0 0 24 24">
+    <path d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" />
+    <circle cx="12" cy="12" r="2.5" fill="white" />
+  </svg>
 </svg>`;
   
   const blob = new Blob([svgContent], { type: 'image/svg+xml' });
@@ -99,24 +99,38 @@ function downloadPNG(size: number) {
 
   ctx.fillStyle = 'white';
   ctx.font = `700 ${size * 0.21}px system-ui, -apple-system, sans-serif`;
-  ctx.fillText('ZECOH', size * 0.10, size * 0.59);
+  ctx.fillText('ZECOH', size * 0.09, size * 0.59);
 
-  // Draw the special O symbol (circle with gap and dot in center)
-  const oX = size * 0.84;
-  const oY = size * 0.48;
-  const oRadius = size * 0.08;
+  // Draw the special O symbol matching header logo exactly
+  // The O is positioned at x=145, y=75 in a 200x200 viewBox, scaled to 40x40
+  const oOffsetX = size * 0.725; // 145/200
+  const oOffsetY = size * 0.375; // 75/200
+  const oSize = size * 0.2;     // 40/200
+  const scale = oSize / 24;      // Scale from 24x24 viewBox
   
-  // Draw the arc (circle with a gap at top-right)
+  // Center of the O symbol in canvas coordinates
+  const oCenterX = oOffsetX + (12 * scale);
+  const oCenterY = oOffsetY + (12 * scale);
+  const oRadius = 9 * scale;
+  
+  // Draw the arc (almost complete circle with gap at top-right)
+  // Original path: M 18.36 5.64 A 9 9 0 1 0 20.5 10
+  // This creates a circle from angle ~-45deg going almost all the way around
   ctx.beginPath();
-  ctx.arc(oX, oY, oRadius, 0.4 * Math.PI, 2.3 * Math.PI);
+  ctx.arc(oCenterX, oCenterY, oRadius, -0.75 * Math.PI, 0.35 * Math.PI, true);
   ctx.strokeStyle = 'white';
-  ctx.lineWidth = size * 0.02;
+  ctx.lineWidth = 2.5 * scale;
   ctx.lineCap = 'round';
+  ctx.stroke();
+  
+  // Draw the rest of the arc (completing most of the circle)
+  ctx.beginPath();
+  ctx.arc(oCenterX, oCenterY, oRadius, 0.35 * Math.PI, -0.75 * Math.PI, false);
   ctx.stroke();
   
   // Draw center dot
   ctx.beginPath();
-  ctx.arc(oX, oY, size * 0.02, 0, 2 * Math.PI);
+  ctx.arc(oCenterX, oCenterY, 2.5 * scale, 0, 2 * Math.PI);
   ctx.fillStyle = 'white';
   ctx.fill();
 
