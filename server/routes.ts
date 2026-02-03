@@ -3550,6 +3550,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entityId: booking.id,
           entityType: "booking"
         });
+        
+        // Send push notification to owner
+        const { sendBookingPush } = require('./services/pushService');
+        await sendBookingPush(property.ownerId, 'new_booking', property.title, booking.id);
       } catch (notifError) {
         console.error('Failed to create booking notification:', notifError);
       }
@@ -4431,6 +4435,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Also broadcast to sender so they see instant updates across tabs/devices
       broadcastToUser(userId, broadcastData);
+      
+      // Send push notification to recipient
+      try {
+        const { sendMessagePush } = require('./services/pushService');
+        const senderName = sender ? `${sender.firstName || ''} ${sender.lastName || ''}`.trim() || 'Someone' : 'Someone';
+        await sendMessagePush(recipientId, senderName, req.params.id, validatedData.content);
+      } catch (pushError) {
+        console.error('Failed to send message push notification:', pushError);
+      }
       
       res.json(messageWithSender);
     } catch (error: any) {
@@ -8026,6 +8039,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         
         broadcastToUser(guest.id, notification);
+      }
+      
+      // Send push notification to guest about booking status
+      try {
+        const { sendBookingPush } = require('./services/pushService');
+        if (status === "confirmed") {
+          await sendBookingPush(booking.guestId, 'booking_confirmed', property.title, booking.id);
+        } else if (status === "rejected") {
+          await sendBookingPush(booking.guestId, 'booking_rejected', property.title, booking.id);
+        } else if (status === "cancelled") {
+          await sendBookingPush(booking.guestId, 'booking_cancelled', property.title, booking.id);
+        }
+      } catch (pushError) {
+        console.error('Failed to send booking status push notification:', pushError);
       }
       
       // STATE-DRIVEN EMAILS: Send appropriate emails based on new status

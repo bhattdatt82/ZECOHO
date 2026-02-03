@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Heart, User, LogOut, Menu, Building, MessageCircle, History, PlusCircle, Shield, Settings, FileText, MapPin, CheckCircle, Clock, XCircle, Check, LayoutDashboard, CalendarCheck, IndianRupee, Star, Phone, Handshake, Info, Calendar, Users, Package, Bell } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { PushNotificationButton } from "@/components/PushNotificationButton";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { Link, useLocation } from "wouter";
@@ -346,7 +347,9 @@ export function Header() {
                 </Link>
               ) : null}
 
-              {/* Owner Context Indicator - shows when user is in owner mode */}
+              {/* Push Notification Toggle */}
+              <PushNotificationButton />
+
               {/* Notification Bell */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
