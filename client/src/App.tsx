@@ -7,6 +7,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { KycRouteGuard } from "@/lib/KycRouteGuard";
 
 function ScrollToTop() {
@@ -149,6 +150,9 @@ function Router() {
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
+  
+  // Auto-subscribe authenticated users to push notifications by default
+  usePushNotifications(isAuthenticated);
 
   // Fetch current policy versions to check if user needs to re-consent
   const { data: policyVersions } = useQuery<{ termsVersion: number | null; privacyVersion: number | null }>({

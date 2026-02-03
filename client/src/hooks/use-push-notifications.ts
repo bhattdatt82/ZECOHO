@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface PushNotificationState {
@@ -7,23 +7,28 @@ interface PushNotificationState {
   permission: NotificationPermission | 'default';
   isLoading: boolean;
   error: string | null;
+  checkedInitial: boolean;
 }
 
-export function usePushNotifications() {
+const AUTO_SUBSCRIBE_KEY = 'zecoho_push_auto_subscribed';
+
+export function usePushNotifications(autoSubscribe: boolean = false) {
   const [state, setState] = useState<PushNotificationState>({
     isSupported: false,
     isSubscribed: false,
     permission: 'default',
     isLoading: false,
     error: null,
+    checkedInitial: false,
   });
+  const autoSubscribeAttempted = useRef(false);
 
   useEffect(() => {
     const checkSupport = async () => {
       const isSupported = 'serviceWorker' in navigator && 'PushManager' in window;
       
       if (!isSupported) {
-        setState(prev => ({ ...prev, isSupported: false }));
+        setState(prev => ({ ...prev, isSupported: false, checkedInitial: true }));
         return;
       }
 
@@ -45,6 +50,7 @@ export function usePushNotifications() {
         isSupported,
         permission,
         isSubscribed,
+        checkedInitial: true,
       }));
     };
 
@@ -148,6 +154,43 @@ export function usePushNotifications() {
       return false;
     }
   }, []);
+
+  // Auto-subscribe effect for logged-in users
+  useEffect(() => {
+    const attemptAutoSubscribe = async () => {
+      // Only auto-subscribe if:
+      // 1. Auto-subscribe is enabled
+      // 2. Initial check is complete
+      // 3. Push is supported
+      // 4. Not already subscribed
+      // 5. Haven't already attempted (to avoid loops)
+      // 6. Permission is not denied
+      if (
+        autoSubscribe &&
+        state.checkedInitial &&
+        state.isSupported &&
+        !state.isSubscribed &&
+        !autoSubscribeAttempted.current &&
+        state.permission !== 'denied'
+      ) {
+        // Check if we've already attempted auto-subscribe for this user
+        const alreadyAttempted = localStorage.getItem(AUTO_SUBSCRIBE_KEY);
+        if (alreadyAttempted) {
+          autoSubscribeAttempted.current = true;
+          return;
+        }
+
+        autoSubscribeAttempted.current = true;
+        localStorage.setItem(AUTO_SUBSCRIBE_KEY, 'true');
+        
+        // Attempt to subscribe
+        console.log('[Push] Auto-subscribing user to push notifications...');
+        await subscribe();
+      }
+    };
+
+    attemptAutoSubscribe();
+  }, [autoSubscribe, state.checkedInitial, state.isSupported, state.isSubscribed, state.permission, subscribe]);
 
   return {
     ...state,

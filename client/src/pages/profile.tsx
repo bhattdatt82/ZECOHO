@@ -22,8 +22,9 @@ import {
 } from "@/components/ui/select";
 import { insertUserPreferencesSchema } from "@shared/schema";
 import { z } from "zod";
-import { KeyRound, Eye, EyeOff, Check, User, Settings, HelpCircle, Shield, LogOut, ChevronRight, History, Heart, Calendar } from "lucide-react";
+import { KeyRound, Eye, EyeOff, Check, User, Settings, HelpCircle, Shield, LogOut, ChevronRight, History, Heart, Calendar, Bell, BellOff, Loader2 } from "lucide-react";
 import { Link } from "wouter";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 const preferencesFormSchema = insertUserPreferencesSchema.extend({
   userId: z.string(),
@@ -273,6 +274,42 @@ export default function Profile() {
     window.location.href = "/api/logout";
   };
 
+  // Push notification settings
+  const {
+    isSupported: pushSupported,
+    isSubscribed: pushSubscribed,
+    isLoading: pushLoading,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+    permission: pushPermission,
+  } = usePushNotifications();
+
+  const handleTogglePushNotifications = async () => {
+    if (pushSubscribed) {
+      const success = await unsubscribePush();
+      if (success) {
+        toast({
+          title: "Notifications disabled",
+          description: "You will no longer receive push notifications",
+        });
+      }
+    } else {
+      const success = await subscribePush();
+      if (success) {
+        toast({
+          title: "Notifications enabled",
+          description: "You will now receive push notifications for bookings and messages",
+        });
+      } else if (pushPermission === 'denied') {
+        toast({
+          title: "Notifications blocked",
+          description: "Please enable notifications in your browser settings",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   // Menu items for Airbnb-style profile menu
   const menuItems = [
     {
@@ -332,6 +369,17 @@ export default function Profile() {
     },
   ];
 
+  // Notification toggle menu item - rendered separately for dynamic state
+  const notificationMenuItem = pushSupported ? {
+    icon: pushLoading ? Loader2 : (pushSubscribed ? Bell : BellOff),
+    label: pushSubscribed ? "Push Notifications On" : "Push Notifications Off",
+    description: pushSubscribed ? "Tap to disable notifications" : "Tap to enable notifications",
+    onClick: handleTogglePushNotifications,
+    testId: "menu-push-notifications",
+    isLoading: pushLoading,
+    isActive: pushSubscribed,
+  } : null;
+
   return (
     <div className="min-h-screen pb-16">
       <div className="container px-4 md:px-6 py-6 max-w-4xl mx-auto">
@@ -389,6 +437,26 @@ export default function Profile() {
                   </div>
                 );
               })}
+
+              {/* Push Notification Toggle */}
+              {notificationMenuItem && (
+                <div 
+                  className="flex items-center justify-between p-4 hover-elevate cursor-pointer"
+                  onClick={notificationMenuItem.isLoading ? undefined : notificationMenuItem.onClick}
+                  data-testid={notificationMenuItem.testId}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${notificationMenuItem.isActive ? 'bg-primary/10' : 'bg-muted'}`}>
+                      <notificationMenuItem.icon className={`h-5 w-5 ${notificationMenuItem.isLoading ? 'animate-spin' : ''} ${notificationMenuItem.isActive ? 'text-primary' : 'text-foreground'}`} />
+                    </div>
+                    <div>
+                      <p className={`font-medium ${notificationMenuItem.isActive ? 'text-primary' : ''}`}>{notificationMenuItem.label}</p>
+                      <p className="text-sm text-muted-foreground">{notificationMenuItem.description}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
 
               {/* Logout Button */}
               <div 
