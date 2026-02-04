@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { KycRouteGuard } from "@/lib/KycRouteGuard";
+import { usePreLoginBooking } from "@/hooks/usePreLoginBooking";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -16,6 +17,24 @@ function ScrollToTop() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
+  
+  return null;
+}
+
+function PreLoginBookingRedirect() {
+  const { isAuthenticated } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { getRedirectUrl, clearBookingIntent } = usePreLoginBooking();
+  
+  useEffect(() => {
+    if (isAuthenticated) {
+      const redirectUrl = getRedirectUrl();
+      if (redirectUrl && !location.startsWith("/properties/")) {
+        clearBookingIntent();
+        setLocation(redirectUrl);
+      }
+    }
+  }, [isAuthenticated, location, getRedirectUrl, clearBookingIntent, setLocation]);
   
   return null;
 }
@@ -227,6 +246,7 @@ function AppContent() {
       <KycRouteGuard>
         <div className="flex flex-col min-h-screen">
           <ScrollToTop />
+          <PreLoginBookingRedirect />
           {showHeader && <Header />}
           <div className="flex-1 pt-14 md:pt-0 pb-12 md:pb-0">
             <Router />
