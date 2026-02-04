@@ -19,18 +19,20 @@ function LogoSVG({ size = 200 }: { size?: number }) {
         </linearGradient>
       </defs>
       <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
+      {/* Text "ZECOH" centered with space for the special O symbol */}
       <text 
-        x="18" 
+        x="22" 
         y="118" 
         fill={BRAND_TEXT_COLOR} 
         fontFamily="system-ui, -apple-system, sans-serif" 
-        fontSize="42" 
+        fontSize="40" 
         fontWeight="700"
         letterSpacing="1"
       >
         ZECOH
       </text>
-      <svg x="145" y="75" width="40" height="40" viewBox="0 0 24 24">
+      {/* Special O symbol - positioned right after ZECOH, aligned with text baseline */}
+      <g transform="translate(147, 82)">
         <path 
           d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" 
           stroke={BRAND_TEXT_COLOR} 
@@ -39,7 +41,7 @@ function LogoSVG({ size = 200 }: { size?: number }) {
           fill="none" 
         />
         <circle cx="12" cy="12" r="2.5" fill={BRAND_TEXT_COLOR} />
-      </svg>
+      </g>
     </svg>
   );
 }
@@ -53,11 +55,11 @@ function downloadSVG() {
     </linearGradient>
   </defs>
   <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
-  <text x="18" y="118" fill="${BRAND_TEXT_COLOR}" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" letter-spacing="1">ZECOH</text>
-  <svg x="145" y="75" width="40" height="40" viewBox="0 0 24 24">
+  <text x="22" y="118" fill="${BRAND_TEXT_COLOR}" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="700" letter-spacing="1">ZECOH</text>
+  <g transform="translate(147, 82)">
     <path d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" stroke="${BRAND_TEXT_COLOR}" stroke-width="2.5" stroke-linecap="round" fill="none" />
     <circle cx="12" cy="12" r="2.5" fill="${BRAND_TEXT_COLOR}" />
-  </svg>
+  </g>
 </svg>`;
   
   const blob = new Blob([svgContent], { type: 'image/svg+xml' });
@@ -98,24 +100,21 @@ function downloadPNG(size: number) {
   ctx.fill();
 
   ctx.fillStyle = BRAND_TEXT_COLOR;
-  ctx.font = `700 ${size * 0.21}px system-ui, -apple-system, sans-serif`;
-  ctx.fillText('ZECOH', size * 0.09, size * 0.59);
+  ctx.font = `700 ${size * 0.2}px system-ui, -apple-system, sans-serif`;
+  ctx.fillText('ZECOH', size * 0.11, size * 0.59);
 
-  // Draw the special O symbol matching header logo exactly
-  // The O is positioned at x=145, y=75 in a 200x200 viewBox, scaled to 40x40
-  const oOffsetX = size * 0.725; // 145/200
-  const oOffsetY = size * 0.375; // 75/200
-  const oSize = size * 0.2;     // 40/200
-  const scale = oSize / 24;      // Scale from 24x24 viewBox
+  // Draw the special O symbol matching the SVG exactly
+  // In SVG: translate(147, 82) in a 200x200 viewBox
+  const oOffsetX = size * 0.735; // 147/200
+  const oOffsetY = size * 0.41;  // 82/200
+  const scale = size / 200;
   
-  // Center of the O symbol in canvas coordinates
+  // Center of the O symbol (cx=12, cy=12 in the 24x24 viewBox)
   const oCenterX = oOffsetX + (12 * scale);
   const oCenterY = oOffsetY + (12 * scale);
   const oRadius = 9 * scale;
   
   // Draw the arc (almost complete circle with gap at top-right)
-  // Original path: M 18.36 5.64 A 9 9 0 1 0 20.5 10
-  // This creates a circle from angle ~-45deg going almost all the way around
   ctx.beginPath();
   ctx.arc(oCenterX, oCenterY, oRadius, -0.75 * Math.PI, 0.35 * Math.PI, true);
   ctx.strokeStyle = BRAND_TEXT_COLOR;
@@ -123,7 +122,7 @@ function downloadPNG(size: number) {
   ctx.lineCap = 'round';
   ctx.stroke();
   
-  // Draw the rest of the arc (completing most of the circle)
+  // Complete the circle arc
   ctx.beginPath();
   ctx.arc(oCenterX, oCenterY, oRadius, 0.35 * Math.PI, -0.75 * Math.PI, false);
   ctx.stroke();
