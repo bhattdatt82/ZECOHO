@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download } from "lucide-react";
+import { BRAND_BG_COLOR, BRAND_BG_COLOR_LIGHT, BRAND_TEXT_COLOR } from "@/constants/brand";
 
 function LogoSVG({ size = 200 }: { size?: number }) {
   return (
@@ -13,15 +14,15 @@ function LogoSVG({ size = 200 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="logoGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#F9A03F" />
-          <stop offset="100%" stopColor="#F37021" />
+          <stop offset="0%" stopColor={BRAND_BG_COLOR_LIGHT} />
+          <stop offset="100%" stopColor={BRAND_BG_COLOR} />
         </linearGradient>
       </defs>
       <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
       <text 
         x="18" 
         y="118" 
-        fill="white" 
+        fill={BRAND_TEXT_COLOR} 
         fontFamily="system-ui, -apple-system, sans-serif" 
         fontSize="42" 
         fontWeight="700"
@@ -29,16 +30,15 @@ function LogoSVG({ size = 200 }: { size?: number }) {
       >
         ZECOH
       </text>
-      {/* Special O symbol - exact match to header logo */}
       <svg x="145" y="75" width="40" height="40" viewBox="0 0 24 24">
         <path 
           d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" 
-          stroke="white" 
+          stroke={BRAND_TEXT_COLOR} 
           strokeWidth="2.5" 
           strokeLinecap="round"
           fill="none" 
         />
-        <circle cx="12" cy="12" r="2.5" fill="white" />
+        <circle cx="12" cy="12" r="2.5" fill={BRAND_TEXT_COLOR} />
       </svg>
     </svg>
   );
@@ -48,15 +48,15 @@ function downloadSVG() {
   const svgContent = `<svg width="512" height="512" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="logoGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#F9A03F" />
-      <stop offset="100%" stop-color="#F37021" />
+      <stop offset="0%" stop-color="${BRAND_BG_COLOR_LIGHT}" />
+      <stop offset="100%" stop-color="${BRAND_BG_COLOR}" />
     </linearGradient>
   </defs>
   <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
-  <text x="18" y="118" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" letter-spacing="1">ZECOH</text>
+  <text x="18" y="118" fill="${BRAND_TEXT_COLOR}" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" letter-spacing="1">ZECOH</text>
   <svg x="145" y="75" width="40" height="40" viewBox="0 0 24 24">
-    <path d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" />
-    <circle cx="12" cy="12" r="2.5" fill="white" />
+    <path d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" stroke="${BRAND_TEXT_COLOR}" stroke-width="2.5" stroke-linecap="round" fill="none" />
+    <circle cx="12" cy="12" r="2.5" fill="${BRAND_TEXT_COLOR}" />
   </svg>
 </svg>`;
   
@@ -79,8 +79,8 @@ function downloadPNG(size: number) {
   if (!ctx) return;
 
   const gradient = ctx.createLinearGradient(0, 0, 0, size);
-  gradient.addColorStop(0, '#F9A03F');
-  gradient.addColorStop(1, '#F37021');
+  gradient.addColorStop(0, BRAND_BG_COLOR_LIGHT);
+  gradient.addColorStop(1, BRAND_BG_COLOR);
 
   const radius = size * 0.16;
   ctx.beginPath();
@@ -97,7 +97,7 @@ function downloadPNG(size: number) {
   ctx.fillStyle = gradient;
   ctx.fill();
 
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = BRAND_TEXT_COLOR;
   ctx.font = `700 ${size * 0.21}px system-ui, -apple-system, sans-serif`;
   ctx.fillText('ZECOH', size * 0.09, size * 0.59);
 
@@ -118,7 +118,7 @@ function downloadPNG(size: number) {
   // This creates a circle from angle ~-45deg going almost all the way around
   ctx.beginPath();
   ctx.arc(oCenterX, oCenterY, oRadius, -0.75 * Math.PI, 0.35 * Math.PI, true);
-  ctx.strokeStyle = 'white';
+  ctx.strokeStyle = BRAND_TEXT_COLOR;
   ctx.lineWidth = 2.5 * scale;
   ctx.lineCap = 'round';
   ctx.stroke();
@@ -131,7 +131,7 @@ function downloadPNG(size: number) {
   // Draw center dot
   ctx.beginPath();
   ctx.arc(oCenterX, oCenterY, 2.5 * scale, 0, 2 * Math.PI);
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = BRAND_TEXT_COLOR;
   ctx.fill();
 
   canvas.toBlob((blob) => {
