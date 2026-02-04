@@ -357,7 +357,7 @@ export function PropertyCard({ property, onWishlistToggle, searchParams }: Prope
                   <MessageCircle className="h-4 w-4 mr-1" />
                   {chatMutation.isPending ? "..." : "Chat"}
                 </Button>
-                {hasOwnerPhone && (
+                {isAuthenticated && hasOwnerPhone && (
                   <Button
                     variant="ghost"
                     size="sm"

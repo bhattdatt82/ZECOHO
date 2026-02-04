@@ -2240,23 +2240,12 @@ export default function PropertyDetails() {
                       <MessageCircle className="h-4 w-4 mr-2" />
                       {contactOwnerMutation.isPending ? "Loading..." : "Chat with Owner"}
                     </Button>
-                    {(property as any).ownerContact?.phone && (
+                    {user && (property as any).ownerContact?.phone && (
                       <Button
                         className="w-full"
                         variant="outline"
                         size="lg"
                         onClick={() => {
-                          if (!user) {
-                            toast({
-                              title: "Login Required",
-                              description: "Please login to call the owner",
-                              variant: "destructive",
-                            });
-                            setTimeout(() => {
-                              window.location.href = "/api/login";
-                            }, 500);
-                            return;
-                          }
                           window.location.href = `tel:${(property as any).ownerContact.phone}`;
                         }}
                         data-testid="button-call-owner"
