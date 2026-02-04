@@ -92,6 +92,7 @@ import type { Property, Amenity } from "@shared/schema";
 import { insertReviewSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { usePreLoginBooking } from "@/hooks/usePreLoginBooking";
 
 const reviewFormSchema = insertReviewSchema
   .pick({ rating: true, comment: true })
@@ -148,6 +149,7 @@ export default function PropertyDetails() {
   const propertyId = params?.id;
   const { toast } = useToast();
   const { user } = useAuth();
+  const { saveBookingIntent, getBookingIntent, clearBookingIntent } = usePreLoginBooking();
   
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
@@ -182,6 +184,8 @@ export default function PropertyDetails() {
       const urlAdults = searchParams.get("adults");
       const urlChildren = searchParams.get("children");
       const urlRooms = searchParams.get("rooms");
+      const urlRoomType = searchParams.get("roomType");
+      const urlMealOption = searchParams.get("mealOption");
       
       // Load saved guest preferences from localStorage
       const savedPrefs = localStorage.getItem("guestPreferences");
@@ -218,8 +222,46 @@ export default function PropertyDetails() {
       setAdults(urlAdults ? parseInt(urlAdults) : (savedGuestPrefs?.adults ?? 2));
       setChildren(urlChildren ? parseInt(urlChildren) : (savedGuestPrefs?.children ?? 0));
       setRooms(urlRooms ? parseInt(urlRooms) : (savedGuestPrefs?.rooms ?? 1));
+      
+      if (urlRoomType) {
+        setSelectedRoomTypeId(urlRoomType);
+      }
+      if (urlMealOption) {
+        setSelectedMealOptionId(urlMealOption);
+      }
     }
   }, []);
+  
+  // Restore pre-login booking intent when user logs in
+  useEffect(() => {
+    if (user && propertyId) {
+      const savedIntent = getBookingIntent();
+      if (savedIntent && savedIntent.propertyId === propertyId) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (savedIntent.checkIn) {
+          const savedCheckIn = new Date(savedIntent.checkIn);
+          if (savedCheckIn >= today) {
+            setCheckIn(savedIntent.checkIn);
+          }
+        }
+        if (savedIntent.checkOut && savedIntent.checkIn) {
+          const savedCheckOut = new Date(savedIntent.checkOut);
+          if (savedCheckOut > new Date(savedIntent.checkIn)) {
+            setCheckOut(savedIntent.checkOut);
+          }
+        }
+        if (savedIntent.adults) setAdults(savedIntent.adults);
+        if (savedIntent.children !== undefined) setChildren(savedIntent.children);
+        if (savedIntent.rooms) setRooms(savedIntent.rooms);
+        if (savedIntent.selectedRoomTypeId) setSelectedRoomTypeId(savedIntent.selectedRoomTypeId);
+        if (savedIntent.selectedMealOptionId) setSelectedMealOptionId(savedIntent.selectedMealOptionId);
+        
+        clearBookingIntent();
+      }
+    }
+  }, [user, propertyId, getBookingIntent, clearBookingIntent]);
   
   // Save guest preferences to localStorage when they change
   useEffect(() => {
@@ -898,13 +940,27 @@ export default function PropertyDetails() {
 
   const handleBooking = () => {
     if (!user) {
+      if (propertyId) {
+        saveBookingIntent({
+          propertyId,
+          propertyTitle: property?.title,
+          checkIn: checkIn || undefined,
+          checkOut: checkOut || undefined,
+          adults,
+          children,
+          rooms,
+          selectedRoomTypeId,
+          selectedMealOptionId,
+        });
+      }
       toast({
         title: "Login Required",
-        description: "Please login to book this property",
+        description: "Please login to book this property. Your booking details will be saved.",
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        const returnUrl = encodeURIComponent(`/properties/${propertyId}`);
+        window.location.href = `/api/login?returnTo=${returnUrl}`;
       }, 500);
       return;
     }
