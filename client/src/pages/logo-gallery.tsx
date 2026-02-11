@@ -3,6 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download } from "lucide-react";
 import { BRAND_BG_COLOR, BRAND_BG_COLOR_LIGHT, BRAND_TEXT_COLOR } from "@/constants/brand";
 
+const O_SYMBOL_SIZE = 34;
+const O_SYMBOL_X = 146;
+const O_SYMBOL_Y = 86;
+const TEXT_X = 20;
+const TEXT_Y = 118;
+const TEXT_SIZE = 40;
+
 function LogoSVG({ size = 200 }: { size?: number }) {
   return (
     <svg 
@@ -19,20 +26,18 @@ function LogoSVG({ size = 200 }: { size?: number }) {
         </linearGradient>
       </defs>
       <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
-      {/* Text "ZECOH" centered with space for the special O symbol */}
       <text 
-        x="22" 
-        y="118" 
+        x={TEXT_X} 
+        y={TEXT_Y} 
         fill={BRAND_TEXT_COLOR} 
         fontFamily="system-ui, -apple-system, sans-serif" 
-        fontSize="40" 
+        fontSize={TEXT_SIZE} 
         fontWeight="700"
         letterSpacing="1"
       >
         ZECOH
       </text>
-      {/* Special O symbol - positioned right after ZECOH, aligned with text baseline */}
-      <g transform="translate(147, 82)">
+      <svg x={O_SYMBOL_X} y={O_SYMBOL_Y} width={O_SYMBOL_SIZE} height={O_SYMBOL_SIZE} viewBox="0 0 24 24">
         <path 
           d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" 
           stroke={BRAND_TEXT_COLOR} 
@@ -41,7 +46,7 @@ function LogoSVG({ size = 200 }: { size?: number }) {
           fill="none" 
         />
         <circle cx="12" cy="12" r="2.5" fill={BRAND_TEXT_COLOR} />
-      </g>
+      </svg>
     </svg>
   );
 }
@@ -55,11 +60,11 @@ function downloadSVG() {
     </linearGradient>
   </defs>
   <rect width="200" height="200" rx="32" fill="url(#logoGradient)" />
-  <text x="22" y="118" fill="${BRAND_TEXT_COLOR}" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="700" letter-spacing="1">ZECOH</text>
-  <g transform="translate(147, 82)">
+  <text x="${TEXT_X}" y="${TEXT_Y}" fill="${BRAND_TEXT_COLOR}" font-family="system-ui, -apple-system, sans-serif" font-size="${TEXT_SIZE}" font-weight="700" letter-spacing="1">ZECOH</text>
+  <svg x="${O_SYMBOL_X}" y="${O_SYMBOL_Y}" width="${O_SYMBOL_SIZE}" height="${O_SYMBOL_SIZE}" viewBox="0 0 24 24">
     <path d="M 18.36 5.64 A 9 9 0 1 0 20.5 10" stroke="${BRAND_TEXT_COLOR}" stroke-width="2.5" stroke-linecap="round" fill="none" />
     <circle cx="12" cy="12" r="2.5" fill="${BRAND_TEXT_COLOR}" />
-  </g>
+  </svg>
 </svg>`;
   
   const blob = new Blob([svgContent], { type: 'image/svg+xml' });
@@ -84,6 +89,8 @@ function downloadPNG(size: number) {
   gradient.addColorStop(0, BRAND_BG_COLOR_LIGHT);
   gradient.addColorStop(1, BRAND_BG_COLOR);
 
+  const s = size / 200;
+
   const radius = size * 0.16;
   ctx.beginPath();
   ctx.moveTo(radius, 0);
@@ -100,38 +107,38 @@ function downloadPNG(size: number) {
   ctx.fill();
 
   ctx.fillStyle = BRAND_TEXT_COLOR;
-  ctx.font = `700 ${size * 0.2}px system-ui, -apple-system, sans-serif`;
-  ctx.fillText('ZECOH', size * 0.11, size * 0.59);
+  ctx.font = `700 ${TEXT_SIZE * s}px system-ui, -apple-system, sans-serif`;
+  ctx.fillText('ZECOH', TEXT_X * s, TEXT_Y * s);
 
-  // Draw the special O symbol matching the SVG exactly
-  // In SVG: translate(147, 82) in a 200x200 viewBox
-  const oOffsetX = size * 0.735; // 147/200
-  const oOffsetY = size * 0.41;  // 82/200
-  const scale = size / 200;
+  const oElementSize = O_SYMBOL_SIZE * s;
+  const oScale = oElementSize / 24;
   
-  // Center of the O symbol (cx=12, cy=12 in the 24x24 viewBox)
-  const oCenterX = oOffsetX + (12 * scale);
-  const oCenterY = oOffsetY + (12 * scale);
-  const oRadius = 9 * scale;
+  const oCenterX = (O_SYMBOL_X * s) + (12 * oScale);
+  const oCenterY = (O_SYMBOL_Y * s) + (12 * oScale);
+  const oRadius = 9 * oScale;
   
-  // Draw the arc (almost complete circle with gap at top-right)
-  ctx.beginPath();
-  ctx.arc(oCenterX, oCenterY, oRadius, -0.75 * Math.PI, 0.35 * Math.PI, true);
   ctx.strokeStyle = BRAND_TEXT_COLOR;
-  ctx.lineWidth = 2.5 * scale;
+  ctx.lineWidth = 2.5 * oScale;
   ctx.lineCap = 'round';
-  ctx.stroke();
-  
-  // Complete the circle arc
+
   ctx.beginPath();
-  ctx.arc(oCenterX, oCenterY, oRadius, 0.35 * Math.PI, -0.75 * Math.PI, false);
+  ctx.arc(oCenterX, oCenterY, oRadius, 0, 2 * Math.PI);
   ctx.stroke();
-  
-  // Draw center dot
-  ctx.beginPath();
-  ctx.arc(oCenterX, oCenterY, 2.5 * scale, 0, 2 * Math.PI);
+
   ctx.fillStyle = BRAND_TEXT_COLOR;
+  ctx.beginPath();
+  ctx.arc(oCenterX, oCenterY, 2.5 * oScale, 0, 2 * Math.PI);
   ctx.fill();
+
+  const gapAngleStart = -0.65 * Math.PI;
+  const gapAngleEnd = -0.35 * Math.PI;
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.moveTo(oCenterX, oCenterY);
+  ctx.arc(oCenterX, oCenterY, oRadius + ctx.lineWidth, gapAngleStart, gapAngleEnd);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
 
   canvas.toBlob((blob) => {
     if (!blob) return;
