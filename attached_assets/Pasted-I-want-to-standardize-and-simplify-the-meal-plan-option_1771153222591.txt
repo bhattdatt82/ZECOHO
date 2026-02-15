@@ -1,0 +1,127 @@
+I want to standardize and simplify the meal plan options across my entire ZECOHO platform (all property pages, booking widgets, admin panels, owner portal, and any reusable components).
+
+Please make the following structured changes:
+
+1️⃣ Replace Existing Meal Terminology Everywhere
+
+Remove any references to:
+
+"Half Board"
+
+"Full Board"
+
+"MAP"
+
+"AP"
+
+Any other legacy meal terminology
+
+Replace them with exactly the following four options:
+
+Room Only (Best Price)
+
+Breakfast Included (+₹300/person)
+
+Breakfast + Dinner/Lunch (+₹600/person)
+
+All Meals Included (+₹900/person)
+
+These labels must be consistent across:
+
+Property detail pages
+
+Booking sidebar / pricing card
+
+Room selection modules
+
+Checkout page
+
+Booking confirmation page
+
+Owner dashboard (if visible to hotelier)
+
+Any API responses that show meal names
+
+Any reusable components
+
+2️⃣ UI/UX Requirements
+
+“Room Only (Best Price)” should appear as default selected option.
+
+Show price additions clearly as “+₹X per person”.
+
+Maintain clean spacing and simple layout.
+
+Ensure mobile responsiveness.
+
+If there is a price recalculation logic, update it so total price adjusts correctly when meal option changes.
+
+Avoid dropdowns if possible — use selectable radio buttons or cards for clarity.
+
+3️⃣ Pricing Logic Update
+
+When a user selects:
+
+Breakfast Included → Add ₹300 × number of guests × number of nights
+
+Breakfast + Dinner/Lunch → Add ₹600 × number of guests × number of nights
+
+All Meals Included → Add ₹900 × number of guests × number of nights
+
+Ensure:
+
+Dynamic recalculation updates instantly.
+
+Summary section reflects updated pricing clearly.
+
+Platform fee calculation remains unaffected unless designed otherwise.
+
+4️⃣ Admin / Owner Portal Update
+
+If meal options are configurable from backend:
+
+Update backend labels to new naming convention.
+
+Ensure existing properties using old labels are migrated to new labels.
+
+Avoid breaking historical booking records.
+
+Maintain backward compatibility for old bookings.
+
+5️⃣ SEO & Structured Data
+
+If meal plans are referenced in:
+
+Metadata
+
+Schema markup
+
+SEO structured content
+
+Update terminology accordingly.
+
+6️⃣ Quality Check
+
+After implementation:
+
+Verify no page shows “Half Board” or “Full Board”.
+
+Test on:
+
+Desktop
+
+Mobile
+
+Tablet
+
+Test with:
+
+1 guest
+
+2 guests
+
+3+ guests
+
+Test with multiple night stays.
+
+Do not change other pricing logic unless required for compatibility.

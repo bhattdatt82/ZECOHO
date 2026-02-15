@@ -39,10 +39,10 @@ interface RoomTypeBuilderProps {
 const generateId = () => `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 const DEFAULT_MEAL_OPTIONS: Omit<WizardMealOption, "id">[] = [
-  { name: "Room Only", priceAdjustment: 0, inclusions: "No meals included" },
+  { name: "Room Only (Best Price)", priceAdjustment: 0, inclusions: "No meals included" },
   { name: "Breakfast Included", priceAdjustment: 300, inclusions: "Daily breakfast buffet" },
-  { name: "Half Board", priceAdjustment: 600, inclusions: "Breakfast and dinner included" },
-  { name: "Full Board", priceAdjustment: 900, inclusions: "All meals included (breakfast, lunch, dinner)" },
+  { name: "Breakfast + Dinner/Lunch", priceAdjustment: 600, inclusions: "Breakfast and dinner or lunch included" },
+  { name: "All Meals Included", priceAdjustment: 900, inclusions: "All meals included (breakfast, lunch, dinner)" },
 ];
 
 export function RoomTypeBuilder({ value, onChange, propertyType }: RoomTypeBuilderProps) {
@@ -338,7 +338,7 @@ export function RoomTypeBuilder({ value, onChange, propertyType }: RoomTypeBuild
               </div>
               
               <p className="text-sm text-muted-foreground">
-                Default meal options (Room Only, Breakfast, Half Board, Full Board) will be added automatically. You can customize them after adding the room.
+                Default meal options (Room Only, Breakfast Included, Breakfast + Dinner/Lunch, All Meals Included) will be added automatically. You can customize them after adding the room.
               </p>
               <div className="flex gap-2">
                 <Button
@@ -692,10 +692,10 @@ function RoomTypeCard({
 }
 
 const PRESET_MEAL_OPTIONS_WIZARD = [
-  { name: "Room Only", priceAdjustment: 0, inclusions: "No meals included" },
+  { name: "Room Only (Best Price)", priceAdjustment: 0, inclusions: "No meals included" },
   { name: "Breakfast Included", priceAdjustment: 300, inclusions: "Daily breakfast buffet" },
-  { name: "Half Board", priceAdjustment: 600, inclusions: "Breakfast and dinner included" },
-  { name: "Full Board", priceAdjustment: 900, inclusions: "All meals included (breakfast, lunch, dinner)" },
+  { name: "Breakfast + Dinner/Lunch", priceAdjustment: 600, inclusions: "Breakfast and dinner or lunch included" },
+  { name: "All Meals Included", priceAdjustment: 900, inclusions: "All meals included (breakfast, lunch, dinner)" },
 ];
 
 function MealOptionsSection({

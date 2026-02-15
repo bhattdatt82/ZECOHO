@@ -161,7 +161,7 @@ export function RoomTypeCard({
               data-testid="option-no-meal"
             >
               <div className="flex justify-between items-center">
-                <span>Room only (no meals)</span>
+                <span>Room Only (Best Price)</span>
                 <span className="text-muted-foreground">Included</span>
               </div>
             </div>
@@ -170,6 +170,7 @@ export function RoomTypeCard({
                 const nameLC = option.name.toLowerCase();
                 return nameLC !== 'room only' && 
                        nameLC !== 'roomonly' && 
+                       !nameLC.includes('room only (best price)') &&
                        !nameLC.includes('no meal') &&
                        !nameLC.includes('no meals');
               })
