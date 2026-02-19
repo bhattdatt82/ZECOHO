@@ -536,41 +536,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Final CTA Section */}
-      <div className="py-20 px-4 md:px-6 bg-gradient-to-br from-rose-500 via-rose-600 to-amber-500 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
-        </div>
-        <div className="container mx-auto text-center relative z-10">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">Ready to Save on Your Next Trip?</h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of travelers who save 15-25% by booking directly with property owners
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Button 
-              size="lg" 
-              variant="secondary"
-              onClick={() => setLocation("/search")}
-              className="font-semibold shadow-lg"
-              data-testid="button-find-stay-cta"
-            >
-              Find Your Stay
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              onClick={() => setLocation("/list-property")}
-              className="border-white/30 text-white hover:bg-white/10 font-semibold"
-              data-testid="button-list-property-cta-bottom"
-            >
-              <HomeIcon className="mr-2 h-4 w-4" />
-              List Your Property
-            </Button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

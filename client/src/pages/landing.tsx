@@ -565,47 +565,6 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Owner CTA Section */}
-      <div className="py-16 px-4 md:px-6 bg-slate-900 text-white">
-        <div className="container mx-auto max-w-3xl text-center">
-          <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl inline-flex mb-6">
-            <HomeIcon className="h-8 w-8" />
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Own a Property?</h2>
-          <p className="text-lg text-white/80 mb-8">
-            List your property on ZECOHO — pay 0% commission.
-          </p>
-          <Button 
-            size="lg"
-            onClick={() => setLocation("/list-property")}
-            data-testid="button-list-property-cta-footer"
-            className="bg-white text-slate-900 hover:bg-white/90 shadow-lg font-semibold group"
-          >
-            List Property FREE
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Final CTA Section */}
-      <div className="py-20 px-4 md:px-6 bg-gradient-to-br from-rose-500 via-rose-600 to-amber-500 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
-        </div>
-        <div className="container mx-auto text-center relative z-10">
-          <h2 className="text-3xl md:text-5xl font-bold mb-8">Ready to Save on Your Next Booking?</h2>
-          <Button 
-            size="lg" 
-            className="bg-white text-rose-600 hover:bg-white/90 shadow-lg font-semibold group px-8"
-            onClick={() => setLocation("/search")}
-            data-testid="button-cta-find-lowest-rates"
-          >
-            Find Lowest Rates
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
