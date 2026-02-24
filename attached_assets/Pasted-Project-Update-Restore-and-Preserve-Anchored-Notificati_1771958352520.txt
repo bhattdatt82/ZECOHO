@@ -1,0 +1,130 @@
+Project Update: Restore and Preserve Anchored Notification Dropdown with Proper Scroll (Do NOT Convert to Drawer)
+
+We want the notification dropdown exactly as it originally appeared — anchored beneath the bell icon — with improved scroll behavior.
+
+Do NOT convert this into a side panel, drawer, or full-screen overlay.
+
+1️⃣ Desktop Behavior (Must Match Screenshot)
+
+When notification bell icon is clicked:
+
+Show floating dropdown panel directly beneath the bell icon.
+
+Position: absolute (relative to navbar container).
+
+Width: 340–380px.
+
+Max height: 450px.
+
+Rounded corners and shadow preserved.
+
+No layout shift.
+
+No fixed 100vh positioning.
+
+No slide-from-left or right animation.
+
+2️⃣ Scroll Requirements (Desktop)
+
+If notifications exceed visible height:
+
+Enable vertical scroll inside dropdown only.
+
+Use overflow-y: auto.
+
+Smooth scrolling.
+
+Visible scrollbar.
+
+Header (“Notifications”) must remain sticky at top.
+
+Background page must NOT scroll while scrolling inside dropdown.
+
+3️⃣ Mobile + APK Version (WebView)
+
+Maintain same anchored dropdown style.
+
+Enhancements:
+
+Max height: 65–70% of viewport height.
+
+Enable smooth finger drag scrolling.
+
+Enable momentum scrolling.
+
+Increase padding for touch targets.
+
+Prevent dropdown from exceeding screen height.
+
+Do NOT convert to drawer.
+
+Do NOT push content sideways.
+
+4️⃣ Stability Rules (Critical)
+
+Dropdown must close on outside click.
+
+Dropdown must close when another navbar item clicked.
+
+No duplicate rendering.
+
+No fixed positioning that covers entire page.
+
+No body scroll bleed.
+
+No layout jump when opening.
+
+5️⃣ Safe Proactive Enhancements
+
+Include:
+
+Auto-scroll to top when new notification arrives.
+
+Stop notification sound when dropdown opens.
+
+Mark notification as read when clicked.
+
+Sticky header with:
+
+"Notifications"
+
+Unread count
+
+"Mark all as read"
+
+6️⃣ Must Work In:
+
+Desktop browser
+
+Mobile browser
+
+PWA installed mode
+
+APK WebView
+
+Behavior must remain consistent across all.
+
+7️⃣ Do NOT Modify
+
+Navbar layout
+
+Booking logic
+
+Backend APIs
+
+Page positioning
+
+Global layout containers
+
+Only improve dropdown behavior and scroll logic.
+
+🎯 Final Outcome
+
+Exact same UI as screenshot
+But with:
+
+✔ Proper scroll
+✔ Mobile-friendly touch scroll
+✔ Sticky header
+✔ No left-side bar issue
+✔ No layout break

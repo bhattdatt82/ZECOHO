@@ -1,9 +1,8 @@
-import { useState } from "react";
-import { Bell, Check, CheckCheck, Calendar, ExternalLink } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Bell, CheckCheck, Calendar, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotifications } from "@/hooks/useNotifications";
 import { stopNotificationSound } from "@/hooks/useNotificationSound";
@@ -29,7 +28,10 @@ function timeAgo(date: Date | string | null): string {
 
 function getNotificationIcon(type: string) {
   switch (type) {
-    case "booking":
+    case "booking_request":
+    case "booking_confirmed":
+    case "booking_cancelled":
+    case "booking_completed":
       return <Calendar className="h-4 w-4 text-primary flex-shrink-0" />;
     default:
       return <Bell className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
@@ -50,10 +52,31 @@ export function NotificationBell() {
   const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const [, setLocation] = useLocation();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevNotifCountRef = useRef(notifications.length);
 
   const latestNotifications = notifications.slice(0, 10);
 
-  const handleNotificationClick = (notification: Notification) => {
+  useEffect(() => {
+    if (open && notifications.length > prevNotifCountRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+    prevNotifCountRef.current = notifications.length;
+  }, [notifications.length, open]);
+
+  useEffect(() => {
+    if (open) {
+      stopNotificationSound();
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  const handleNotificationClick = useCallback((notification: Notification) => {
     stopNotificationSound();
     if (!notification.isRead) {
       markAsRead(notification.id);
@@ -63,11 +86,11 @@ export function NotificationBell() {
       setLocation(link);
       setOpen(false);
     }
-  };
+  }, [markAsRead, setLocation]);
 
-  const handleMarkAllRead = () => {
+  const handleMarkAllRead = useCallback(() => {
     markAllAsRead();
-  };
+  }, [markAllAsRead]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -90,9 +113,22 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0" data-testid="panel-notifications">
-        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b">
-          <h4 className="text-sm font-semibold">Notifications</h4>
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className="w-[340px] sm:w-[380px] p-0 rounded-lg shadow-lg"
+        data-testid="panel-notifications"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b sticky top-0 bg-popover z-10 rounded-t-lg">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-semibold">Notifications</h4>
+            {unreadCount > 0 && (
+              <Badge variant="secondary" className="text-xs pointer-events-none">
+                {unreadCount}
+              </Badge>
+            )}
+          </div>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -107,7 +143,15 @@ export function NotificationBell() {
           )}
         </div>
 
-        <ScrollArea className="max-h-80">
+        <div
+          ref={scrollRef}
+          className="overflow-y-auto overscroll-contain"
+          style={{
+            maxHeight: "min(450px, 65vh)",
+            WebkitOverflowScrolling: "touch",
+            scrollBehavior: "smooth",
+          }}
+        >
           {isLoading ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3].map((i) => (
@@ -167,7 +211,7 @@ export function NotificationBell() {
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
