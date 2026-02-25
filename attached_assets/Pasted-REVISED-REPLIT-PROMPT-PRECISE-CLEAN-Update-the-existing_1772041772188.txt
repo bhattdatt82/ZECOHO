@@ -1,0 +1,146 @@
+REVISED REPLIT PROMPT (PRECISE & CLEAN)
+
+Update the existing “New Booking – Action Required” modal system with the following corrections and enhancements:
+
+1️⃣ ADD “VIEW” BUTTON
+
+In the booking action modal (which appears for new bookings):
+
+Add a third button:
+
+Accept (Green)
+
+Reject (Red)
+
+View Details (Neutral / Outline)
+
+View Details Behavior:
+
+Close the modal
+
+Automatically navigate owner to:
+Owner Dashboard → Bookings Tab
+
+Highlight or auto-scroll to the specific booking using booking ID
+
+Booking should open in detailed view state
+
+This must work in:
+
+Desktop web
+
+Mobile web
+
+APK (WebView)
+
+2️⃣ FIX ACCEPT / REJECT ERROR ISSUE
+
+Currently Accept and Reject are throwing background errors.
+
+Implement the following corrections:
+
+Ensure booking ID is correctly passed to API
+
+Ensure proper API response handling
+
+If API fails, show visible error message (toast or inline alert)
+
+Do NOT close modal until API returns success
+
+Disable buttons while processing to prevent double-click
+
+After success:
+
+Close modal
+
+Refresh bookings list
+
+Update notification badge count
+
+3️⃣ CHANGE EXPIRY BEHAVIOR (CRITICAL CHANGE)
+
+If 2-minute timer expires:
+
+❌ Booking must NOT expire
+❌ Booking must NOT auto-cancel
+❌ Accept button must NOT be disabled
+
+Instead:
+
+✔ Automatically redirect owner to Bookings Page
+✔ Keep booking status as “Pending”
+✔ Keep Accept/Reject active inside Bookings page
+✔ Show subtle message:
+“Escalation process initiated. Please respond immediately.”
+
+This ensures urgency without losing booking.
+
+4️⃣ KEEP EXISTING WORKING FEATURES UNCHANGED
+
+Do NOT modify:
+
+Notification sound logic
+
+Countdown UI animation
+
+Escalation call trigger system
+
+Only update:
+
+Routing behavior
+
+Accept/Reject error handling
+
+Expiry redirection logic
+
+View button functionality
+
+5️⃣ MOBILE & APK BEHAVIOR
+
+Ensure:
+
+Modal works correctly in mobile view
+
+Redirect works smoothly inside WebView APK
+
+No layout shift
+
+No side panel sliding issue
+
+Bookings page scrolls properly
+
+6️⃣ TEST SCENARIOS TO VALIDATE
+
+Ensure these scenarios work perfectly:
+
+Accept before 2 minutes → Success
+
+Reject before 2 minutes → Success
+
+Click View → Redirect works
+
+Let timer reach 0 → Redirect to Bookings page automatically
+
+Accept from Bookings page → Works
+
+API error → Visible error message shown
+
+🎯 Expected Final Behavior
+
+New booking arrives
+↓
+Modal opens
+↓
+Owner sees:
+Accept | Reject | View
+↓
+If timer expires → auto-redirect to bookings page
+↓
+Booking remains pending
+↓
+Owner can still act
+
+This keeps urgency.
+Prevents silent failures.
+Prevents booking loss.
+Maintains operational control.

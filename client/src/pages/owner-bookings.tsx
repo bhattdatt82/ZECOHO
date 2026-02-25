@@ -140,6 +140,15 @@ export default function OwnerBookings() {
       ? tabParam 
       : "pending";
   });
+
+  // Highlight a specific booking (from urgent alert redirect)
+  const [highlightBookingId, setHighlightBookingId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("highlight");
+  });
+  const [showEscalationMsg, setShowEscalationMsg] = useState(() => {
+    return !!new URLSearchParams(window.location.search).get("highlight");
+  });
   
   // Sync tab state when URL changes
   useEffect(() => {
@@ -147,6 +156,13 @@ export default function OwnerBookings() {
     const tabParam = params.get("tab");
     if (tabParam && ["pending", "upcoming", "ongoing", "past", "cancelled"].includes(tabParam)) {
       setActiveTab(tabParam);
+    }
+    const highlightId = params.get("highlight");
+    if (highlightId) {
+      setHighlightBookingId(highlightId);
+      setShowEscalationMsg(true);
+      // Switch to pending tab where the booking will be
+      setActiveTab("pending");
     }
   }, [location]);
   
@@ -170,23 +186,45 @@ export default function OwnerBookings() {
   // Subscribe to real-time booking updates via WebSocket with polling fallback
   useBookingUpdates({ userId: user?.id, onUrgentBooking: handleUrgentBooking });
 
+  // Auto-scroll to highlighted booking after data loads
+  const { data: bookings, isLoading } = useQuery<Booking[]>({
+    queryKey: ["/api/owner/bookings"],
+  });
+
+  useEffect(() => {
+    if (!highlightBookingId || isLoading) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-testid="booking-card-${highlightBookingId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      // Clear highlight after 5 seconds
+      const clearTimer = setTimeout(() => {
+        setHighlightBookingId(null);
+        setShowEscalationMsg(false);
+      }, 5000);
+      return () => clearTimeout(clearTimer);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [highlightBookingId, isLoading]);
+
   // Listen for service worker messages (push action buttons)
   useEffect(() => {
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === 'BOOKING_ACTION') {
         const { action, bookingId } = event.data;
         if (action === 'accept') {
-          apiRequest("POST", `/api/bookings/${bookingId}/confirm`, {})
+          apiRequest("PATCH", `/api/owner/bookings/${bookingId}/status`, { status: "confirmed" })
             .then(() => {
               queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
-              queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId] });
+              queryClient.invalidateQueries({ queryKey: ["/api/owner/stats"] });
             })
             .catch(console.error);
         } else if (action === 'reject') {
-          apiRequest("POST", `/api/bookings/${bookingId}/reject`, { responseMessage: "Unable to accommodate." })
+          apiRequest("PATCH", `/api/owner/bookings/${bookingId}/status`, { status: "rejected", responseMessage: "Unable to accommodate." })
             .then(() => {
               queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
-              queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId] });
+              queryClient.invalidateQueries({ queryKey: ["/api/owner/stats"] });
             })
             .catch(console.error);
         }
@@ -254,10 +292,6 @@ export default function OwnerBookings() {
       </OwnerLayout>
     );
   }
-
-  const { data: bookings, isLoading } = useQuery<Booking[]>({
-    queryKey: ["/api/owner/bookings"],
-  });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, responseMessage }: { id: string; status: string; responseMessage?: string }) => {
@@ -713,7 +747,11 @@ export default function OwnerBookings() {
   });
 
   const renderBookingCard = (booking: Booking) => (
-    <Card key={booking.id} data-testid={`booking-card-${booking.id}`}>
+    <Card
+      key={booking.id}
+      data-testid={`booking-card-${booking.id}`}
+      className={highlightBookingId === booking.id ? "ring-2 ring-orange-400 ring-offset-2 transition-all" : ""}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div>
@@ -1156,6 +1194,14 @@ export default function OwnerBookings() {
     <OwnerLayout>
       <UrgentBookingBanner alert={showBanner} onDismiss={handleDismissBanner} />
       <UrgentBookingAlertModal alert={urgentAlert} onDismiss={handleDismissModal} />
+      {showEscalationMsg && (
+        <div className="mx-4 mt-3 p-3 bg-orange-50 dark:bg-orange-950/30 border border-orange-300 dark:border-orange-700 rounded-md flex items-center gap-2" data-testid="escalation-message">
+          <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400 shrink-0" />
+          <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
+            Escalation process initiated. Please respond to this booking immediately.
+          </p>
+        </div>
+      )}
       <div className="space-y-6" data-testid="owner-bookings">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full h-auto flex-wrap justify-start gap-1 p-1" data-testid="booking-tabs">

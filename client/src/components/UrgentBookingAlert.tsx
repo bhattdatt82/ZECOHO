@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { UrgentBookingAlert as UrgentBookingAlertData } from "@/hooks/useBookingUpdates";
-import { Bell, Check, X, Clock, User, MapPin, Calendar, BedDouble, IndianRupee, AlertTriangle } from "lucide-react";
+import { Bell, Check, X, Clock, User, MapPin, Calendar, BedDouble, IndianRupee, AlertTriangle, Eye } from "lucide-react";
+import { useLocation } from "wouter";
 
 const COUNTDOWN_SECONDS = 120;
 
@@ -19,9 +20,12 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [actionTaken, setActionTaken] = useState(false);
+  const [escalated, setEscalated] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (!alert) return;
@@ -30,6 +34,8 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
     setActionTaken(false);
     setIsAccepting(false);
     setIsRejecting(false);
+    setEscalated(false);
+    setErrorMessage(null);
 
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -83,6 +89,16 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
     };
   }, [alert, actionTaken]);
 
+  // When countdown reaches 0: redirect to bookings page, keep booking pending
+  useEffect(() => {
+    if (countdown === 0 && !actionTaken && !escalated && alert) {
+      setEscalated(true);
+      stopSound();
+      onDismiss();
+      setLocation(`/owner/bookings?highlight=${alert.bookingId}`);
+    }
+  }, [countdown, actionTaken, escalated, alert]);
+
   const stopSound = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -91,77 +107,69 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
   }, []);
 
   const handleAccept = async () => {
-    if (!alert || isAccepting) return;
+    if (!alert || isAccepting || isRejecting) return;
     setIsAccepting(true);
+    setErrorMessage(null);
     stopSound();
 
     try {
-      await apiRequest("POST", `/api/bookings/${alert.bookingId}/confirm`, {});
+      await apiRequest("PATCH", `/api/owner/bookings/${alert.bookingId}/status`, {
+        status: "confirmed",
+      });
       setActionTaken(true);
       
       queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings", alert.bookingId] });
       queryClient.invalidateQueries({ queryKey: ["/api/owner/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
 
       toast({
         title: "Booking Accepted",
-        description: `Booking ${alert.bookingCode} has been confirmed.`,
+        description: `Booking ${alert.bookingCode} has been confirmed. Guest will be notified.`,
       });
-
-      try {
-        await apiRequest("POST", "/api/push/log-action", {
-          bookingId: alert.bookingId,
-          action: "accept",
-        });
-      } catch {}
 
       setTimeout(onDismiss, 1500);
     } catch (error: any) {
-      toast({
-        title: "Failed to Accept",
-        description: error.message || "Please try again or go to your bookings page.",
-        variant: "destructive",
-      });
+      const msg = error?.message || "Failed to accept booking. Please try from the Bookings page.";
+      setErrorMessage(msg);
       setIsAccepting(false);
     }
   };
 
   const handleReject = async () => {
-    if (!alert || isRejecting) return;
+    if (!alert || isRejecting || isAccepting) return;
     setIsRejecting(true);
+    setErrorMessage(null);
     stopSound();
 
     try {
-      await apiRequest("POST", `/api/bookings/${alert.bookingId}/reject`, {
+      await apiRequest("PATCH", `/api/owner/bookings/${alert.bookingId}/status`, {
+        status: "rejected",
         responseMessage: "Unable to accommodate at this time.",
       });
       setActionTaken(true);
       
       queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings", alert.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
 
       toast({
         title: "Booking Declined",
-        description: `Booking ${alert.bookingCode} has been declined.`,
+        description: `Booking ${alert.bookingCode} has been declined. Guest will be notified.`,
         variant: "destructive",
       });
-
-      try {
-        await apiRequest("POST", "/api/push/log-action", {
-          bookingId: alert.bookingId,
-          action: "reject",
-        });
-      } catch {}
 
       setTimeout(onDismiss, 1500);
     } catch (error: any) {
-      toast({
-        title: "Failed to Decline",
-        description: error.message || "Please try again or go to your bookings page.",
-        variant: "destructive",
-      });
+      const msg = error?.message || "Failed to decline booking. Please try from the Bookings page.";
+      setErrorMessage(msg);
       setIsRejecting(false);
     }
+  };
+
+  const handleViewDetails = () => {
+    stopSound();
+    onDismiss();
+    setLocation(`/owner/bookings?highlight=${alert?.bookingId}`);
   };
 
   if (!alert) return null;
@@ -170,16 +178,17 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
   const seconds = countdown % 60;
   const isUrgent = countdown <= 30;
   const progressPercent = (countdown / COUNTDOWN_SECONDS) * 100;
+  const isBusy = isAccepting || isRejecting;
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       data-testid="urgent-booking-alert-overlay"
     >
-      <Card className="mx-4 w-full max-w-md overflow-visible border-2 border-orange-500 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+      <Card className="w-full max-w-md overflow-visible border-2 border-orange-500 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
         <div className="relative">
           <div
-            className="absolute top-0 left-0 h-1 bg-orange-500 transition-all duration-1000"
+            className="absolute top-0 left-0 h-1 bg-orange-500 transition-all duration-1000 rounded-t-lg"
             style={{ width: `${progressPercent}%` }}
           />
 
@@ -187,7 +196,7 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
             <div className="flex items-center justify-center gap-2 mb-1">
               <AlertTriangle className={`h-5 w-5 ${isUrgent ? 'text-red-500 animate-pulse' : 'text-orange-500'}`} />
               <span className="text-sm font-semibold uppercase tracking-wider text-orange-700 dark:text-orange-400">
-                New Booking - Action Required
+                New Booking – Action Required
               </span>
               <AlertTriangle className={`h-5 w-5 ${isUrgent ? 'text-red-500 animate-pulse' : 'text-orange-500'}`} />
             </div>
@@ -197,11 +206,6 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
                 {minutes}:{seconds.toString().padStart(2, '0')}
               </span>
             </div>
-            {countdown === 0 && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
-                Time expired - Please respond immediately
-              </p>
-            )}
           </div>
 
           <div className="p-4 space-y-3">
@@ -226,7 +230,7 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
               </div>
               <div className="flex items-center gap-2 text-sm" data-testid="alert-dates">
                 <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span>{alert.checkIn} - {alert.checkOut}</span>
+                <span>{alert.checkIn} – {alert.checkOut}</span>
               </div>
               <div className="flex items-center gap-2 text-sm" data-testid="alert-room-type">
                 <BedDouble className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -237,6 +241,13 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
                 <span>Rs. {Number(alert.totalPrice).toLocaleString('en-IN')}</span>
               </div>
             </div>
+
+            {errorMessage && (
+              <div className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md" data-testid="alert-error-message">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <p className="text-xs text-destructive">{errorMessage}</p>
+              </div>
+            )}
 
             <p className="text-xs text-muted-foreground text-center">
               Confirm within 2 minutes to avoid escalation call.
@@ -250,43 +261,55 @@ export function UrgentBookingAlertModal({ alert, onDismiss }: UrgentBookingAlert
                 </Badge>
               </div>
             ) : (
-              <div className="flex gap-3">
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white border-green-600"
-                  onClick={handleAccept}
-                  disabled={isAccepting || isRejecting}
-                  data-testid="button-accept-booking-alert"
-                >
-                  {isAccepting ? (
-                    <span className="flex items-center gap-1">
-                      <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Accepting...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <Check className="h-4 w-4" />
-                      Accept
-                    </span>
-                  )}
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 bg-green-600 text-white border-green-600"
+                    onClick={handleAccept}
+                    disabled={isBusy}
+                    data-testid="button-accept-booking-alert"
+                  >
+                    {isAccepting ? (
+                      <span className="flex items-center gap-1">
+                        <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Accepting...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Check className="h-4 w-4" />
+                        Accept
+                      </span>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-red-300 text-red-600 dark:border-red-700 dark:text-red-400"
+                    onClick={handleReject}
+                    disabled={isBusy}
+                    data-testid="button-reject-booking-alert"
+                  >
+                    {isRejecting ? (
+                      <span className="flex items-center gap-1">
+                        <span className="h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        Declining...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <X className="h-4 w-4" />
+                        Reject
+                      </span>
+                    )}
+                  </Button>
+                </div>
                 <Button
                   variant="outline"
-                  className="flex-1 border-red-300 text-red-600 dark:border-red-700 dark:text-red-400"
-                  onClick={handleReject}
-                  disabled={isAccepting || isRejecting}
-                  data-testid="button-reject-booking-alert"
+                  className="w-full"
+                  onClick={handleViewDetails}
+                  disabled={isBusy}
+                  data-testid="button-view-booking-alert"
                 >
-                  {isRejecting ? (
-                    <span className="flex items-center gap-1">
-                      <span className="h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-                      Declining...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <X className="h-4 w-4" />
-                      Reject
-                    </span>
-                  )}
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
                 </Button>
               </div>
             )}
@@ -323,7 +346,7 @@ export function UrgentBookingBanner({ alert, onDismiss }: UrgentBookingAlertProp
       <div className="flex items-center gap-2 min-w-0">
         <Bell className="h-4 w-4 shrink-0 animate-bounce" />
         <span className="font-semibold text-sm truncate">
-          New Booking: {alert.bookingCode} - {alert.guestName} at {alert.propertyName}
+          New Booking: {alert.bookingCode} – {alert.guestName} at {alert.propertyName}
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
