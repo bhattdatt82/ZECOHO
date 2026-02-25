@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Sheet, 
@@ -96,10 +96,20 @@ export function MobileBookingBar({
 
   const guests = adults + children;
   const selectedRoomType = roomTypes.find(rt => rt.id === selectedRoomTypeId);
-  
+
+  // Close sheet only when booking completes (parent resets bookingStep "details" → "select")
+  const prevBookingStepRef = useRef(bookingStep);
+  useEffect(() => {
+    if (prevBookingStepRef.current === "details" && bookingStep === "select") {
+      setSheetOpen(false);
+    }
+    prevBookingStepRef.current = bookingStep;
+  }, [bookingStep]);
+
+  // Keep sheet open during the entire booking flow — do NOT close here.
+  // The sheet closes automatically when the booking succeeds (bookingStep resets to "select").
   const handleReserve = () => {
     onReserve();
-    setSheetOpen(false);
   };
 
   const today = new Date();

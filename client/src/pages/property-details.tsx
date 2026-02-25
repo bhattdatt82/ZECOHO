@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -166,6 +166,8 @@ export default function PropertyDetails() {
   const [bookingStep, setBookingStep] = useState<"select" | "details">("select");
   const [guestDetailsValid, setGuestDetailsValid] = useState(false);
   const [guestDetailsData, setGuestDetailsData] = useState<GuestDetailsFormData | null>(null);
+  // Ref to scroll to the traveller details form on desktop when Reserve is clicked
+  const travellerDetailsRef = useRef<HTMLDivElement>(null);
   
   // Controlled popover states for date pickers and guests with auto-navigation
   const [checkInPopoverOpen, setCheckInPopoverOpen] = useState(false);
@@ -714,6 +716,15 @@ export default function PropertyDetails() {
     setGuestDetailsValid(isValid);
     setGuestDetailsData(data);
   }, []);
+
+  // On desktop: scroll to the traveller details form when Reserve is clicked
+  useEffect(() => {
+    if (bookingStep === "details" && travellerDetailsRef.current) {
+      setTimeout(() => {
+        travellerDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [bookingStep]);
 
   const bookingMutation = useMutation({
     mutationFn: async () => {
@@ -2307,7 +2318,7 @@ export default function PropertyDetails() {
                   const discountPercent = hasBulkDiscount ? Number(property.bulkBookingDiscountPercent) : 0;
 
                   return (
-                    <div className="space-y-4">
+                    <div className="space-y-4" ref={travellerDetailsRef}>
                       <GuestDetailsForm
                         user={user}
                         adults={adults}
@@ -2366,7 +2377,7 @@ export default function PropertyDetails() {
                       : isBookingDisabled 
                         ? "Not Available" 
                         : bookingStep === "select" 
-                          ? "Continue to Booking" 
+                          ? "Reserve" 
                           : "Confirm Booking"}
                 </Button>
                 
@@ -2477,7 +2488,7 @@ export default function PropertyDetails() {
         disabledReason={
           !selectedRoomTypeId ? "Select Room Type" : 
           isBookingDisabled ? "Not Available" : 
-          bookingStep === "select" ? "Continue to Booking" :
+          bookingStep === "select" ? "Reserve" :
           !guestDetailsValid ? "Fill Traveller Details" :
           "Confirm Booking"
         }

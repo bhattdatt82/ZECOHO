@@ -1,0 +1,96 @@
+REPLIT UPDATE PROMPT
+
+Refactor the ZECOHO property booking flow to simplify it and eliminate duplicate booking creation.
+
+Problem:
+The current booking process uses multiple steps (Reserve → Continue Booking → Reserve again). This is causing duplicate bookings and duplicate booking IDs to appear in owner dashboard and mobile app.
+
+Required Changes:
+
+Simplify Booking Flow:
+
+When guest selects:
+• Check-in date
+• Check-out date
+• Guest count
+
+And clicks "Reserve"
+
+The system must:
+
+NOT create booking
+
+NOT generate booking ID
+
+NOT call backend API
+
+Instead:
+
+Immediately expand Traveller Details section below the room pricing area.
+
+Automatically scroll to Traveller Details section.
+
+Remove Entirely:
+
+"Continue Booking" button
+
+Any second Reserve button
+
+Any intermediate booking creation
+
+Any temporary booking save logic
+
+Booking Creation Rule:
+Booking must be created ONLY when:
+
+Traveller details form is submitted
+
+Payment mode is selected
+
+Final confirmation button is clicked
+
+There must be only ONE API call for booking creation.
+
+Prevent Duplicate Submission:
+
+Disable Confirm button after first click until API response returns.
+
+Ensure booking creation API is not triggered inside useEffect.
+
+Ensure Traveller Details component renders only once.
+
+Mobile & APK Stability:
+
+Traveller Details must appear inline (not overlay).
+
+No duplicate rendering in PWA or WebView.
+
+Ensure no duplicate state updates causing repeated API calls.
+
+Expected Result:
+• Only one booking created per user action.
+• No duplicate booking IDs.
+• Cleaner single-step booking flow.
+• Traveller details appear immediately after clicking Reserve.
+• Stable behavior across Desktop, Mobile Web, and APK.
+
+Do not modify:
+• Notification system
+• Owner dashboard
+• Payment logic
+
+Only refactor booking flow and remove duplicate triggers.
+
+⚠️ BEFORE YOU PUBLISH AGAIN
+
+After implementation, test:
+
+Open DevTools → Network tab
+
+Click Reserve
+
+Fill traveller details
+
+Submit
+
+👉 Confirm only ONE booking API call is made.
