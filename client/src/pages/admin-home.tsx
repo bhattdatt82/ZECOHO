@@ -22,6 +22,7 @@ import {
   MessageCircle,
   Clock,
   Palette,
+  ImageIcon,
 } from "lucide-react";
 
 interface CommunicationAnalytics {
@@ -49,6 +50,20 @@ const adminSections = [
     icon: CalendarCheck,
     href: "/admin/bookings",
     testId: "admin-nav-bookings",
+  },
+  {
+    title: "Logo Settings",
+    description: "Upload and update the website logo",
+    icon: ImageIcon,
+    href: "/admin/logo",
+    testId: "admin-nav-logo",
+  },
+  {
+    title: "Brand Assets",
+    description: "Download logo files",
+    icon: Palette,
+    href: "/logo-gallery",
+    testId: "admin-nav-brand-assets",
   },
   {
     title: "Users",
@@ -119,20 +134,6 @@ const adminSections = [
     icon: Phone,
     href: "/admin/contact-settings",
     testId: "admin-nav-contact",
-  },
-  {
-    title: "Logo Settings",
-    description: "Upload and update the website logo",
-    icon: Palette,
-    href: "/admin/logo",
-    testId: "admin-nav-logo",
-  },
-  {
-    title: "Brand Assets",
-    description: "Download logo files",
-    icon: Palette,
-    href: "/logo-gallery",
-    testId: "admin-nav-brand-assets",
   },
 ];
 
