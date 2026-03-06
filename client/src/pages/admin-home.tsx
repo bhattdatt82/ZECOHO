@@ -23,6 +23,7 @@ import {
   Clock,
   Palette,
   ImageIcon,
+  Radio,
 } from "lucide-react";
 
 interface CommunicationAnalytics {
@@ -50,6 +51,13 @@ const adminSections = [
     icon: CalendarCheck,
     href: "/admin/bookings",
     testId: "admin-nav-bookings",
+  },
+  {
+    title: "Coming Soon Mode",
+    description: "Control site access, whitelist testers, view signups",
+    icon: Radio,
+    href: "/admin/coming-soon",
+    testId: "admin-nav-coming-soon",
   },
   {
     title: "Logo Settings",

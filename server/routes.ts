@@ -5664,7 +5664,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
     }
   });
 
-  // Admin: Update site settings (logo URL, alt text)
+  // Admin: Update site settings (logo URL, alt text, coming soon mode)
   app.patch("/api/admin/site-settings", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -5672,12 +5672,173 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
       if (!user || !userHasRole(user, "admin")) {
         return res.status(403).json({ message: "Only admins can update site settings" });
       }
-      const { logoUrl, logoAlt } = req.body;
-      const updated = await storage.upsertSiteSettings({ logoUrl, logoAlt, updatedBy: userId });
+      const { logoUrl, logoAlt, comingSoonMode } = req.body;
+      const existing = await storage.getSiteSettings();
+      let comingSoonEnabledAt = existing?.comingSoonEnabledAt ?? null;
+      // Track when coming soon mode was first enabled so we know which users are "existing"
+      if (comingSoonMode === true && !existing?.comingSoonMode) {
+        comingSoonEnabledAt = new Date();
+      } else if (comingSoonMode === false) {
+        comingSoonEnabledAt = null;
+      }
+      const updated = await storage.upsertSiteSettings({
+        ...(logoUrl !== undefined && { logoUrl }),
+        ...(logoAlt !== undefined && { logoAlt }),
+        ...(comingSoonMode !== undefined && { comingSoonMode }),
+        ...(comingSoonEnabledAt !== undefined && { comingSoonEnabledAt }),
+        updatedBy: userId,
+      });
       res.json({ message: "Site settings updated successfully", settings: updated });
     } catch (error) {
       console.error("Error updating site settings:", error);
       res.status(500).json({ message: "Failed to update site settings" });
+    }
+  });
+
+  // ===============================
+  // COMING SOON — WAITLIST & WHITELIST
+  // ===============================
+
+  // Auth-optional: Check if current user can bypass Coming Soon gate
+  // Returns { comingSoonMode, canAccess }
+  // canAccess=true if mode is off, user is admin, existing user, or whitelisted
+  app.get("/api/coming-soon/access", async (req: any, res) => {
+    try {
+      const settings = await storage.getSiteSettings();
+      if (!settings?.comingSoonMode) {
+        return res.json({ comingSoonMode: false, canAccess: true });
+      }
+      // Mode is on — check who gets through
+      const isAuth = req.isAuthenticated?.() && req.user?.claims?.sub;
+      if (!isAuth) {
+        return res.json({ comingSoonMode: true, canAccess: false });
+      }
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.json({ comingSoonMode: true, canAccess: false });
+      }
+      // Admin always gets through
+      if (userHasRole(user, "admin")) {
+        return res.json({ comingSoonMode: true, canAccess: true });
+      }
+      // Existing user: registered before coming soon mode was enabled
+      if (settings.comingSoonEnabledAt && user.createdAt && user.createdAt < settings.comingSoonEnabledAt) {
+        return res.json({ comingSoonMode: true, canAccess: true });
+      }
+      // Whitelisted email
+      if (user.email) {
+        const whitelisted = await storage.isEmailWhitelisted(user.email);
+        if (whitelisted) {
+          return res.json({ comingSoonMode: true, canAccess: true });
+        }
+      }
+      return res.json({ comingSoonMode: true, canAccess: false });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to check access" });
+    }
+  });
+
+  // Public: Submit to waitlist
+  app.post("/api/waitlist", async (req, res) => {
+    try {
+      const { name, email, phone, message } = req.body;
+      if (!name || !email) {
+        return res.status(400).json({ message: "Name and email are required" });
+      }
+      const emailLower = email.toLowerCase().trim();
+      const already = await storage.isEmailInWaitlist(emailLower);
+      if (already) {
+        return res.json({ message: "You're already on the list! We'll be in touch soon." });
+      }
+      await storage.addToWaitlist({ name: name.trim(), email: emailLower, phone: phone?.trim() || null, message: message?.trim() || null });
+      res.json({ message: "You've been added to the waitlist! We'll notify you when we launch." });
+    } catch (error) {
+      console.error("Error adding to waitlist:", error);
+      res.status(500).json({ message: "Failed to join waitlist" });
+    }
+  });
+
+  // Admin: Get waitlist
+  app.get("/api/admin/waitlist", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      const list = await storage.getWaitlist();
+      res.json(list);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get waitlist" });
+    }
+  });
+
+  // Admin: Delete waitlist entry
+  app.delete("/api/admin/waitlist/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      await storage.deleteWaitlistEntry(req.params.id);
+      res.json({ message: "Entry deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete entry" });
+    }
+  });
+
+  // Admin: Get tester whitelist
+  app.get("/api/admin/whitelist", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      const list = await storage.getTesterWhitelist();
+      res.json(list);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get whitelist" });
+    }
+  });
+
+  // Admin: Add email to tester whitelist
+  app.post("/api/admin/whitelist", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      const { email, note } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      const alreadyExists = await storage.isEmailWhitelisted(email);
+      if (alreadyExists) {
+        return res.status(409).json({ message: "Email is already on the whitelist" });
+      }
+      const entry = await storage.addToTesterWhitelist({ email: email.trim(), note: note?.trim() || null, addedBy: userId });
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add to whitelist" });
+    }
+  });
+
+  // Admin: Remove from tester whitelist
+  app.delete("/api/admin/whitelist/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !userHasRole(user, "admin")) {
+        return res.status(403).json({ message: "Admins only" });
+      }
+      await storage.removeTesterWhitelistEntry(req.params.id);
+      res.json({ message: "Removed from whitelist" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove from whitelist" });
     }
   });
 

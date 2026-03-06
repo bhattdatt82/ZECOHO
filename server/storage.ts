@@ -89,6 +89,12 @@ import {
   notificationLogs,
   type NotificationLog,
   type InsertNotificationLog,
+  waitlist,
+  type Waitlist,
+  type InsertWaitlist,
+  testerWhitelist,
+  type TesterWhitelist,
+  type InsertTesterWhitelist,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, lt, gt, inArray, sql, or, not, desc, count } from "drizzle-orm";
@@ -409,6 +415,18 @@ export interface IStorage {
   createNotificationLog(log: InsertNotificationLog): Promise<NotificationLog>;
   updateNotificationLog(id: string, updates: Partial<InsertNotificationLog>): Promise<void>;
   getNotificationLogsByBooking(bookingId: string): Promise<NotificationLog[]>;
+
+  // Waitlist operations
+  addToWaitlist(entry: InsertWaitlist): Promise<Waitlist>;
+  getWaitlist(): Promise<Waitlist[]>;
+  deleteWaitlistEntry(id: string): Promise<void>;
+  isEmailInWaitlist(email: string): Promise<boolean>;
+
+  // Tester whitelist operations
+  addToTesterWhitelist(entry: InsertTesterWhitelist): Promise<TesterWhitelist>;
+  getTesterWhitelist(): Promise<TesterWhitelist[]>;
+  removeTesterWhitelistEntry(id: string): Promise<void>;
+  isEmailWhitelisted(email: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3217,6 +3235,44 @@ export class DatabaseStorage implements IStorage {
 
   async getNotificationLogsByBooking(bookingId: string): Promise<NotificationLog[]> {
     return db.select().from(notificationLogs).where(eq(notificationLogs.bookingId, bookingId));
+  }
+
+  // Waitlist operations
+  async addToWaitlist(entry: InsertWaitlist): Promise<Waitlist> {
+    const [row] = await db.insert(waitlist).values(entry).returning();
+    return row;
+  }
+
+  async getWaitlist(): Promise<Waitlist[]> {
+    return db.select().from(waitlist).orderBy(desc(waitlist.createdAt));
+  }
+
+  async deleteWaitlistEntry(id: string): Promise<void> {
+    await db.delete(waitlist).where(eq(waitlist.id, id));
+  }
+
+  async isEmailInWaitlist(email: string): Promise<boolean> {
+    const [row] = await db.select({ id: waitlist.id }).from(waitlist).where(eq(waitlist.email, email.toLowerCase())).limit(1);
+    return !!row;
+  }
+
+  // Tester whitelist operations
+  async addToTesterWhitelist(entry: InsertTesterWhitelist): Promise<TesterWhitelist> {
+    const [row] = await db.insert(testerWhitelist).values({ ...entry, email: entry.email.toLowerCase() }).returning();
+    return row;
+  }
+
+  async getTesterWhitelist(): Promise<TesterWhitelist[]> {
+    return db.select().from(testerWhitelist).orderBy(desc(testerWhitelist.createdAt));
+  }
+
+  async removeTesterWhitelistEntry(id: string): Promise<void> {
+    await db.delete(testerWhitelist).where(eq(testerWhitelist.id, id));
+  }
+
+  async isEmailWhitelisted(email: string): Promise<boolean> {
+    const [row] = await db.select({ id: testerWhitelist.id }).from(testerWhitelist).where(eq(testerWhitelist.email, email.toLowerCase())).limit(1);
+    return !!row;
   }
 }
 

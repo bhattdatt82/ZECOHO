@@ -1612,13 +1612,15 @@ export const notificationLogsRelations = relations(notificationLogs, ({ one }) =
   }),
 }))
 
-// Site-wide settings (singleton row) — logo URL, alt text, etc.
+// Site-wide settings (singleton row) — logo URL, alt text, coming soon mode, etc.
 export const siteSettings = pgTable(
   "site_settings",
   {
     id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
     logoUrl: text("logo_url"),
     logoAlt: varchar("logo_alt", { length: 255 }).default("ZECOHO"),
+    comingSoonMode: boolean("coming_soon_mode").default(false),
+    comingSoonEnabledAt: timestamp("coming_soon_enabled_at"),
     updatedAt: timestamp("updated_at").defaultNow(),
     updatedBy: varchar("updated_by"),
   },
@@ -1628,3 +1630,30 @@ export type SiteSettings = typeof siteSettings.$inferSelect;
 export type InsertSiteSettings = typeof siteSettings.$inferInsert;
 export const insertSiteSettingsSchema = createInsertSchema(siteSettings).omit({ id: true, updatedAt: true });
 export type InsertSiteSettingsData = z.infer<typeof insertSiteSettingsSchema>;
+
+// Waitlist — visitors who submit their info while site is in Coming Soon mode
+export const waitlist = pgTable("waitlist", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type Waitlist = typeof waitlist.$inferSelect;
+export type InsertWaitlist = typeof waitlist.$inferInsert;
+export const insertWaitlistSchema = createInsertSchema(waitlist).omit({ id: true, createdAt: true });
+
+// Tester whitelist — emails admin has approved to bypass Coming Soon gate
+export const testerWhitelist = pgTable("tester_whitelist", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  note: text("note"),
+  addedBy: varchar("added_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type TesterWhitelist = typeof testerWhitelist.$inferSelect;
+export type InsertTesterWhitelist = typeof testerWhitelist.$inferInsert;
+export const insertTesterWhitelistSchema = createInsertSchema(testerWhitelist).omit({ id: true, createdAt: true });

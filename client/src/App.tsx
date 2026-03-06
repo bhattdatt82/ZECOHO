@@ -69,6 +69,8 @@ import AdminUsers from "@/pages/admin-users";
 import AdminSupport from "@/pages/admin-support";
 import AdminHome from "@/pages/admin-home";
 import AdminLogo from "@/pages/admin-logo";
+import AdminComingSoon from "@/pages/admin-coming-soon";
+import ComingSoon from "@/pages/coming-soon";
 import ContactUs from "@/pages/contact-us";
 import AboutUs from "@/pages/about-us";
 import OwnerAgreementPage from "@/pages/owner-agreement";
@@ -141,7 +143,9 @@ function Router() {
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/support" component={AdminSupport} />
       <Route path="/admin/logo" component={AdminLogo} />
+      <Route path="/admin/coming-soon" component={AdminComingSoon} />
       <Route path="/admin" component={AdminHome} />
+      <Route path="/coming-soon" component={ComingSoon} />
       <Route path="/contact" component={ContactUs} />
       <Route path="/about-us" component={AboutUs} />
       <Route path="/owner-agreement" component={OwnerAgreementPage} />
@@ -173,7 +177,7 @@ function Router() {
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
 
   // Global urgent alert state — fires regardless of which owner page is active
   const [urgentAlert, setUrgentAlert] = useState<UrgentBookingAlert | null>(null);
@@ -192,6 +196,21 @@ function AppContent() {
     onUrgentBooking: isOwner ? handleUrgentBooking : undefined,
   });
 
+  // Coming Soon gate — check if current visitor has access
+  const { data: accessCheck } = useQuery<{ comingSoonMode: boolean; canAccess: boolean }>({
+    queryKey: ["/api/coming-soon/access"],
+    staleTime: 60000,
+    enabled: !isLoading,
+  });
+
+  // Redirect to /coming-soon if mode is on and user is not allowed
+  useEffect(() => {
+    if (isLoading || !accessCheck) return;
+    if (!accessCheck.canAccess && location !== "/coming-soon") {
+      setLocation("/coming-soon");
+    }
+  }, [accessCheck, isLoading, location, setLocation]);
+
   // Fetch current policy versions to check if user needs to re-consent
   const { data: policyVersions } = useQuery<{ termsVersion: number | null; privacyVersion: number | null }>({
     queryKey: ["/api/policies/versions/current"],
@@ -209,8 +228,9 @@ function AppContent() {
     staleTime: 60000,
   });
 
-  // Always show header on all pages including landing page
-  const showHeader = true;
+  // Hide header/nav on the standalone Coming Soon page
+  const isComingSoonPage = location === "/coming-soon";
+  const showHeader = !isComingSoonPage;
   
   // Check if user needs to accept consent (authenticated but hasn't accepted terms/privacy)
   const hasNeverAccepted = !!(isAuthenticated && user && (!user.termsAccepted || !user.privacyAccepted));
@@ -267,13 +287,13 @@ function AppContent() {
           <ScrollToTop />
           <PreLoginBookingRedirect />
           {showHeader && <Header />}
-          <div className="flex-1 pt-14 md:pt-0 pb-12 md:pb-0">
+          <div className={isComingSoonPage ? "flex-1" : "flex-1 pt-14 md:pt-0 pb-12 md:pb-0"}>
             <Router />
           </div>
-          {location === "/" && <Footer />}
-          <CompareBar />
-          <MobileBottomNav />
-          {user && <SupportChat />}
+          {location === "/" && !isComingSoonPage && <Footer />}
+          {!isComingSoonPage && <CompareBar />}
+          {!isComingSoonPage && <MobileBottomNav />}
+          {user && !isComingSoonPage && <SupportChat />}
           <Toaster />
           <ConsentModal 
             open={showConsentModal} 
