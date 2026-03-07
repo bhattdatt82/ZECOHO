@@ -197,9 +197,14 @@ function AppContent() {
   });
 
   // Coming Soon gate — check if current visitor has access.
-  // Include user ID in query key so the check re-runs after login/logout.
+  // User ID is in query key so the check re-runs fresh after login/logout.
+  // queryFn is explicit to prevent the default key-join behaviour from mangling the URL.
   const { data: accessCheck } = useQuery<{ comingSoonMode: boolean; canAccess: boolean }>({
     queryKey: ["/api/coming-soon/access", user?.id ?? "anon"],
+    queryFn: async () => {
+      const res = await fetch("/api/coming-soon/access", { credentials: "include" });
+      return res.json();
+    },
     staleTime: 30000,
     enabled: !isLoading,
   });
