@@ -5703,6 +5703,8 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Returns { comingSoonMode, canAccess }
   // canAccess=true if mode is off, user is admin, existing user, or whitelisted
   app.get("/api/coming-soon/access", async (req: any, res) => {
+    // Never allow the browser or CDN to cache this response — it depends on session state
+    res.setHeader("Cache-Control", "no-store");
     try {
       const settings = await storage.getSiteSettings();
       if (!settings?.comingSoonMode) {
@@ -5722,8 +5724,16 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
       if (userHasRole(user, "admin")) {
         return res.json({ comingSoonMode: true, canAccess: true });
       }
+      // If comingSoonEnabledAt was never recorded, allow all authenticated users through
+      // (we have no baseline to compare against — better to be permissive)
+      if (!settings.comingSoonEnabledAt) {
+        return res.json({ comingSoonMode: true, canAccess: true });
+      }
       // Existing user: registered before coming soon mode was enabled
-      if (settings.comingSoonEnabledAt && user.createdAt && user.createdAt < settings.comingSoonEnabledAt) {
+      // Coerce both to Date to guard against string/Date type mismatch from the DB driver
+      const enabledAt = new Date(settings.comingSoonEnabledAt);
+      const userCreatedAt = user.createdAt ? new Date(user.createdAt) : null;
+      if (userCreatedAt && !isNaN(enabledAt.getTime()) && userCreatedAt < enabledAt) {
         return res.json({ comingSoonMode: true, canAccess: true });
       }
       // Whitelisted email
