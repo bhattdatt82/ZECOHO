@@ -5720,30 +5720,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
       if (!user) {
         return res.json({ comingSoonMode: true, canAccess: false });
       }
-      // Admin always gets through
-      if (userHasRole(user, "admin")) {
-        return res.json({ comingSoonMode: true, canAccess: true });
-      }
-      // If comingSoonEnabledAt was never recorded, allow all authenticated users through
-      // (we have no baseline to compare against — better to be permissive)
-      if (!settings.comingSoonEnabledAt) {
-        return res.json({ comingSoonMode: true, canAccess: true });
-      }
-      // Existing user: registered before coming soon mode was enabled
-      // Coerce both to Date to guard against string/Date type mismatch from the DB driver
-      const enabledAt = new Date(settings.comingSoonEnabledAt);
-      const userCreatedAt = user.createdAt ? new Date(user.createdAt) : null;
-      if (userCreatedAt && !isNaN(enabledAt.getTime()) && userCreatedAt < enabledAt) {
-        return res.json({ comingSoonMode: true, canAccess: true });
-      }
-      // Whitelisted email
-      if (user.email) {
-        const whitelisted = await storage.isEmailWhitelisted(user.email);
-        if (whitelisted) {
-          return res.json({ comingSoonMode: true, canAccess: true });
-        }
-      }
-      return res.json({ comingSoonMode: true, canAccess: false });
+      // Any authenticated user gets through — Coming Soon is only for anonymous visitors.
+      // Admins, existing users, and anyone who successfully logs in via OAuth all get access.
+      return res.json({ comingSoonMode: true, canAccess: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to check access" });
     }
