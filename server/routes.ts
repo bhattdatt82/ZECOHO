@@ -5716,7 +5716,13 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
         return res.json({ comingSoonMode: true, canAccess: false });
       }
       const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userEmail = req.user.claims.email as string | undefined;
+      // Try by OAuth ID first; fall back to email for users who registered via
+      // email/password and have a different stored ID than the Replit OAuth sub
+      let user = await storage.getUser(userId);
+      if (!user && userEmail) {
+        user = await storage.getUserByEmail(userEmail);
+      }
       if (!user) {
         return res.json({ comingSoonMode: true, canAccess: false });
       }
