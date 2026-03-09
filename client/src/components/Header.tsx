@@ -264,6 +264,18 @@ export function Header() {
                           Support Inbox
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild data-testid="link-admin-logo">
+                        <Link href="/admin/logo">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Logo &amp; Branding
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild data-testid="link-admin-coming-soon">
+                        <Link href="/admin/coming-soon">
+                          <Clock className="h-4 w-4 mr-2" />
+                          Coming Soon Mode
+                        </Link>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
