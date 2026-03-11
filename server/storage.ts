@@ -364,6 +364,7 @@ export interface IStorage {
   // User Deactivation operations (soft delete)
   deactivateUser(userId: string, adminId: string, reason: string): Promise<User | undefined>;
   restoreUser(userId: string, adminId: string): Promise<User | undefined>;
+  deleteUser(userId: string, adminId: string): Promise<void>;
   getDeactivatedUsers(): Promise<User[]>;
   getAllUsersForAdmin(filters?: { search?: string; status?: 'active' | 'deactivated' | 'all'; limit?: number }): Promise<User[]>;
 
@@ -2552,6 +2553,22 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updated;
+  }
+
+  async deleteUser(userId: string, adminId: string): Promise<void> {
+    const targetUser = await this.getUser(userId);
+    await db.delete(users).where(eq(users.id, userId));
+    await this.createAdminAuditLog({
+      adminId,
+      action: "delete_user",
+      ownerId: userId,
+      metadata: {
+        userEmail: targetUser?.email,
+        userName: targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : "Unknown",
+        userRole: targetUser?.userRole,
+        deletedAt: new Date().toISOString(),
+      },
+    });
   }
 
   async getDeactivatedUsers(): Promise<User[]> {

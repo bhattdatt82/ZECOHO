@@ -7081,6 +7081,29 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
     }
   });
 
+  // Admin: Permanently delete a user and all their data (CASCADE)
+  app.delete("/api/admin/users/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const admin = await storage.getUser(adminId);
+      if (!admin || !userHasRole(admin, "admin")) {
+        return res.status(403).json({ message: "Only admins can permanently delete users" });
+      }
+      const targetUser = await storage.getUser(req.params.id);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (targetUser.id === adminId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      await storage.deleteUser(req.params.id, adminId);
+      res.json({ message: "User permanently deleted", email: targetUser.email });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Admin: Get user management stats
   app.get("/api/admin/stats/users", isAuthenticated, async (req: any, res) => {
     try {
