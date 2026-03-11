@@ -25,7 +25,7 @@ export function Logo({ className = "" }: { className?: string }) {
       <img
         src={logoUrl}
         alt={logoAlt}
-        style={{ height: "36px", width: "auto", maxWidth: "180px", objectFit: "contain", display: "block" }}
+        style={{ height: "48px", width: "auto", maxWidth: "200px", objectFit: "contain", display: "block" }}
         data-testid="img-site-logo"
       />
     </div>
@@ -42,7 +42,7 @@ export function LogoText({ className = "" }: { className?: string }) {
       <img
         src={logoUrl}
         alt={logoAlt}
-        style={{ height: "28px", width: "auto", maxWidth: "160px", objectFit: "contain", display: "block" }}
+        style={{ height: "40px", width: "auto", maxWidth: "180px", objectFit: "contain", display: "block" }}
         data-testid="img-site-logo-text"
       />
     </span>
