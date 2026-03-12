@@ -31,7 +31,6 @@ import {
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useLocation } from "wouter";
 import { format, addDays } from "date-fns";
 
@@ -112,30 +111,9 @@ export function SearchBar({
   const [guests, setGuests] = useState(initialGuests);
   const [adults, setAdults] = useState(initialAdults);
   const [children, setChildren] = useState(initialChildren);
-  const handleUseLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Location not supported by this browser");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-
-        navigate(`/search?lat=${lat}&lng=${lng}`);
-      },
-      () => {
-        alert("Please enable location access to find properties near you.");
-      },
-    );
-  };
   const [rooms, setRooms] = useState(initialRooms);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [googleCityPredictions, setGoogleCityPredictions] = useState<
-    GooglePlacePrediction[]
-  >([]);
-  const [googleHotelPredictions, setGoogleHotelPredictions] = useState<
     GooglePlacePrediction[]
   >([]);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -144,24 +122,10 @@ export function SearchBar({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const autocompleteServiceRef = useRef<any>(null);
+  const lastQueryRef = useRef<string>("");
   const guestsInputRef = useRef<HTMLInputElement>(null);
   const geocoderRef = useRef<any>(null);
-
-  const handleHotelsNearMe = () => {
-    if (!navigator.geolocation) {
-      alert("Location not supported by this browser");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition((position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-
-      navigate(`/search?lat=${lat}&lng=${lng}`);
-    });
-  };
   // Mobile detection
-  const isMobile = useIsMobile();
 
   // Popover open states for custom calendar and guests (desktop)
   const [checkInOpen, setCheckInOpen] = useState(false);
@@ -350,52 +314,49 @@ export function SearchBar({
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: true,
             timeout: 10000,
-            maximumAge: 300000, // Cache for 5 minutes
+            maximumAge: 300000,
           });
         },
       );
 
       const { latitude, longitude } = position.coords;
 
-      // Use Google Maps Geocoder to get city name from coordinates
       if (geocoderRef.current) {
         geocoderRef.current.geocode(
           { location: { lat: latitude, lng: longitude } },
           (results: any[], status: string) => {
             setIsGettingLocation(false);
+
             if (status === "OK" && results && results.length > 0) {
-              // Find the city/locality from the address components
               let cityName = "";
-              let stateName = "";
 
               for (const result of results) {
                 const addressComponents = result.address_components || [];
+
                 for (const component of addressComponents) {
                   const types = component.types || [];
+
                   if (types.includes("locality") && !cityName) {
                     cityName = component.long_name;
                   }
+
                   if (
                     types.includes("administrative_area_level_2") &&
                     !cityName
                   ) {
                     cityName = component.long_name;
                   }
-                  if (
-                    types.includes("administrative_area_level_1") &&
-                    !stateName
-                  ) {
-                    stateName = component.long_name;
-                  }
                 }
+
                 if (cityName) break;
               }
 
               if (cityName) {
                 setDestination(cityName);
               } else {
-                // Fallback to formatted address
-                setDestination(results[0].formatted_address.split(",")[0]);
+                setDestination(
+                  results?.[0]?.formatted_address?.split(",")[0] || "",
+                );
               }
             } else {
               console.error("Geocoding failed:", status);
@@ -413,48 +374,50 @@ export function SearchBar({
   }, []);
 
   const fetchGooglePredictions = useCallback(async (query: string) => {
-    if (!query || query.length < 2 || !autocompleteServiceRef.current) {
+    if (!autocompleteServiceRef.current || query.length < 2) {
       setGoogleCityPredictions([]);
-      setGoogleHotelPredictions([]);
       setIsGoogleLoading(false);
       return;
     }
 
     setIsGoogleLoading(true);
     try {
-      // Fetch both city and hotel/lodging predictions in parallel
-      const [cityResults, hotelResults] = await Promise.all([
-        autocompleteServiceRef.current.getPlacePredictions({
-          input: query,
-          componentRestrictions: { country: "in" },
-          types: ["(cities)"],
-        }),
-        autocompleteServiceRef.current.getPlacePredictions({
-          input: query,
-          componentRestrictions: { country: "in" },
-          types: ["lodging"],
-        }),
-      ]);
-      setGoogleCityPredictions(cityResults.predictions || []);
-      setGoogleHotelPredictions(hotelResults.predictions || []);
+      // Fetch city predictions from Google Places
+      const cityResults = await new Promise<any>((resolve) => {
+        autocompleteServiceRef.current.getPlacePredictions(
+          {
+            input: query,
+            componentRestrictions: { country: "in" },
+            types: ["(cities)"],
+          },
+          resolve,
+        );
+      });
+
+      setGoogleCityPredictions(cityResults?.predictions || []);
     } catch (error) {
       console.error("Error fetching Google predictions:", error);
       setGoogleCityPredictions([]);
-      setGoogleHotelPredictions([]);
     } finally {
       setIsGoogleLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (debouncedDestination.length >= 2 && googleMapsLoaded) {
-      fetchGooglePredictions(debouncedDestination);
+    const query = debouncedDestination.trim();
+
+    if (
+      query.length >= 2 &&
+      query.toLowerCase() !== "near me" &&
+      googleMapsLoaded &&
+      query !== lastQueryRef.current
+    ) {
+      lastQueryRef.current = query;
+      fetchGooglePredictions(query);
     } else {
       setGoogleCityPredictions([]);
-      setGoogleHotelPredictions([]);
     }
   }, [debouncedDestination, googleMapsLoaded, fetchGooglePredictions]);
-
   const saveSearchMutation = useMutation({
     mutationFn: async (searchData: any) => {
       const res = await fetch("/api/search-history", {
@@ -470,7 +433,7 @@ export function SearchBar({
   const { data: filteredDestinations = [], isLoading } = useQuery({
     queryKey: ["destination-search", debouncedDestination],
     queryFn: async () => {
-      if (debouncedDestination.length === 0) {
+      if (!debouncedDestination.trim()) {
         return [];
       }
       const url = `/api/destinations/search?q=${encodeURIComponent(debouncedDestination)}`;
@@ -479,7 +442,7 @@ export function SearchBar({
       return res.json();
     },
     staleTime: 60000,
-    enabled: debouncedDestination.length > 0,
+    enabled: debouncedDestination.trim().length >= 2,
   });
 
   // Detect matched city from destinations or Google predictions for Swiggy-style suggestions
@@ -542,7 +505,9 @@ export function SearchBar({
     );
     const dbProperties = filteredDestinations.filter((d: any) => d.isProperty);
     const dbNames = new Set(
-      dbDestinations.map((d: any) => d.name.toLowerCase()),
+      dbDestinations
+        .filter((d: any) => d.name)
+        .map((d: any) => d.name.toLowerCase()),
     );
 
     // Add cities from Google Places (that aren't already in our database)
@@ -596,10 +561,6 @@ export function SearchBar({
   }, [filteredDestinations, googleCityPredictions, cityTopHotels, matchedCity]);
 
   // Legacy combinedDestinations for backward compatibility
-  const combinedDestinations = useMemo(() => {
-    const { cities, topHotelsInCity, otherProperties } = groupedSuggestions;
-    return [...cities, ...topHotelsInCity, ...otherProperties];
-  }, [groupedSuggestions]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -612,29 +573,41 @@ export function SearchBar({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () =>
+      document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
   const handleSelectDestination = (dest: any) => {
     // If it's a property from our database, navigate directly to it
     if (dest.isProperty && dest.propertyId) {
-      setShowSuggestions(false);
+      setTimeout(() => setShowSuggestions(false), 150);
       navigate(`/properties/${dest.propertyId}`);
       return;
     }
 
     // Otherwise, just set the destination name for search
-    setDestination(dest.name);
+    setDestination(dest.name || "");
     setShowSuggestions(false);
+    lastQueryRef.current = dest.name || "";
   };
 
   const handleSearch = () => {
     const checkIn = checkInDate ? format(checkInDate, "yyyy-MM-dd") : "";
     const checkOut = checkOutDate ? format(checkOutDate, "yyyy-MM-dd") : "";
+    if (!destination) {
+      handleUseCurrentLocation();
+      return;
+    }
+
+    if (destination === "Near Me") {
+      navigate(`/search?nearMe=true`);
+      return;
+    }
+    navigate(`/search?destination=${encodeURIComponent(destination.trim())}`);
 
     onSearch?.({
-      destination,
+      destination: destination.trim(),
       checkIn,
       checkOut,
       guests,
@@ -643,7 +616,6 @@ export function SearchBar({
       rooms,
     });
 
-    // Save search history if user is authenticated
     if (isAuthenticated && destination.trim()) {
       saveSearchMutation.mutate({
         destination,
@@ -749,156 +721,158 @@ export function SearchBar({
         </Button>
 
         {/* Swiggy-style grouped suggestions dropdown */}
-        {showSuggestions &&
-          (groupedSuggestions.cities.length > 0 ||
-            groupedSuggestions.topHotelsInCity.length > 0) && (
+        {showSuggestions && (
+          <div
+            className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl max-h-[400px] overflow-y-auto"
+            style={{ zIndex: 9999 }}
+          >
+            {/* NEW LINE ADDED */}
             <div
-              className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl max-h-[400px] overflow-y-auto"
-              style={{ zIndex: 9999 }}
+              className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2 border-b border-gray-100 dark:border-gray-700"
+              onClick={() => {
+                setDestination("Near Me");
+                setShowSuggestions(false);
+                navigate("/search?nearMe=true");
+                handleUseCurrentLocation();
+              }}
             >
-              {/* NEW LINE ADDED */}
-              <div
-                className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2 border-b border-gray-100 dark:border-gray-700"
-                onClick={handleHotelsNearMe}
-              >
-                📍 Hotels Near Me
+              <Navigation className="h-4 w-4 text-primary" />
+              <span>Hotels Near Me</span>
+            </div>
+            {(isLoading || isGoogleLoading || isLoadingCityHotels) && (
+              <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Searching destinations & hotels...
               </div>
-              {(isLoading || isGoogleLoading || isLoadingCityHotels) && (
-                <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Searching destinations & hotels...
+            )}
+
+            {/* City Matches Section */}
+            {groupedSuggestions.cities.length > 0 && (
+              <div>
+                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50">
+                  Destinations
+                </div>
+                {groupedSuggestions.cities.map((dest: any) => (
+                  <button
+                    key={dest.id}
+                    onClick={() => handleSelectDestination(dest)}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-2"
+                    data-testid={`suggestion-city-compact-${dest.id}`}
+                  >
+                    <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium">{dest.name}</span>
+                      {dest.state && (
+                        <span className="text-gray-500 dark:text-gray-400 ml-1 text-xs">
+                          , {dest.state}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Top Hotels in City Section */}
+            {groupedSuggestions.topHotelsInCity.length > 0 &&
+              groupedSuggestions.matchedCity && (
+                <div>
+                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between">
+                    <span>Top Hotels in {groupedSuggestions.matchedCity}</span>
+                  </div>
+                  {groupedSuggestions.topHotelsInCity.map((hotel: any) => (
+                    <button
+                      key={hotel.id}
+                      onClick={() => handleSelectDestination(hotel)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-3"
+                      data-testid={`suggestion-hotel-compact-${hotel.id}`}
+                    >
+                      <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate">
+                            {hotel.name}
+                          </span>
+                          {hotel.rating && (
+                            <span className="flex items-center gap-0.5 text-xs text-amber-600 dark:text-amber-400 flex-shrink-0">
+                              <Star className="h-3 w-3 fill-current" />
+                              {hotel.rating}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Hotel
+                        </span>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    </button>
+                  ))}
+                  {/* View all hotels CTA */}
+                  <button
+                    onClick={() => {
+                      const city = groupedSuggestions.matchedCity || "";
+                      setDestination(city);
+                      setShowSuggestions(false);
+                      // Trigger search with the matched city directly
+                      const checkIn = checkInDate
+                        ? format(checkInDate, "yyyy-MM-dd")
+                        : "";
+                      const checkOut = checkOutDate
+                        ? format(checkOutDate, "yyyy-MM-dd")
+                        : "";
+                      onSearch?.({
+                        destination: city,
+                        checkIn,
+                        checkOut,
+                        guests,
+                        adults,
+                        children,
+                        rooms,
+                      });
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-primary/5 text-sm transition-colors text-primary font-medium flex items-center justify-between"
+                    data-testid="view-all-hotels-cta"
+                  >
+                    <span>
+                      View all hotels in {groupedSuggestions.matchedCity}
+                    </span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
                 </div>
               )}
 
-              {/* City Matches Section */}
-              {groupedSuggestions.cities.length > 0 && (
-                <div>
-                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50">
-                    Destinations
-                  </div>
-                  {groupedSuggestions.cities.map((dest: any) => (
+            {/* Other matching properties */}
+            {groupedSuggestions.otherProperties.length > 0 && (
+              <div>
+                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50">
+                  Matching Hotels
+                </div>
+                {groupedSuggestions.otherProperties
+                  .slice(0, 3)
+                  .map((dest: any) => (
                     <button
-                      key={dest.id}
+                      key={dest.id || dest.propertyId}
                       onClick={() => handleSelectDestination(dest)}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-2"
-                      data-testid={`suggestion-city-compact-${dest.id}`}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-3"
+                      data-testid={`suggestion-property-compact-${dest.id || dest.propertyId}`}
                     >
-                      <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                      <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <span className="font-medium">{dest.name}</span>
-                        {dest.state && (
-                          <span className="text-gray-500 dark:text-gray-400 ml-1 text-xs">
-                            , {dest.state}
+                        <span className="font-medium truncate">
+                          {dest.name}
+                        </span>
+                        {dest.city && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                            {dest.city}
                           </span>
                         )}
                       </div>
                     </button>
                   ))}
-                </div>
-              )}
-
-              {/* Top Hotels in City Section */}
-              {groupedSuggestions.topHotelsInCity.length > 0 &&
-                groupedSuggestions.matchedCity && (
-                  <div>
-                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between">
-                      <span>
-                        Top Hotels in {groupedSuggestions.matchedCity}
-                      </span>
-                    </div>
-                    {groupedSuggestions.topHotelsInCity.map((hotel: any) => (
-                      <button
-                        key={hotel.id}
-                        onClick={() => handleSelectDestination(hotel)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-3"
-                        data-testid={`suggestion-hotel-compact-${hotel.id}`}
-                      >
-                        <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">
-                              {hotel.name}
-                            </span>
-                            {hotel.rating && (
-                              <span className="flex items-center gap-0.5 text-xs text-amber-600 dark:text-amber-400 flex-shrink-0">
-                                <Star className="h-3 w-3 fill-current" />
-                                {hotel.rating}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            Hotel
-                          </span>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      </button>
-                    ))}
-                    {/* View all hotels CTA */}
-                    <button
-                      onClick={() => {
-                        const city = groupedSuggestions.matchedCity || "";
-                        setDestination(city);
-                        setShowSuggestions(false);
-                        // Trigger search with the matched city directly
-                        const checkIn = checkInDate
-                          ? format(checkInDate, "yyyy-MM-dd")
-                          : "";
-                        const checkOut = checkOutDate
-                          ? format(checkOutDate, "yyyy-MM-dd")
-                          : "";
-                        onSearch?.({
-                          destination: city,
-                          checkIn,
-                          checkOut,
-                          guests,
-                          adults,
-                          children,
-                          rooms,
-                        });
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-primary/5 text-sm transition-colors text-primary font-medium flex items-center justify-between"
-                      data-testid="view-all-hotels-cta"
-                    >
-                      <span>
-                        View all hotels in {groupedSuggestions.matchedCity}
-                      </span>
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-
-              {/* Other matching properties */}
-              {groupedSuggestions.otherProperties.length > 0 && (
-                <div>
-                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50">
-                    Matching Hotels
-                  </div>
-                  {groupedSuggestions.otherProperties
-                    .slice(0, 3)
-                    .map((dest: any) => (
-                      <button
-                        key={dest.id || dest.propertyId}
-                        onClick={() => handleSelectDestination(dest)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-3"
-                        data-testid={`suggestion-property-compact-${dest.id || dest.propertyId}`}
-                      >
-                        <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium truncate">
-                            {dest.name}
-                          </span>
-                          {dest.city && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                              {dest.city}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -949,7 +923,12 @@ export function SearchBar({
               {/* Location option */}
               <div
                 className="px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-3 border-b border-gray-200 dark:border-gray-700"
-                onClick={handleUseLocation}
+                onClick={() => {
+                  setDestination("Near Me");
+                  setShowSuggestions(false);
+                  navigate("/search?nearMe=true");
+                  handleUseCurrentLocation();
+                }}
               >
                 <MapPin className="h-4 w-4 text-primary" />
 
@@ -1587,146 +1566,6 @@ export function SearchBar({
           </Button>
         </div>
       </div>
-
-      {/* Swiggy-style grouped suggestions dropdown */}
-      {showSuggestions &&
-        (groupedSuggestions.cities.length > 0 ||
-          groupedSuggestions.topHotelsInCity.length > 0 ||
-          groupedSuggestions.otherProperties.length > 0) && (
-          <div
-            className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl max-h-[420px] overflow-y-auto"
-            style={{ zIndex: 9999 }}
-          >
-            {(isLoading || isGoogleLoading || isLoadingCityHotels) && (
-              <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Searching destinations & hotels...
-              </div>
-            )}
-
-            {/* City Matches Section */}
-            {groupedSuggestions.cities.length > 0 && (
-              <div>
-                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50">
-                  Destinations
-                </div>
-                {groupedSuggestions.cities.map((dest: any) => (
-                  <button
-                    key={dest.id}
-                    onClick={() => handleSelectDestination(dest)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-3"
-                    data-testid={`suggestion-city-${dest.id}`}
-                  >
-                    <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="font-medium">{dest.name}</span>
-                      {dest.state && (
-                        <span className="text-gray-500 dark:text-gray-400 ml-1 text-xs">
-                          , {dest.state}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Top Hotels in City Section */}
-            {groupedSuggestions.topHotelsInCity.length > 0 &&
-              groupedSuggestions.matchedCity && (
-                <div>
-                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50">
-                    Top Hotels in {groupedSuggestions.matchedCity}
-                  </div>
-                  {groupedSuggestions.topHotelsInCity.map((hotel: any) => (
-                    <button
-                      key={hotel.id}
-                      onClick={() => handleSelectDestination(hotel)}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 text-gray-900 dark:text-white flex items-center gap-3"
-                      data-testid={`suggestion-hotel-${hotel.id}`}
-                    >
-                      <Building2 className="h-5 w-5 text-primary flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{hotel.name}</span>
-                          {hotel.rating && (
-                            <span className="flex items-center gap-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">
-                              <Star className="h-3 w-3 fill-current" />
-                              {hotel.rating}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Hotel in {groupedSuggestions.matchedCity}
-                        </span>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    </button>
-                  ))}
-                  {/* View all hotels CTA */}
-                  <button
-                    onClick={() => {
-                      const city = groupedSuggestions.matchedCity || "";
-                      setDestination(city);
-                      setShowSuggestions(false);
-                      // Trigger search with the matched city directly
-                      const checkIn = checkInDate
-                        ? format(checkInDate, "yyyy-MM-dd")
-                        : "";
-                      const checkOut = checkOutDate
-                        ? format(checkOutDate, "yyyy-MM-dd")
-                        : "";
-                      onSearch?.({
-                        destination: city,
-                        checkIn,
-                        checkOut,
-                        guests,
-                        adults,
-                        children,
-                        rooms,
-                      });
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-primary/5 text-sm transition-colors text-primary font-medium flex items-center justify-between border-b border-gray-100 dark:border-gray-700"
-                    data-testid="view-all-hotels-cta-full"
-                  >
-                    <span>
-                      View all hotels in {groupedSuggestions.matchedCity}
-                    </span>
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-
-            {/* Other matching properties */}
-            {groupedSuggestions.otherProperties.length > 0 && (
-              <div>
-                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-900/50">
-                  Matching Hotels
-                </div>
-                {groupedSuggestions.otherProperties
-                  .slice(0, 5)
-                  .map((dest: any) => (
-                    <button
-                      key={dest.id || dest.propertyId}
-                      onClick={() => handleSelectDestination(dest)}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 text-gray-900 dark:text-white flex items-center gap-3"
-                      data-testid={`suggestion-property-${dest.id || dest.propertyId}`}
-                    >
-                      <Building2 className="h-5 w-5 text-primary flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium">{dest.name}</span>
-                        {dest.city && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                            {dest.city}, {dest.state || "India"}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-        )}
     </div>
   );
 }
