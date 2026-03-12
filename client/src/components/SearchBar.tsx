@@ -739,7 +739,7 @@ export function SearchBar({
               setDestination(e.target.value);
               setShowSuggestions(true);
             }}
-            onFocus={() => destination.length > 0 && setShowSuggestions(true)}
+            onFocus={() => setShowSuggestions(true)}
             className="pl-10 h-12 text-base"
             data-testid="input-destination"
           />
@@ -931,9 +931,7 @@ export function SearchBar({
                   setDestination(e.target.value);
                   setShowSuggestions(true);
                 }}
-                onFocus={() =>
-                  destination.length > 0 && setShowSuggestions(true)
-                }
+                onFocus={() => setShowSuggestions(true)}
                 className="w-full bg-transparent focus:outline-none text-base font-medium text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-mobile"
               />
@@ -954,6 +952,7 @@ export function SearchBar({
                 onClick={handleUseLocation}
               >
                 <MapPin className="h-4 w-4 text-primary" />
+
                 <div>
                   <div className="text-sm font-medium">Use your location</div>
                   <div className="text-xs text-gray-500">
@@ -1340,9 +1339,7 @@ export function SearchBar({
                   setDestination(e.target.value);
                   setShowSuggestions(true);
                 }}
-                onFocus={() =>
-                  destination.length > 0 && setShowSuggestions(true)
-                }
+                onFocus={() => setShowSuggestions(true)}
                 className="w-full bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-full"
               />
