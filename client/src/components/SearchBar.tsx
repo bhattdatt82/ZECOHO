@@ -112,6 +112,24 @@ export function SearchBar({
   const [guests, setGuests] = useState(initialGuests);
   const [adults, setAdults] = useState(initialAdults);
   const [children, setChildren] = useState(initialChildren);
+  const handleUseLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Location not supported by this browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        navigate(`/search?lat=${lat}&lng=${lng}`);
+      },
+      () => {
+        alert("Please enable location access to find properties near you.");
+      },
+    );
+  };
   const [rooms, setRooms] = useState(initialRooms);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [googleCityPredictions, setGoogleCityPredictions] = useState<
@@ -719,7 +737,7 @@ export function SearchBar({
             value={destination}
             onChange={(e) => {
               setDestination(e.target.value);
-              setShowSuggestions(e.target.value.length > 0);
+              setShowSuggestions(true);
             }}
             onFocus={() => destination.length > 0 && setShowSuggestions(true)}
             className="pl-10 h-12 text-base"
@@ -911,7 +929,7 @@ export function SearchBar({
                 value={destination}
                 onChange={(e) => {
                   setDestination(e.target.value);
-                  setShowSuggestions(e.target.value.length > 0);
+                  setShowSuggestions(true);
                 }}
                 onFocus={() =>
                   destination.length > 0 && setShowSuggestions(true)
@@ -928,102 +946,112 @@ export function SearchBar({
           </div>
 
           {/* Mobile Suggestions - Inside Destination Card */}
-          {showSuggestions &&
-            (groupedSuggestions.cities.length > 0 ||
-              groupedSuggestions.topHotelsInCity.length > 0 ||
-              groupedSuggestions.otherProperties.length > 0) && (
-              <div className="border-t border-gray-200 dark:border-gray-700 max-h-[300px] overflow-y-auto">
-                {(isLoading || isGoogleLoading || isLoadingCityHotels) && (
-                  <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Searching...
+          {showSuggestions && (
+            <div className="border-t border-gray-200 dark:border-gray-700 max-h-[400px] overflow-y-auto">
+              {/* Location option */}
+              <div
+                className="px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-3 border-b border-gray-200 dark:border-gray-700"
+                onClick={handleUseLocation}
+              >
+                <MapPin className="h-4 w-4 text-primary" />
+                <div>
+                  <div className="text-sm font-medium">Use your location</div>
+                  <div className="text-xs text-gray-500">
+                    Properties near me
                   </div>
-                )}
+                </div>
+              </div>
+              {/* Loading */}
+              {(isLoading || isGoogleLoading || isLoadingCityHotels) && (
+                <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Searching...
+                </div>
+              )}
+              {/* Cities */}
+              {groupedSuggestions.cities.length > 0 && (
+                <div>
+                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-100 dark:bg-gray-900/50">
+                    Destinations
+                  </div>
+                  {groupedSuggestions.cities.map((dest: any) => (
+                    <button
+                      key={dest.id}
+                      type="button"
+                      onClick={() => handleSelectDestination(dest)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                    >
+                      <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {dest.name}
+                        </span>
+                        {dest.state && (
+                          <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
+                            , {dest.state}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
 
-                {/* Cities */}
-                {groupedSuggestions.cities.length > 0 && (
+              {/* Hotels */}
+              {groupedSuggestions.topHotelsInCity.length > 0 &&
+                groupedSuggestions.matchedCity && (
                   <div>
                     <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-100 dark:bg-gray-900/50">
-                      Destinations
+                      Top Hotels in {groupedSuggestions.matchedCity}
                     </div>
-                    {groupedSuggestions.cities.map((dest: any) => (
+                    {groupedSuggestions.topHotelsInCity.map((hotel: any) => (
                       <button
-                        key={dest.id}
+                        key={hotel.id}
                         type="button"
-                        onClick={() => handleSelectDestination(dest)}
+                        onClick={() => handleSelectDestination(hotel)}
                         className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                       >
-                        <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-gray-900 dark:text-white">
-                            {dest.name}
-                          </span>
-                          {dest.state && (
-                            <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
-                              , {dest.state}
-                            </span>
-                          )}
-                        </div>
+                        <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="font-medium text-gray-900 dark:text-white truncate">
+                          {hotel.name}
+                        </span>
                       </button>
                     ))}
                   </div>
                 )}
 
-                {/* Hotels */}
-                {groupedSuggestions.topHotelsInCity.length > 0 &&
-                  groupedSuggestions.matchedCity && (
-                    <div>
-                      <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-100 dark:bg-gray-900/50">
-                        Top Hotels in {groupedSuggestions.matchedCity}
-                      </div>
-                      {groupedSuggestions.topHotelsInCity.map((hotel: any) => (
-                        <button
-                          key={hotel.id}
-                          type="button"
-                          onClick={() => handleSelectDestination(hotel)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                        >
-                          <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
-                          <span className="font-medium text-gray-900 dark:text-white truncate">
-                            {hotel.name}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                {/* Other Properties */}
-                {groupedSuggestions.otherProperties.length > 0 && (
-                  <div>
-                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-100 dark:bg-gray-900/50">
-                      Matching Hotels
-                    </div>
-                    {groupedSuggestions.otherProperties
-                      .slice(0, 3)
-                      .map((dest: any) => (
-                        <button
-                          key={dest.id || dest.propertyId}
-                          type="button"
-                          onClick={() => handleSelectDestination(dest)}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-                        >
-                          <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className="font-medium text-gray-900 dark:text-white truncate">
-                              {dest.name}
-                            </span>
-                            {dest.city && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 block">
-                                {dest.city}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+              {/* Other Properties */}
+              {groupedSuggestions.otherProperties.length > 0 && (
+                <div>
+                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-100 dark:bg-gray-900/50">
+                    Matching Hotels
                   </div>
-                )}
-              </div>
-            )}
+                  {groupedSuggestions.otherProperties
+                    .slice(0, 3)
+                    .map((dest: any) => (
+                      <button
+                        key={dest.id || dest.propertyId}
+                        type="button"
+                        onClick={() => handleSelectDestination(dest)}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                      >
+                        <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-gray-900 dark:text-white truncate">
+                            {dest.name}
+                          </span>
+                          {dest.city && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                              {dest.city}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {showDates && (
@@ -1303,14 +1331,14 @@ export function SearchBar({
             <label className="text-xs font-semibold block mb-0.5 text-gray-700 dark:text-gray-300">
               Where
             </label>
-            <div className="relative">
+            <div className="relative overflow-visible">
               <input
                 type="text"
                 placeholder="Search destinations"
                 value={destination}
                 onChange={(e) => {
                   setDestination(e.target.value);
-                  setShowSuggestions(e.target.value.length > 0);
+                  setShowSuggestions(true);
                 }}
                 onFocus={() =>
                   destination.length > 0 && setShowSuggestions(true)
