@@ -198,6 +198,11 @@ export default function Search() {
       rooms?: number;
     }) => {
       if (destination !== undefined) {
+        // Handle Near Me navigation
+        if (destination.toLowerCase() === "near me") {
+          window.location.href = "/search?nearMe=true";
+          return;
+        }
         setSearchDestination(destination);
         setInitialSearchValues((prev) => ({
           ...prev,
@@ -213,7 +218,6 @@ export default function Search() {
     },
     [],
   );
-
   const filteredProperties = properties.filter((property) => {
     if (property.status !== "published") return false;
 
