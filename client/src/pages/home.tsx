@@ -128,13 +128,13 @@ export default function Home() {
 
       {/* Hero Section - Clean & Modern */}
       <div className="relative bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
-        <div className="relative z-10 container px-4 md:px-6 text-center py-6 md:py-12">
+        <div className="relative z-10 container px-4 md:px-6 text-center py-6 md:py-12 overflow-visible">
           {/* Mobile Layout: Search First, then Tagline */}
           <div className="md:hidden">
             {/* Search Bar - First on Mobile */}
             <div className="mb-6">
               <div className="max-w-4xl mx-auto">
-                <div className="bg-background rounded-2xl shadow-xl border p-3">
+                <div className="bg-background rounded-2xl shadow-xl border p-3 overflow-visible">
                   <SearchBar
                     onSearch={handleSearch}
                     compact={false}
@@ -208,7 +208,7 @@ export default function Home() {
 
             {/* Desktop: Search Bar */}
             <div className="max-w-4xl mx-auto mb-4">
-              <div className="bg-background rounded-2xl shadow-xl border p-4">
+              <div className="bg-background rounded-2xl shadow-xl border p-4 overflow-visible">
                 <SearchBar
                   onSearch={handleSearch}
                   compact={false}

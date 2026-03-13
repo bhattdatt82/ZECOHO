@@ -915,7 +915,7 @@ export function SearchBar({
     <div
       className="w-full max-w-4xl relative"
       ref={suggestionsRef}
-      style={{ zIndex: 1000 }}
+      style={{ zIndex: 1000, isolation: "isolate" }}
     >
       {/* Mobile Card-Based Layout */}
       <div className="md:hidden space-y-3">
