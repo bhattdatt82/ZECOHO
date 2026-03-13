@@ -912,7 +912,11 @@ export function SearchBar({
   const nights = calculateNights();
 
   return (
-    <div className="w-full max-w-4xl relative" ref={suggestionsRef}>
+    <div
+      className="w-full max-w-4xl relative"
+      ref={suggestionsRef}
+      style={{ zIndex: 1000 }}
+    >
       {/* Mobile Card-Based Layout */}
       <div className="md:hidden space-y-3">
         {/* Destination Card with Inline Suggestions */}
