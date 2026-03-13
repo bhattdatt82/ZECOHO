@@ -164,7 +164,7 @@ export default function OwnerReviews() {
                           alt={review.guestName}
                         />
                         <AvatarFallback>
-                          {review.guestName
+                          {(review.guestName || "Guest")
                             .split(" ")
                             .map((n) => n[0])
                             .join("")
