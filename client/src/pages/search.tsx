@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { PropertyCard } from "@/components/PropertyCard";
@@ -33,9 +33,11 @@ export default function Search() {
 
   // Block access for rejected owners
   if (isOwner && shouldBlockAccess) {
-    return <RestrictedAccess description="Your KYC has been rejected. Please fix your KYC to access search." />;
+    return (
+      <RestrictedAccess description="Your KYC has been rejected. Please fix your KYC to access search." />
+    );
   }
-  
+
   // Filter states - multi-select arrays
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedBudgets, setSelectedBudgets] = useState<string[]>([]);
@@ -50,7 +52,7 @@ export default function Search() {
   const [selectedLocality, setSelectedLocality] = useState<string>("");
   // More filters toggle for mobile
   const [showMoreFilters, setShowMoreFilters] = useState(false);
-  
+
   const [searchDestination, setSearchDestination] = useState("");
   const [initialSearchValues, setInitialSearchValues] = useState({
     destination: "",
@@ -72,7 +74,7 @@ export default function Search() {
     const adults = searchParams.get("adults");
     const children = searchParams.get("children");
     const rooms = searchParams.get("rooms");
-    
+
     setSearchDestination(destination);
     setInitialSearchValues({
       destination,
@@ -99,7 +101,9 @@ export default function Search() {
     enabled: user?.userRole === "guest",
   });
 
-  const wishlistedPropertyIds = new Set(wishlists.map((w: any) => w.propertyId));
+  const wishlistedPropertyIds = new Set(
+    wishlists.map((w: any) => w.propertyId),
+  );
 
   // Filter options
   const propertyTypes = [
@@ -145,38 +149,58 @@ export default function Search() {
 
   // Get unique localities from properties that match the search destination (city)
   // Only show localities when a city/destination is selected
-  const hasSearchDestination = searchDestination && searchDestination.trim().length > 0;
-  
-  const localities = hasSearchDestination ? Array.from(new Set(
-    properties
-      .filter(p => {
-        if (!p.propLocality) return false;
-        // Only include localities from properties matching the search destination
-        const searchLower = searchDestination.toLowerCase().trim();
-        const destinationLower = (p.destination || "").toLowerCase();
-        const cityLower = (p.propCity || "").toLowerCase();
-        const stateLower = (p.propState || "").toLowerCase();
-        return destinationLower.includes(searchLower) || 
-               cityLower.includes(searchLower) || 
-               stateLower.includes(searchLower);
-      })
-      .map(p => p.propLocality as string)
-  )).sort() : [];
-  
+  const hasSearchDestination =
+    searchDestination && searchDestination.trim().length > 0;
+
+  const localities = hasSearchDestination
+    ? Array.from(
+        new Set(
+          properties
+            .filter((p) => {
+              if (!p.propLocality) return false;
+              // Only include localities from properties matching the search destination
+              const searchLower = searchDestination.toLowerCase().trim();
+              const destinationLower = (p.destination || "").toLowerCase();
+              const cityLower = (p.propCity || "").toLowerCase();
+              const stateLower = (p.propState || "").toLowerCase();
+              return (
+                destinationLower.includes(searchLower) ||
+                cityLower.includes(searchLower) ||
+                stateLower.includes(searchLower)
+              );
+            })
+            .map((p) => p.propLocality as string),
+        ),
+      ).sort()
+    : [];
+
   // Clear selected locality when search destination changes
   useEffect(() => {
     setSelectedLocality("");
   }, [searchDestination]);
 
-  const handleSearch = ({ destination }: { destination?: string; checkIn?: string; checkOut?: string; guests?: number }) => {
-    if (destination !== undefined) {
-      setSearchDestination(destination);
-    }
-  };
+  const handleSearch = useCallback(
+    ({
+      destination,
+    }: {
+      destination?: string;
+      checkIn?: string;
+      checkOut?: string;
+      guests?: number;
+      adults?: number;
+      children?: number;
+      rooms?: number;
+    }) => {
+      if (destination !== undefined) {
+        setSearchDestination(destination);
+      }
+    },
+    [],
+  );
 
   const filteredProperties = properties.filter((property) => {
     if (property.status !== "published") return false;
-    
+
     // Destination and property name filter
     if (searchDestination && searchDestination.trim().length > 0) {
       const searchLower = searchDestination.toLowerCase().trim();
@@ -184,19 +208,24 @@ export default function Search() {
       const titleLower = (property.title || "").toLowerCase();
       const cityLower = (property.propCity || "").toLowerCase();
       const stateLower = (property.propState || "").toLowerCase();
-      if (!destinationLower.includes(searchLower) && 
-          !titleLower.includes(searchLower) &&
-          !cityLower.includes(searchLower) &&
-          !stateLower.includes(searchLower)) {
+      if (
+        !destinationLower.includes(searchLower) &&
+        !titleLower.includes(searchLower) &&
+        !cityLower.includes(searchLower) &&
+        !stateLower.includes(searchLower)
+      ) {
         return false;
       }
     }
-    
+
     // Property type filter (multi-select - match ANY selected type)
-    if (selectedTypes.length > 0 && !selectedTypes.includes(property.propertyType || "")) {
+    if (
+      selectedTypes.length > 0 &&
+      !selectedTypes.includes(property.propertyType || "")
+    ) {
       return false;
     }
-    
+
     // Budget filter (multi-select - match ANY selected budget range)
     if (selectedBudgets.length > 0) {
       const price = Number(property.pricePerNight);
@@ -208,25 +237,27 @@ export default function Search() {
       });
       if (!matchesBudget) return false;
     }
-    
+
     // Rating filter (multi-select - match ANY selected minimum rating)
     if (selectedRatings.length > 0) {
       const rating = Number(property.rating) || 0;
-      const matchesRating = selectedRatings.some((minRating) => rating >= Number(minRating));
+      const matchesRating = selectedRatings.some(
+        (minRating) => rating >= Number(minRating),
+      );
       if (!matchesRating) return false;
     }
-    
+
     // Star rating filter - currently not implemented as property doesn't have starRating field
     // TODO: Add starRating field to properties schema when hotel brands feature is ready
-    
+
     // Amenities filter - currently not implemented as requires junction table lookup
     // TODO: Implement amenities filtering with property amenities relationship
-    
+
     // Locality filter
     if (selectedLocality && property.propLocality !== selectedLocality) {
       return false;
     }
-    
+
     // Guest policy filters
     if (coupleFriendly === "yes" && property.coupleFriendly !== true) {
       return false;
@@ -234,28 +265,40 @@ export default function Search() {
     if (coupleFriendly === "no" && property.coupleFriendly !== false) {
       return false;
     }
-    
-    if (hourlyAvailability === "yes" && property.hourlyBookingAllowed !== true) {
+
+    if (
+      hourlyAvailability === "yes" &&
+      property.hourlyBookingAllowed !== true
+    ) {
       return false;
     }
-    if (hourlyAvailability === "no" && property.hourlyBookingAllowed !== false) {
+    if (
+      hourlyAvailability === "no" &&
+      property.hourlyBookingAllowed !== false
+    ) {
       return false;
     }
-    
+
     if (localIdAllowed === "yes" && property.localIdAllowed !== true) {
       return false;
     }
     if (localIdAllowed === "no" && property.localIdAllowed !== false) {
       return false;
     }
-    
-    if (foreignGuestsAllowed === "yes" && property.foreignGuestsAllowed !== true) {
+
+    if (
+      foreignGuestsAllowed === "yes" &&
+      property.foreignGuestsAllowed !== true
+    ) {
       return false;
     }
-    if (foreignGuestsAllowed === "no" && property.foreignGuestsAllowed !== false) {
+    if (
+      foreignGuestsAllowed === "no" &&
+      property.foreignGuestsAllowed !== false
+    ) {
       return false;
     }
-    
+
     return true;
   });
 
@@ -273,10 +316,18 @@ export default function Search() {
     setSearchDestination("");
   };
 
-  const hasActiveFilters = selectedTypes.length > 0 || selectedBudgets.length > 0 || 
-    selectedRatings.length > 0 || selectedAmenities.length > 0 || selectedStarRatings.length > 0 ||
-    coupleFriendly || hourlyAvailability || localIdAllowed || foreignGuestsAllowed ||
-    selectedLocality || searchDestination;
+  const hasActiveFilters =
+    selectedTypes.length > 0 ||
+    selectedBudgets.length > 0 ||
+    selectedRatings.length > 0 ||
+    selectedAmenities.length > 0 ||
+    selectedStarRatings.length > 0 ||
+    coupleFriendly ||
+    hourlyAvailability ||
+    localIdAllowed ||
+    foreignGuestsAllowed ||
+    selectedLocality ||
+    searchDestination;
 
   return (
     <div className="min-h-screen bg-background">
@@ -295,45 +346,57 @@ export default function Search() {
 
       {/* Horizontal Filters Bar - MakeMyTrip style - scrolls with content */}
       <div className="border-b bg-muted/30">
-          <div className="container px-4 md:px-6 py-3">
-            {/* Mobile: Filter Toggle Button */}
-            <div className="md:hidden flex items-center justify-between mb-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowMoreFilters(!showMoreFilters)}
-                className="gap-2"
-                data-testid="button-toggle-filters"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                Filters
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full text-xs">
-                    {selectedTypes.length + selectedBudgets.length + selectedRatings.length + 
-                     selectedAmenities.length + selectedStarRatings.length + 
-                     (coupleFriendly ? 1 : 0) + (hourlyAvailability ? 1 : 0) + 
-                     (localIdAllowed ? 1 : 0) + (foreignGuestsAllowed ? 1 : 0) + 
-                     (selectedLocality ? 1 : 0)}
-                  </Badge>
-                )}
-                {showMoreFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
+        <div className="container px-4 md:px-6 py-3">
+          {/* Mobile: Filter Toggle Button */}
+          <div className="md:hidden flex items-center justify-between mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowMoreFilters(!showMoreFilters)}
+              className="gap-2"
+              data-testid="button-toggle-filters"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
               {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  data-testid="button-clear-filters-mobile"
-                  className="text-destructive"
+                <Badge
+                  variant="secondary"
+                  className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full text-xs"
                 >
-                  Clear All
-                </Button>
+                  {selectedTypes.length +
+                    selectedBudgets.length +
+                    selectedRatings.length +
+                    selectedAmenities.length +
+                    selectedStarRatings.length +
+                    (coupleFriendly ? 1 : 0) +
+                    (hourlyAvailability ? 1 : 0) +
+                    (localIdAllowed ? 1 : 0) +
+                    (foreignGuestsAllowed ? 1 : 0) +
+                    (selectedLocality ? 1 : 0)}
+                </Badge>
               )}
-            </div>
+              {showMoreFilters ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                data-testid="button-clear-filters-mobile"
+                className="text-destructive"
+              >
+                Clear All
+              </Button>
+            )}
+          </div>
 
-            {/* Filters Row - Always visible on desktop, toggle on mobile */}
-            <div className={`${showMoreFilters ? 'block' : 'hidden'} md:block`}>
-              <div className="flex items-end gap-3 overflow-x-auto pb-2 lg:overflow-x-visible lg:flex-nowrap scrollbar-thin">
+          {/* Filters Row - Always visible on desktop, toggle on mobile */}
+          <div className={`${showMoreFilters ? "block" : "hidden"} md:block`}>
+            <div className="flex items-end gap-3 overflow-x-auto pb-2 lg:overflow-x-visible lg:flex-nowrap scrollbar-thin">
               {/* Property Type Filter */}
               <div className="flex-shrink-0">
                 <MultiSelectFilter
@@ -374,9 +437,13 @@ export default function Search() {
               <div className="flex-shrink-0">
                 <MultiSelectFilter
                   label="Amenities"
-                  options={amenities.length > 0 
-                    ? amenities.map((a) => ({ value: a.id, label: `${a.name}${a.category ? ` (${a.category})` : ""}` }))
-                    : [{ value: "wifi", label: "WiFi" }]
+                  options={
+                    amenities.length > 0
+                      ? amenities.map((a) => ({
+                          value: a.id,
+                          label: `${a.name}${a.category ? ` (${a.category})` : ""}`,
+                        }))
+                      : [{ value: "wifi", label: "WiFi" }]
                   }
                   selectedValues={selectedAmenities}
                   onSelectionChange={setSelectedAmenities}
@@ -399,14 +466,26 @@ export default function Search() {
 
               {/* Couple Friendly Filter */}
               <div className="flex-shrink-0 min-w-[120px]">
-                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Couple Friendly</Label>
-                <Select value={coupleFriendly} onValueChange={setCoupleFriendly}>
-                  <SelectTrigger data-testid="select-couple-friendly" className="w-full h-9">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">
+                  Couple Friendly
+                </Label>
+                <Select
+                  value={coupleFriendly}
+                  onValueChange={setCoupleFriendly}
+                >
+                  <SelectTrigger
+                    data-testid="select-couple-friendly"
+                    className="w-full h-9"
+                  >
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
                     {booleanOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} data-testid={`select-couple-${option.value}`}>
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        data-testid={`select-couple-${option.value}`}
+                      >
                         {option.label}
                       </SelectItem>
                     ))}
@@ -416,14 +495,26 @@ export default function Search() {
 
               {/* Hourly Availability Filter */}
               <div className="flex-shrink-0 min-w-[120px]">
-                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Hourly</Label>
-                <Select value={hourlyAvailability} onValueChange={setHourlyAvailability}>
-                  <SelectTrigger data-testid="select-hourly" className="w-full h-9">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">
+                  Hourly
+                </Label>
+                <Select
+                  value={hourlyAvailability}
+                  onValueChange={setHourlyAvailability}
+                >
+                  <SelectTrigger
+                    data-testid="select-hourly"
+                    className="w-full h-9"
+                  >
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
                     {booleanOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} data-testid={`select-hourly-${option.value}`}>
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        data-testid={`select-hourly-${option.value}`}
+                      >
                         {option.label}
                       </SelectItem>
                     ))}
@@ -433,14 +524,26 @@ export default function Search() {
 
               {/* Local ID Allowed Filter */}
               <div className="flex-shrink-0 min-w-[110px]">
-                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Local ID</Label>
-                <Select value={localIdAllowed} onValueChange={setLocalIdAllowed}>
-                  <SelectTrigger data-testid="select-local-id" className="w-full h-9">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">
+                  Local ID
+                </Label>
+                <Select
+                  value={localIdAllowed}
+                  onValueChange={setLocalIdAllowed}
+                >
+                  <SelectTrigger
+                    data-testid="select-local-id"
+                    className="w-full h-9"
+                  >
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
                     {booleanOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} data-testid={`select-localid-${option.value}`}>
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        data-testid={`select-localid-${option.value}`}
+                      >
                         {option.label}
                       </SelectItem>
                     ))}
@@ -450,14 +553,26 @@ export default function Search() {
 
               {/* Foreign Guests Allowed Filter */}
               <div className="flex-shrink-0 min-w-[120px]">
-                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Foreign Guests</Label>
-                <Select value={foreignGuestsAllowed} onValueChange={setForeignGuestsAllowed}>
-                  <SelectTrigger data-testid="select-foreign-guests" className="w-full h-9">
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">
+                  Foreign Guests
+                </Label>
+                <Select
+                  value={foreignGuestsAllowed}
+                  onValueChange={setForeignGuestsAllowed}
+                >
+                  <SelectTrigger
+                    data-testid="select-foreign-guests"
+                    className="w-full h-9"
+                  >
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
                     {booleanOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} data-testid={`select-foreign-${option.value}`}>
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        data-testid={`select-foreign-${option.value}`}
+                      >
                         {option.label}
                       </SelectItem>
                     ))}
@@ -467,24 +582,41 @@ export default function Search() {
 
               {/* Localities Filter - Only enabled when city/destination is selected */}
               <div className="flex-shrink-0 min-w-[140px]">
-                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">Localities</Label>
-                <Select 
-                  value={selectedLocality} 
+                <Label className="text-sm font-medium mb-2 block whitespace-nowrap">
+                  Localities
+                </Label>
+                <Select
+                  value={selectedLocality}
                   onValueChange={setSelectedLocality}
                   disabled={!hasSearchDestination}
                 >
-                  <SelectTrigger data-testid="select-locality" className="w-full h-9">
-                    <SelectValue placeholder={hasSearchDestination ? "All localities" : "Search city first"} />
+                  <SelectTrigger
+                    data-testid="select-locality"
+                    className="w-full h-9"
+                  >
+                    <SelectValue
+                      placeholder={
+                        hasSearchDestination
+                          ? "All localities"
+                          : "Search city first"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {localities.length > 0 ? (
                       localities.map((locality) => (
-                        <SelectItem key={locality} value={locality} data-testid={`select-locality-${locality}`}>
+                        <SelectItem
+                          key={locality}
+                          value={locality}
+                          data-testid={`select-locality-${locality}`}
+                        >
                           {locality}
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="no-localities" disabled>No localities in this area</SelectItem>
+                      <SelectItem value="no-localities" disabled>
+                        No localities in this area
+                      </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -505,78 +637,82 @@ export default function Search() {
                   </Button>
                 </div>
               )}
-              </div>
             </div>
           </div>
         </div>
+      </div>
 
       <div className="container px-4 md:px-6 py-6">
         {/* Results */}
         <div className="w-full">
-            <div className="mb-6">
-              <h1 className="text-3xl font-semibold mb-2">
-                {filteredProperties.length} {filteredProperties.length === 1 ? "stay" : "stays"} available
-              </h1>
-              {searchDestination && (
-                <div className="flex items-center gap-2 mt-3">
-                  <span className="text-sm text-muted-foreground">Searching for:</span>
-                  <Badge variant="secondary" className="gap-1" data-testid="badge-destination-filter">
-                    {searchDestination}
-                    <button
-                      onClick={() => setSearchDestination("")}
-                      className="ml-1 hover:bg-muted rounded-full p-0.5"
-                      data-testid="button-clear-destination"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                </div>
-              )}
-            </div>
-
-            {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="space-y-3">
-                    <Skeleton className="aspect-[4/3] rounded-lg" />
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                ))}
-              </div>
-            ) : filteredProperties.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProperties.map((property) => (
-                  <PropertyCard
-                    key={property.id}
-                    property={{
-                      ...property,
-                      isWishlisted: wishlistedPropertyIds.has(property.id),
-                    }}
-                    searchParams={{
-                      checkIn: initialSearchValues.checkIn,
-                      checkOut: initialSearchValues.checkOut,
-                      guests: initialSearchValues.guests,
-                      adults: initialSearchValues.adults,
-                      children: initialSearchValues.children,
-                      rooms: initialSearchValues.rooms,
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16">
-                <p className="text-lg text-muted-foreground mb-4">
-                  No properties match your filters
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={clearAllFilters}
+          <div className="mb-6">
+            <h1 className="text-3xl font-semibold mb-2">
+              {filteredProperties.length}{" "}
+              {filteredProperties.length === 1 ? "stay" : "stays"} available
+            </h1>
+            {searchDestination && (
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-sm text-muted-foreground">
+                  Searching for:
+                </span>
+                <Badge
+                  variant="secondary"
+                  className="gap-1"
+                  data-testid="badge-destination-filter"
                 >
-                  Clear filters
-                </Button>
+                  {searchDestination}
+                  <button
+                    onClick={() => setSearchDestination("")}
+                    className="ml-1 hover:bg-muted rounded-full p-0.5"
+                    data-testid="button-clear-destination"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
               </div>
             )}
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-[4/3] rounded-lg" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : filteredProperties.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProperties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  property={{
+                    ...property,
+                    isWishlisted: wishlistedPropertyIds.has(property.id),
+                  }}
+                  searchParams={{
+                    checkIn: initialSearchValues.checkIn,
+                    checkOut: initialSearchValues.checkOut,
+                    guests: initialSearchValues.guests,
+                    adults: initialSearchValues.adults,
+                    children: initialSearchValues.children,
+                    rooms: initialSearchValues.rooms,
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <p className="text-lg text-muted-foreground mb-4">
+                No properties match your filters
+              </p>
+              <Button variant="outline" onClick={clearAllFilters}>
+                Clear filters
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

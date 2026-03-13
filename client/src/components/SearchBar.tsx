@@ -233,24 +233,34 @@ export function SearchBar({
 
   const debouncedDestination = useDebounce(destination.trim(), 300);
 
-  useEffect(() => {
-    setDestination(initialDestination);
-    setCheckInDate(initialCheckIn ? new Date(initialCheckIn) : undefined);
-    setCheckOutDate(initialCheckOut ? new Date(initialCheckOut) : undefined);
-    setGuests(initialGuests);
-    setAdults(initialAdults);
-    setChildren(initialChildren);
-    setRooms(initialRooms);
-  }, [
-    initialDestination,
-    initialCheckIn,
-    initialCheckOut,
-    initialGuests,
-    initialAdults,
-    initialChildren,
-    initialRooms,
-  ]);
+  const prevPropsRef = useRef({
+    destination: initialDestination,
+    checkIn: initialCheckIn,
+    checkOut: initialCheckOut,
+  });
 
+  useEffect(() => {
+    const prev = prevPropsRef.current;
+    const destChanged = initialDestination !== prev.destination;
+    const checkInChanged = initialCheckIn !== prev.checkIn;
+    const checkOutChanged = initialCheckOut !== prev.checkOut;
+
+    prevPropsRef.current = {
+      destination: initialDestination,
+      checkIn: initialCheckIn,
+      checkOut: initialCheckOut,
+    };
+
+    if (destChanged && initialDestination !== destination) {
+      setDestination(initialDestination);
+    }
+    if (checkInChanged) {
+      setCheckInDate(initialCheckIn ? new Date(initialCheckIn) : undefined);
+    }
+    if (checkOutChanged) {
+      setCheckOutDate(initialCheckOut ? new Date(initialCheckOut) : undefined);
+    }
+  }, [initialDestination, initialCheckIn, initialCheckOut]);
   useEffect(() => {
     if (typeof window !== "undefined" && !(window as any).google) {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
