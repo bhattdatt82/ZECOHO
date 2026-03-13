@@ -479,7 +479,7 @@ export function SearchBar({
         if (!res.ok) return [];
         return res.json();
       },
-      staleTime: 60000,
+      staleTime: 30000,
       enabled: !!matchedCity,
     },
   );
@@ -623,8 +623,13 @@ export function SearchBar({
     prevAutoSearchRef.current = initialDestination;
   }, [initialDestination]);
 
+  // Stable ref for onSearch callback — prevents infinite re-renders when parent re-renders
+  const onSearchRef = useRef(onSearch);
   useEffect(() => {
-    // Only trigger auto-search if enabled and destination has actually changed from initial
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
+
+  useEffect(() => {
     if (
       autoSearchOnChange &&
       debouncedAutoSearch !== prevAutoSearchRef.current
@@ -632,7 +637,7 @@ export function SearchBar({
       prevAutoSearchRef.current = debouncedAutoSearch;
       const checkIn = checkInDate ? format(checkInDate, "yyyy-MM-dd") : "";
       const checkOut = checkOutDate ? format(checkOutDate, "yyyy-MM-dd") : "";
-      onSearch?.({
+      onSearchRef.current?.({
         destination: debouncedAutoSearch.trim(),
         checkIn,
         checkOut,
@@ -651,7 +656,7 @@ export function SearchBar({
     adults,
     children,
     rooms,
-    onSearch,
+    // onSearch intentionally omitted — using ref above
   ]);
 
   // Handler for check-in date selection - auto opens check-out
