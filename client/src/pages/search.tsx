@@ -182,6 +182,12 @@ export default function Search() {
   const handleSearch = useCallback(
     ({
       destination,
+      checkIn,
+      checkOut,
+      guests,
+      adults,
+      children,
+      rooms,
     }: {
       destination?: string;
       checkIn?: string;
@@ -193,6 +199,16 @@ export default function Search() {
     }) => {
       if (destination !== undefined) {
         setSearchDestination(destination);
+        setInitialSearchValues((prev) => ({
+          ...prev,
+          destination,
+          ...(checkIn !== undefined && { checkIn }),
+          ...(checkOut !== undefined && { checkOut }),
+          ...(guests !== undefined && { guests }),
+          ...(adults !== undefined && { adults }),
+          ...(children !== undefined && { children }),
+          ...(rooms !== undefined && { rooms }),
+        }));
       }
     },
     [],
