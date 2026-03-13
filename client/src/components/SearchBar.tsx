@@ -390,7 +390,7 @@ export function SearchBar({
     const query = debouncedDestination.trim();
 
     if (
-      query.length >= 2 &&
+      query.length >= 1 &&
       googleMapsLoaded &&
       query.toLowerCase() !== "near me"
     ) {
@@ -424,7 +424,7 @@ export function SearchBar({
     },
     staleTime: 60000,
     enabled:
-      debouncedDestination.trim().length >= 2 &&
+      debouncedDestination.trim().length >= 1 &&
       debouncedDestination.toLowerCase() !== "near me",
   });
 
@@ -941,23 +941,28 @@ export function SearchBar({
           {showSuggestions && (
             <div className="border-t border-gray-200 dark:border-gray-700 max-h-[400px] overflow-y-auto">
               {/* Location option */}
-              <div
-                className="px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-3 border-b border-gray-200 dark:border-gray-700"
+              <button
+                type="button"
+                className="w-full px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 text-left"
                 onClick={() => {
                   setDestination("Near Me");
                   setShowSuggestions(false);
                   handleUseCurrentLocation();
                 }}
+                disabled={isGettingLocation}
               >
-                <MapPin className="h-4 w-4 text-primary" />
-
+                {isGettingLocation ? (
+                  <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
+                ) : (
+                  <Navigation className="h-4 w-4 text-primary flex-shrink-0" />
+                )}
                 <div>
-                  <div className="text-sm font-medium">Use your location</div>
-                  <div className="text-xs text-gray-500">
-                    Properties near me
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {isGettingLocation ? "Detecting your location..." : "Use your location"}
                   </div>
+                  <div className="text-xs text-gray-500">Properties near me</div>
                 </div>
-              </div>
+              </button>
               {/* Loading */}
               {/* Popular Cities - show when no text typed */}
               {!destination && (
