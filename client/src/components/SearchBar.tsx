@@ -357,7 +357,7 @@ export function SearchBar({
   }, [navigate]);
 
   const fetchGooglePredictions = useCallback(async (query: string) => {
-    if (!autocompleteServiceRef.current || query.length < 2) {
+    if (query.length < 1 || !(window as any).google?.maps?.places) {
       setGoogleCityPredictions([]);
       setIsGoogleLoading(false);
       return;
@@ -365,19 +365,25 @@ export function SearchBar({
 
     setIsGoogleLoading(true);
     try {
-      // Fetch city predictions from Google Places
-      const cityResults = await new Promise<any>((resolve) => {
-        autocompleteServiceRef.current.getPlacePredictions(
-          {
-            input: query,
-            componentRestrictions: { country: "in" },
-            types: ["(cities)"],
-          },
-          resolve,
-        );
+      const { suggestions } = await (
+        window as any
+      ).google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input: query,
+        includedRegionCodes: ["in"],
       });
 
-      setGoogleCityPredictions(cityResults?.predictions || []);
+      const predictions = (suggestions || [])
+        .filter((s: any) => s.placePrediction)
+        .map((s: any) => ({
+          place_id: s.placePrediction.placeId || "",
+          description: s.placePrediction.text?.toString() || "",
+          structured_formatting: {
+            main_text: s.placePrediction.mainText?.toString() || "",
+            secondary_text: s.placePrediction.secondaryText?.toString() || "",
+          },
+        }));
+
+      setGoogleCityPredictions(predictions);
     } catch (error) {
       console.error("Error fetching Google predictions:", error);
       setGoogleCityPredictions([]);
@@ -385,7 +391,6 @@ export function SearchBar({
       setIsGoogleLoading(false);
     }
   }, []);
-
   useEffect(() => {
     const query = debouncedDestination.trim();
 
@@ -556,9 +561,8 @@ export function SearchBar({
       }
     };
 
-    document.addEventListener("pointerdown", handleClickOutside);
-    return () =>
-      document.removeEventListener("pointerdown", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSelectDestination = (dest: any) => {
@@ -580,7 +584,7 @@ export function SearchBar({
     const searchDestination = destination.trim();
 
     if (!searchDestination) {
-      handleUseCurrentLocation();
+      navigate(`/search`);
       return;
     }
 
@@ -958,9 +962,13 @@ export function SearchBar({
                 )}
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {isGettingLocation ? "Detecting your location..." : "Use your location"}
+                    {isGettingLocation
+                      ? "Detecting your location..."
+                      : "Use your location"}
                   </div>
-                  <div className="text-xs text-gray-500">Properties near me</div>
+                  <div className="text-xs text-gray-500">
+                    Properties near me
+                  </div>
                 </div>
               </button>
               {/* Loading */}
