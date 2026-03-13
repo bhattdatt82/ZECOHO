@@ -8,13 +8,53 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { Home as HomeIcon, MapPin, Calendar, Check, Shield, ShieldCheck, TrendingDown, Sparkles, Award, Handshake, Users, Hotel, Building, Waves, Mountain, TreePine, Wheat, Heart, BadgeCheck, Percent, HandCoins, FileCheck2, ThumbsUp, Star, Play, ArrowRight, ChevronRight, IndianRupee, Clock, MessageSquare, MessageCircle } from "lucide-react";
+import {
+  Home as HomeIcon,
+  MapPin,
+  Calendar,
+  Check,
+  Shield,
+  ShieldCheck,
+  TrendingDown,
+  Sparkles,
+  Award,
+  Handshake,
+  Users,
+  Hotel,
+  Building,
+  Waves,
+  Mountain,
+  TreePine,
+  Wheat,
+  Heart,
+  BadgeCheck,
+  Percent,
+  HandCoins,
+  FileCheck2,
+  ThumbsUp,
+  Star,
+  Play,
+  ArrowRight,
+  ChevronRight,
+  IndianRupee,
+  Clock,
+  MessageSquare,
+  MessageCircle,
+} from "lucide-react";
 import type { Property, Destination } from "@shared/schema";
 import { useEffect, useState } from "react";
 
-function AnimatedCounter({ end, duration = 2000, suffix = "" }: { end: number; duration?: number; suffix?: string }) {
+function AnimatedCounter({
+  end,
+  duration = 2000,
+  suffix = "",
+}: {
+  end: number;
+  duration?: number;
+  suffix?: string;
+}) {
   const [count, setCount] = useState(0);
-  
+
   useEffect(() => {
     let startTime: number;
     const animate = (currentTime: number) => {
@@ -25,8 +65,13 @@ function AnimatedCounter({ end, duration = 2000, suffix = "" }: { end: number; d
     };
     requestAnimationFrame(animate);
   }, [end, duration]);
-  
-  return <span>{count.toLocaleString('en-IN')}{suffix}</span>;
+
+  return (
+    <span>
+      {count.toLocaleString("en-IN")}
+      {suffix}
+    </span>
+  );
 }
 
 export default function Home() {
@@ -43,11 +88,14 @@ export default function Home() {
     enabled: user?.userRole === "guest",
   });
 
-  const { data: featuredDestinations = [], isLoading: destinationsLoading } = useQuery<Destination[]>({
-    queryKey: ["/api/destinations/featured"],
-  });
+  const { data: featuredDestinations = [], isLoading: destinationsLoading } =
+    useQuery<Destination[]>({
+      queryKey: ["/api/destinations/featured"],
+    });
 
-  const wishlistedPropertyIds = new Set(wishlists.map((w: any) => w.propertyId));
+  const wishlistedPropertyIds = new Set(
+    wishlists.map((w: any) => w.propertyId),
+  );
 
   const handleSearch = (params: any) => {
     const searchParams = new URLSearchParams();
@@ -69,16 +117,17 @@ export default function Home() {
     { icon: Heart, label: "Homestays", type: "homestay" },
   ];
 
-  const featuredProperties = properties.filter(p => p.status === "published").slice(0, 8);
+  const featuredProperties = properties
+    .filter((p) => p.status === "published")
+    .slice(0, 8);
 
   return (
     <div className="min-h-screen">
       {/* Location Permission Dialog - appears after login */}
       <LocationPermissionDialog isAuthenticated={isAuthenticated} />
-      
+
       {/* Hero Section - Clean & Modern */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
-        
+      <div className="relative bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
         <div className="relative z-10 container px-4 md:px-6 text-center py-6 md:py-12">
           {/* Mobile Layout: Search First, then Tagline */}
           <div className="md:hidden">
@@ -86,7 +135,12 @@ export default function Home() {
             <div className="mb-6">
               <div className="max-w-4xl mx-auto">
                 <div className="bg-background rounded-2xl shadow-xl border p-3">
-                  <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
+                  <SearchBar
+                    onSearch={handleSearch}
+                    compact={false}
+                    showDates={true}
+                    showGuests={true}
+                  />
                 </div>
               </div>
             </div>
@@ -95,7 +149,9 @@ export default function Home() {
             <div className="mb-6 text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
                 <BadgeCheck className="h-4 w-4 text-emerald-500" />
-                <span className="text-foreground/80 text-xs font-medium">ZERO Commission Hotel Booking</span>
+                <span className="text-foreground/80 text-xs font-medium">
+                  ZERO Commission Hotel Booking
+                </span>
               </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
                 Same Hotel. Same Room.
@@ -104,7 +160,8 @@ export default function Home() {
                 15–25% Less Than Other OTAs
               </p>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                We don't charge hotels commission — so they pass the savings to you. No hidden fees. No surprises.
+                We don't charge hotels commission — so they pass the savings to
+                you. No hidden fees. No surprises.
               </p>
             </div>
 
@@ -112,11 +169,15 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
               <div className="flex items-center gap-1 bg-muted/50 rounded-full px-3 py-1.5">
                 <Hotel className="h-3 w-3 text-amber-500" />
-                <span className="text-foreground/80 text-xs">Direct from Hotel</span>
+                <span className="text-foreground/80 text-xs">
+                  Direct from Hotel
+                </span>
               </div>
               <div className="flex items-center gap-1 bg-muted/50 rounded-full px-3 py-1.5">
                 <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                <span className="text-foreground/80 text-xs">No Hidden Fees</span>
+                <span className="text-foreground/80 text-xs">
+                  No Hidden Fees
+                </span>
               </div>
             </div>
           </div>
@@ -126,7 +187,9 @@ export default function Home() {
             {/* Premium Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
               <Sparkles className="h-4 w-4 text-amber-500" />
-              <span className="text-foreground/80 text-sm font-medium">India's First Zero Commission Platform</span>
+              <span className="text-foreground/80 text-sm font-medium">
+                India's First Zero Commission Platform
+              </span>
             </div>
 
             {/* Main Headline */}
@@ -137,14 +200,21 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              <span className="font-semibold text-foreground">Save 15–25% instantly.</span>{" "}
+              <span className="font-semibold text-foreground">
+                Save 15–25% instantly.
+              </span>{" "}
               Zero commission. Zero convenience fees.
             </p>
 
             {/* Desktop: Search Bar */}
             <div className="max-w-4xl mx-auto mb-4">
               <div className="bg-background rounded-2xl shadow-xl border p-4">
-                <SearchBar onSearch={handleSearch} compact={false} showDates={true} showGuests={true} />
+                <SearchBar
+                  onSearch={handleSearch}
+                  compact={false}
+                  showDates={true}
+                  showGuests={true}
+                />
               </div>
             </div>
 
@@ -152,15 +222,21 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8">
               <div className="flex items-center gap-1.5">
                 <BadgeCheck className="h-4 w-4 text-emerald-500" />
-                <span className="text-muted-foreground text-sm">100% Verified Stays</span>
+                <span className="text-muted-foreground text-sm">
+                  100% Verified Stays
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4 text-amber-500" />
-                <span className="text-muted-foreground text-sm">Real Guest Ratings</span>
+                <span className="text-muted-foreground text-sm">
+                  Real Guest Ratings
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Hotel className="h-4 w-4 text-rose-500" />
-                <span className="text-muted-foreground text-sm">Direct Contact with Hotel</span>
+                <span className="text-muted-foreground text-sm">
+                  Direct Contact with Hotel
+                </span>
               </div>
             </div>
 
@@ -168,15 +244,21 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
               <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
                 <Hotel className="h-4 w-4 text-amber-500" />
-                <span className="text-foreground/80 text-sm">Direct from Hotel</span>
+                <span className="text-foreground/80 text-sm">
+                  Direct from Hotel
+                </span>
               </div>
               <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                <span className="text-foreground/80 text-sm">No Hidden Fees</span>
+                <span className="text-foreground/80 text-sm">
+                  No Hidden Fees
+                </span>
               </div>
               <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
                 <MessageCircle className="h-4 w-4 text-green-500" />
-                <span className="text-foreground/80 text-sm">WhatsApp Confirmation</span>
+                <span className="text-foreground/80 text-sm">
+                  WhatsApp Confirmation
+                </span>
               </div>
             </div>
           </div>
@@ -197,10 +279,13 @@ export default function Home() {
             </div>
             <div>
               <h3 className="font-bold text-xl">Become a Property Owner</h3>
-              <p className="text-sm text-white/95">List your property and reach customers directly — zero commission for you too!</p>
+              <p className="text-sm text-white/95">
+                List your property and reach customers directly — zero
+                commission for you too!
+              </p>
             </div>
           </div>
-          <Button 
+          <Button
             variant="secondary"
             size="lg"
             onClick={() => setLocation("/list-property")}
@@ -217,22 +302,58 @@ export default function Home() {
       <div className="py-16 px-4 md:px-6 bg-background">
         <div className="container mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">Popular Destinations</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">Discover amazing stays at India's most loved destinations</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">
+              Popular Destinations
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Discover amazing stays at India's most loved destinations
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { name: "Goa", price: "₹899", image: "/attached_assets/stock_images/goa_beach_india_suns_fcb832ea.jpg" },
-              { name: "Manali", price: "₹1,199", image: "/attached_assets/stock_images/manali_mountains_him_01ba7d34.jpg" },
-              { name: "Jaipur", price: "₹799", image: "/attached_assets/stock_images/jaipur_hawa_mahal_pi_f05b7750.jpg" },
-              { name: "Rishikesh", price: "₹699", image: "/attached_assets/stock_images/rishikesh_ganges_riv_88870393.jpg" },
-              { name: "Ooty", price: "₹999", image: "/attached_assets/stock_images/ooty_tea_gardens_hil_06b99c0a.jpg" },
-              { name: "Udaipur", price: "₹1,099", image: "/attached_assets/stock_images/udaipur_lake_palace__7af7058e.jpg" },
+              {
+                name: "Goa",
+                price: "₹899",
+                image:
+                  "/attached_assets/stock_images/goa_beach_india_suns_fcb832ea.jpg",
+              },
+              {
+                name: "Manali",
+                price: "₹1,199",
+                image:
+                  "/attached_assets/stock_images/manali_mountains_him_01ba7d34.jpg",
+              },
+              {
+                name: "Jaipur",
+                price: "₹799",
+                image:
+                  "/attached_assets/stock_images/jaipur_hawa_mahal_pi_f05b7750.jpg",
+              },
+              {
+                name: "Rishikesh",
+                price: "₹699",
+                image:
+                  "/attached_assets/stock_images/rishikesh_ganges_riv_88870393.jpg",
+              },
+              {
+                name: "Ooty",
+                price: "₹999",
+                image:
+                  "/attached_assets/stock_images/ooty_tea_gardens_hil_06b99c0a.jpg",
+              },
+              {
+                name: "Udaipur",
+                price: "₹1,099",
+                image:
+                  "/attached_assets/stock_images/udaipur_lake_palace__7af7058e.jpg",
+              },
             ].map((destination) => (
               <div
                 key={destination.name}
                 className="group cursor-pointer overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                onClick={() => setLocation(`/search?destination=${destination.name}`)}
+                onClick={() =>
+                  setLocation(`/search?destination=${destination.name}`)
+                }
                 data-testid={`destination-card-${destination.name.toLowerCase()}`}
               >
                 <div className="relative h-64 overflow-hidden">
@@ -243,10 +364,18 @@ export default function Home() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <h3 className="text-2xl font-bold text-white mb-1">{destination.name}</h3>
-                    <p className="text-white/90 text-sm mb-3">Stays from <span className="font-semibold text-amber-400">{destination.price}</span></p>
+                    <h3 className="text-2xl font-bold text-white mb-1">
+                      {destination.name}
+                    </h3>
+                    <p className="text-white/90 text-sm mb-3">
+                      Stays from{" "}
+                      <span className="font-semibold text-amber-400">
+                        {destination.price}
+                      </span>
+                    </p>
                     <div className="flex items-center gap-1 text-white font-medium text-sm group-hover:text-amber-400 transition-colors">
-                      View Stays <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      View Stays{" "}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </div>
                 </div>
@@ -260,8 +389,12 @@ export default function Home() {
       <div className="py-16 px-4 md:px-6 bg-background">
         <div className="container mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">Explore by Category</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">Find the perfect stay that matches your style and budget</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-3">
+              Explore by Category
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Find the perfect stay that matches your style and budget
+            </p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
             {categories.map((category, index) => {
@@ -282,12 +415,18 @@ export default function Home() {
                   onClick={() => setLocation(`/search?type=${category.type}`)}
                   data-testid={`category-${category.type}`}
                 >
-                  <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradients[index]} p-1 transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl`}>
+                  <div
+                    className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradients[index]} p-1 transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl`}
+                  >
                     <div className="bg-background/95 dark:bg-background/90 backdrop-blur rounded-xl p-5 flex flex-col items-center">
-                      <div className={`p-3 rounded-xl bg-gradient-to-br ${gradients[index]} mb-3 shadow-lg`}>
+                      <div
+                        className={`p-3 rounded-xl bg-gradient-to-br ${gradients[index]} mb-3 shadow-lg`}
+                      >
                         <category.icon className="h-6 w-6 text-white" />
                       </div>
-                      <span className="text-sm font-semibold text-center">{category.label}</span>
+                      <span className="text-sm font-semibold text-center">
+                        {category.label}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -311,10 +450,11 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Experience hotel booking the way it should be — transparent, direct, and commission-free
+              Experience hotel booking the way it should be — transparent,
+              direct, and commission-free
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Large Feature Card - Lowest & Honest Price */}
             <div className="lg:col-span-2 bg-gradient-to-br from-primary to-amber-600 rounded-3xl p-8 text-white relative overflow-hidden group">
@@ -323,10 +463,13 @@ export default function Home() {
                 <div className="p-4 bg-white/20 backdrop-blur rounded-2xl inline-flex mb-6">
                   <IndianRupee className="h-10 w-10" />
                 </div>
-                <h3 className="text-3xl md:text-4xl font-bold mb-3">Lowest & Honest Price</h3>
+                <h3 className="text-3xl md:text-4xl font-bold mb-3">
+                  Lowest & Honest Price
+                </h3>
                 <p className="text-white/90 text-lg mb-4 max-w-lg">
-                  Skip the middleman and save big! We don't add any hidden charges or commissions. 
-                  What you see is what you pay — true pricing, always.
+                  Skip the middleman and save big! We don't add any hidden
+                  charges or commissions. What you see is what you pay — true
+                  pricing, always.
                 </p>
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
@@ -344,40 +487,55 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            
+
             {/* Self Negotiation with Hotelier */}
             <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
               <CardContent className="p-6">
                 <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl inline-flex mb-4">
                   <Handshake className="h-7 w-7 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Negotiate Directly with Hotelier</h3>
-                <p className="text-muted-foreground">Chat or call property owners directly to negotiate your best deal — you're in control!</p>
+                <h3 className="text-xl font-bold mb-2">
+                  Negotiate Directly with Hotelier
+                </h3>
+                <p className="text-muted-foreground">
+                  Chat or call property owners directly to negotiate your best
+                  deal — you're in control!
+                </p>
               </CardContent>
             </Card>
-            
+
             {/* Honest Ratings & Reviews */}
             <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
               <CardContent className="p-6">
                 <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl inline-flex mb-4">
                   <Star className="h-7 w-7 text-yellow-600 dark:text-yellow-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Honest Ratings & Reviews</h3>
-                <p className="text-muted-foreground">Real reviews from real guests — no fake ratings, no paid reviews, just the truth</p>
+                <h3 className="text-xl font-bold mb-2">
+                  Honest Ratings & Reviews
+                </h3>
+                <p className="text-muted-foreground">
+                  Real reviews from real guests — no fake ratings, no paid
+                  reviews, just the truth
+                </p>
               </CardContent>
             </Card>
-            
+
             {/* 100% Verified Properties */}
             <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
               <CardContent className="p-6">
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl inline-flex mb-4">
                   <BadgeCheck className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">100% Verified Properties</h3>
-                <p className="text-muted-foreground">Every property is personally verified for quality, safety, and authenticity — book with confidence</p>
+                <h3 className="text-xl font-bold mb-2">
+                  100% Verified Properties
+                </h3>
+                <p className="text-muted-foreground">
+                  Every property is personally verified for quality, safety, and
+                  authenticity — book with confidence
+                </p>
               </CardContent>
             </Card>
-            
+
             {/* 24 Hours Check-in */}
             <Card className="rounded-3xl border-0 shadow-lg overflow-hidden group hover-elevate">
               <CardContent className="p-6">
@@ -385,7 +543,10 @@ export default function Home() {
                   <Clock className="h-7 w-7 text-blue-600 dark:text-blue-400" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">24 Hours Check-in</h3>
-                <p className="text-muted-foreground">Arrive anytime! Properties offer flexible 24-hour check-in for your convenience</p>
+                <p className="text-muted-foreground">
+                  Arrive anytime! Properties offer flexible 24-hour check-in for
+                  your convenience
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -401,11 +562,16 @@ export default function Home() {
                 <MapPin className="h-3 w-3 mr-1" />
                 Popular Destinations
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-2">Discover Incredible India</h2>
-              <p className="text-muted-foreground text-lg">From pristine beaches to majestic mountains — find your perfect escape</p>
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">
+                Discover Incredible India
+              </h2>
+              <p className="text-muted-foreground text-lg">
+                From pristine beaches to majestic mountains — find your perfect
+                escape
+              </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setLocation("/destinations")}
               data-testid="button-view-all-destinations"
               className="group self-start md:self-auto"
@@ -428,16 +594,24 @@ export default function Home() {
           ) : featuredDestinations.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {featuredDestinations.map((destination, index) => (
-                <div 
-                  key={destination.id} 
-                  className={`group cursor-pointer ${index === 0 ? 'md:row-span-2' : ''}`}
-                  onClick={() => setLocation(`/search?destination=${encodeURIComponent(destination.name)}`)}
+                <div
+                  key={destination.id}
+                  className={`group cursor-pointer ${index === 0 ? "md:row-span-2" : ""}`}
+                  onClick={() =>
+                    setLocation(
+                      `/search?destination=${encodeURIComponent(destination.name)}`,
+                    )
+                  }
                   data-testid={`card-destination-${destination.id}`}
                 >
-                  <div className={`relative overflow-hidden rounded-2xl ${index === 0 ? 'h-full min-h-[400px]' : 'aspect-[16/10]'}`}>
-                    <div 
+                  <div
+                    className={`relative overflow-hidden rounded-2xl ${index === 0 ? "h-full min-h-[400px]" : "aspect-[16/10]"}`}
+                  >
+                    <div
                       className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                      style={{ backgroundImage: `url(${destination.imageUrl})` }}
+                      style={{
+                        backgroundImage: `url(${destination.imageUrl})`,
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-5">
@@ -453,10 +627,15 @@ export default function Home() {
                           </Badge>
                         )}
                       </div>
-                      <h3 className={`font-bold text-white mb-2 ${index === 0 ? 'text-3xl' : 'text-xl'}`} data-testid={`text-destination-name-${destination.id}`}>
+                      <h3
+                        className={`font-bold text-white mb-2 ${index === 0 ? "text-3xl" : "text-xl"}`}
+                        data-testid={`text-destination-name-${destination.id}`}
+                      >
                         {destination.name}
                       </h3>
-                      <p className={`text-white/80 ${index === 0 ? 'text-base line-clamp-3' : 'text-sm line-clamp-2'}`}>
+                      <p
+                        className={`text-white/80 ${index === 0 ? "text-base line-clamp-3" : "text-sm line-clamp-2"}`}
+                      >
                         {destination.shortDescription}
                       </p>
                       <div className="flex items-center gap-2 mt-3 text-white/90 text-sm font-medium group-hover:text-white transition-colors">
@@ -488,11 +667,15 @@ export default function Home() {
                 <Star className="h-3 w-3 mr-1 fill-current" />
                 Hand-Picked
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-2">Featured Stays</h2>
-              <p className="text-muted-foreground text-lg">Curated properties with exceptional value and reviews</p>
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">
+                Featured Stays
+              </h2>
+              <p className="text-muted-foreground text-lg">
+                Curated properties with exceptional value and reviews
+              </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setLocation("/search")}
               className="group self-start md:self-auto"
               data-testid="button-view-all-properties"
@@ -535,7 +718,6 @@ export default function Home() {
           )}
         </div>
       </div>
-
     </div>
   );
 }
