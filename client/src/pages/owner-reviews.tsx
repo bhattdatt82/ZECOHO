@@ -16,7 +16,7 @@ import { Link } from "wouter";
 import { Star, MessageSquare, Send, XCircle } from "lucide-react";
 
 interface Review {
-  id: number;
+  id: string;
   propertyId: number;
   propertyTitle: string;
   guestId: string;
@@ -31,14 +31,14 @@ interface Review {
 export default function OwnerReviews() {
   const { toast } = useToast();
   const { isKycRejected } = useKycGuard();
-  const [respondingTo, setRespondingTo] = useState<number | null>(null);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState("");
   const { data: reviews, isLoading } = useQuery<Review[]>({
     queryKey: ["/api/owner/reviews"],
   });
 
   const respondMutation = useMutation({
-    mutationFn: async ({ id, response }: { id: number; response: string }) => {
+    mutationFn: async ({ id, response }: { id: string; response: string }) => {
       return apiRequest("POST", `/api/owner/reviews/${id}/respond`, {
         response,
       });
