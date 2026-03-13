@@ -737,7 +737,6 @@ export function SearchBar({
             <div
               className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2 border-b border-gray-100 dark:border-gray-700"
               onClick={() => {
-                setDestination("Near Me");
                 setShowSuggestions(false);
                 handleUseCurrentLocation();
               }}
@@ -971,7 +970,6 @@ export function SearchBar({
                 type="button"
                 className="w-full px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 text-left"
                 onClick={() => {
-                  setDestination("Near Me");
                   setShowSuggestions(false);
                   handleUseCurrentLocation();
                 }}
