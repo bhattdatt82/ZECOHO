@@ -91,7 +91,7 @@ const parseLocalDate = (dateStr: string): Date => {
 import type { LucideIcon } from "lucide-react";
 import { PropertyMap } from "@/components/PropertyMap";
 import { MobileBookingBar } from "@/components/MobileBookingBar";
-import { RoomTypeCard, type RoomInventory } from "@/components/RoomTypeCard";
+import { RoomTypeSelect, type RoomInventory } from "@/components/RoomTypeCard";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import {
   GuestDetailsForm,
@@ -459,27 +459,6 @@ export default function PropertyDetails() {
     },
     enabled: !!propertyId && !!checkIn && !!checkOut,
     staleTime: 30000, // Cache for 30 seconds
-  });
-
-  // Fetch per-night pricing calendar when dates are selected
-  const { data: pricingCalendar } = useQuery<any>({
-    queryKey: [
-      "/api/properties",
-      propertyId,
-      "pricing-calendar",
-      checkIn,
-      checkOut,
-    ],
-    queryFn: async () => {
-      if (!propertyId || !checkIn || !checkOut) return null;
-      const response = await fetch(
-        `/api/properties/${propertyId}/pricing-calendar?startDate=${checkIn}&endDate=${checkOut}`,
-      );
-      if (!response.ok) return null;
-      return await response.json();
-    },
-    enabled: !!propertyId && !!checkIn && !!checkOut,
-    staleTime: 60000,
   });
 
   // Get selected room type data for auto-calculation
@@ -962,114 +941,74 @@ export default function PropertyDetails() {
     return rooms * maxGuestsPerRoom;
   }, [rooms, maxGuestsPerRoom]);
 
-  // Build nightly price breakdown using calendar overrides (falls back to basePrice)
-  const nightlyPriceBreakdown = useMemo(() => {
-    if (!checkIn || !checkOut || !selectedRoomTypeId) return null;
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end)
-      return null;
-
-    const calRoomType = pricingCalendar?.roomTypes?.find(
-      (rt: any) => rt.roomTypeId === selectedRoomTypeId,
-    );
-    const overrides: Record<string, number> = calRoomType?.overrides ?? {};
-    const defaultPrice =
-      calRoomType?.defaultPrice ??
-      (selectedRoomType ? Number(selectedRoomType.basePrice) : 0);
-
-    const nightlyRates: { date: string; price: number; isOverride: boolean }[] =
-      [];
-    const cursor = new Date(start);
-    while (cursor < end) {
-      const dateStr = format(cursor, "yyyy-MM-dd");
-      const override = overrides[dateStr];
-      nightlyRates.push({
-        date: dateStr,
-        price: override !== undefined ? override : defaultPrice,
-        isOverride: override !== undefined,
-      });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    const totalRoomCostPerRoom = nightlyRates.reduce(
-      (sum, n) => sum + n.price,
-      0,
-    );
-    const hasVariablePricing = nightlyRates.some((n) => n.isOverride);
-    const avgPrice =
-      nightlyRates.length > 0
-        ? totalRoomCostPerRoom / nightlyRates.length
-        : defaultPrice;
-
-    return {
-      nightlyRates,
-      totalRoomCostPerRoom,
-      hasVariablePricing,
-      avgPrice,
-      defaultPrice,
-    };
-  }, [
-    checkIn,
-    checkOut,
-    selectedRoomTypeId,
-    pricingCalendar,
-    selectedRoomType,
-  ]);
-
   const calculateTotalPrice = () => {
     if (!checkIn || !checkOut || !property) return 0;
-    if (!selectedRoomTypeId) return 0;
 
     const start = new Date(checkIn);
     const end = new Date(checkOut);
     const nights = Math.ceil(
       (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
     );
+
     if (nights <= 0) return 0;
 
-    const rtData = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
-    if (!rtData) return 0;
-
-    // Use nightly breakdown if available, otherwise fall back to flat basePrice
-    const basePricePerNight = Number(rtData.basePrice);
-    let totalRoomCostPerRoom = 0;
-    if (nightlyPriceBreakdown) {
-      totalRoomCostPerRoom = nightlyPriceBreakdown.totalRoomCostPerRoom;
-    } else {
-      totalRoomCostPerRoom = nights * basePricePerNight;
+    // Room type must be selected for pricing (room-level pricing only)
+    if (!selectedRoomTypeId) {
+      // Return 0 if no room type selected - pricing is now room-level only
+      return 0;
     }
 
-    // Occupancy adjustment (applied per night × nights)
-    let occupancyAdjustment = 0;
-    const adultsPerRoom = Math.ceil(adults / rooms);
-    const singleOccupancyBase = rtData.singleOccupancyBase || 1;
-    if (adultsPerRoom >= 3 && rtData.tripleOccupancyAdjustment) {
-      occupancyAdjustment = Number(rtData.tripleOccupancyAdjustment);
-    } else if (
-      adultsPerRoom >= 2 &&
-      adultsPerRoom > singleOccupancyBase &&
-      rtData.doubleOccupancyAdjustment
-    ) {
-      occupancyAdjustment = Number(rtData.doubleOccupancyAdjustment);
-    }
-
-    // Meal option price
+    let pricePerNight = 0;
     let mealOptionPrice = 0;
-    if (selectedMealOptionId && rtData.mealOptions) {
-      const selectedMealOption = rtData.mealOptions.find(
-        (opt: any) => opt.id === selectedMealOptionId,
-      );
-      if (selectedMealOption)
-        mealOptionPrice = Number(selectedMealOption.priceAdjustment);
+
+    const selectedRoomType = roomTypes.find(
+      (rt: any) => rt.id === selectedRoomTypeId,
+    );
+    if (selectedRoomType) {
+      pricePerNight = Number(selectedRoomType.basePrice);
+
+      // Add meal option price if selected
+      if (selectedMealOptionId && selectedRoomType.mealOptions) {
+        const selectedMealOption = selectedRoomType.mealOptions.find(
+          (opt: any) => opt.id === selectedMealOptionId,
+        );
+        if (selectedMealOption) {
+          mealOptionPrice = Number(selectedMealOption.priceAdjustment);
+        }
+      }
     }
 
-    const roomCost =
-      (totalRoomCostPerRoom + nights * occupancyAdjustment) * rooms;
+    if (pricePerNight <= 0) return 0;
+
+    // Calculate occupancy adjustment based on adults per room
+    let occupancyAdjustment = 0;
+    if (selectedRoomType) {
+      const adultsPerRoom = Math.ceil(adults / rooms);
+      const singleOccupancyBase = selectedRoomType.singleOccupancyBase || 1;
+
+      if (adultsPerRoom >= 3 && selectedRoomType.tripleOccupancyAdjustment) {
+        // 3+ adults per room - apply triple occupancy adjustment
+        occupancyAdjustment = Number(
+          selectedRoomType.tripleOccupancyAdjustment,
+        );
+      } else if (
+        adultsPerRoom >= 2 &&
+        adultsPerRoom > singleOccupancyBase &&
+        selectedRoomType.doubleOccupancyAdjustment
+      ) {
+        // 2 adults per room (exceeding single base) - apply double occupancy adjustment
+        occupancyAdjustment = Number(
+          selectedRoomType.doubleOccupancyAdjustment,
+        );
+      }
+    }
+
+    // Calculate base price: room rate (per room per night) + occupancy adjustment + meal cost (per person per night)
+    const roomCost = nights * (pricePerNight + occupancyAdjustment) * rooms;
     const mealCost = nights * mealOptionPrice * guests;
     let basePrice = roomCost + mealCost;
 
-    // Bulk booking discount
+    // Apply bulk booking discount if applicable
     if (
       property.bulkBookingEnabled &&
       property.bulkBookingMinRooms &&
@@ -1095,7 +1034,6 @@ export default function PropertyDetails() {
       selectedRoomTypeId,
       selectedMealOptionId,
       roomTypes,
-      nightlyPriceBreakdown,
     ],
   );
   const nights = useMemo(() => {
@@ -2587,48 +2525,32 @@ export default function PropertyDetails() {
                     </Popover>
                   </div>
 
-                  {/* Room Type Selection - Using Unified Component */}
+                  {/* Room Type Selection — Option A: dropdown + always-visible meal plan */}
                   {roomTypes.length > 0 && (
-                    <div>
-                      <label className="text-sm font-semibold block mb-2">
-                        Select Room Type
-                      </label>
-                      <div className="space-y-3">
-                        {roomTypes
-                          .filter((rt: any) => rt.isActive)
-                          .map((roomType: any) => {
-                            const inventory = roomInventory.find(
-                              (ri: any) => ri.roomTypeId === roomType.id,
-                            );
-                            return (
-                              <RoomTypeCard
-                                key={roomType.id}
-                                roomType={roomType}
-                                isSelected={selectedRoomTypeId === roomType.id}
-                                selectedMealOptionId={selectedMealOptionId}
-                                onSelect={(id) => {
-                                  setSelectedRoomTypeId(id);
-                                  setSelectedMealOptionId(null);
-                                }}
-                                onMealOptionSelect={setSelectedMealOptionId}
-                                inventory={
-                                  inventory
-                                    ? {
-                                        roomTypeId: inventory.roomTypeId,
-                                        availableRooms:
-                                          inventory.availableRooms,
-                                        isSoldOut: inventory.isSoldOut || false,
-                                        isLowStock:
-                                          inventory.isLowStock || false,
-                                      }
-                                    : undefined
-                                }
-                                showDatesContext={!!(checkIn && checkOut)}
-                              />
-                            );
-                          })}
-                      </div>
-                    </div>
+                    <RoomTypeSelect
+                      roomTypes={roomTypes.filter(
+                        (rt: any) => rt.isActive !== false,
+                      )}
+                      selectedRoomTypeId={selectedRoomTypeId}
+                      selectedMealOptionId={selectedMealOptionId}
+                      onRoomTypeSelect={(id) => {
+                        setSelectedRoomTypeId(id);
+                        setSelectedMealOptionId(null);
+                      }}
+                      onMealOptionSelect={setSelectedMealOptionId}
+                      inventoryMap={Object.fromEntries(
+                        roomInventory.map((ri: any) => [
+                          ri.roomTypeId,
+                          {
+                            roomTypeId: ri.roomTypeId,
+                            availableRooms: ri.availableRooms,
+                            isSoldOut: ri.isSoldOut || false,
+                            isLowStock: ri.isLowStock || false,
+                          },
+                        ]),
+                      )}
+                      showDatesContext={!!(checkIn && checkOut)}
+                    />
                   )}
 
                   {/* Guest/Room calculation helper and warnings */}
@@ -2735,9 +2657,7 @@ export default function PropertyDetails() {
                       </p>
                       <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
                         Only {selectedRoomInventory.availableRooms} room
-                        {selectedRoomInventory.availableRooms !== 1
-                          ? "s"
-                          : ""}{" "}
+                        {selectedRoomInventory.availableRooms !== 1 ? "s" : ""}{" "}
                         available for this room type. Book now to secure your
                         stay!
                       </p>
@@ -2756,8 +2676,12 @@ export default function PropertyDetails() {
                     );
                     if (!selectedRoomType) return null;
 
+                    const basePrice = Number(selectedRoomType.basePrice);
+                    const roomTypeName = selectedRoomType.name;
+                    let originalPrice: number | null = null;
                     let mealOptionName = "";
                     let mealOptionPrice = 0;
+
                     let occupancyAdjustment = 0;
                     let occupancyLabel = "";
                     const adultsPerRoom = Math.ceil(adults / rooms);
@@ -2783,6 +2707,16 @@ export default function PropertyDetails() {
                       occupancyLabel = "Double occupancy";
                     }
 
+                    const effectivePrice = basePrice + occupancyAdjustment;
+
+                    if (
+                      selectedRoomType.originalPrice &&
+                      parseFloat(selectedRoomType.originalPrice) >
+                        parseFloat(selectedRoomType.basePrice)
+                    ) {
+                      originalPrice = Number(selectedRoomType.originalPrice);
+                    }
+
                     if (selectedMealOptionId && selectedRoomType.mealOptions) {
                       const selectedMealOption =
                         selectedRoomType.mealOptions.find(
@@ -2796,94 +2730,31 @@ export default function PropertyDetails() {
                       }
                     }
 
-                    const hasVariablePricing =
-                      nightlyPriceBreakdown?.hasVariablePricing;
-                    const avgPrice =
-                      nightlyPriceBreakdown?.avgPrice ??
-                      Number(selectedRoomType.basePrice);
-                    const nightlyRates =
-                      nightlyPriceBreakdown?.nightlyRates ?? [];
-                    const roomSubtotal = nightlyPriceBreakdown
-                      ? (nightlyPriceBreakdown.totalRoomCostPerRoom +
-                          nights * occupancyAdjustment) *
-                        rooms
-                      : nights *
-                        (Number(selectedRoomType.basePrice) +
-                          occupancyAdjustment) *
-                        rooms;
+                    const roomSubtotal = nights * effectivePrice * rooms;
                     const mealSubtotal = nights * mealOptionPrice * guests;
 
                     return (
                       <div className="mb-4 p-4 bg-muted rounded-lg space-y-2">
-                        {/* Room cost line */}
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
-                            <span className="font-medium">
-                              {selectedRoomType.name}
-                            </span>
-                            {hasVariablePricing
-                              ? ` · ${nights}N × ${rooms}R · avg ₹${Math.round(avgPrice + occupancyAdjustment).toLocaleString("en-IN")}`
-                              : ` × ${nights}N × ${rooms}R`}
+                            <span className="font-medium">{roomTypeName}</span>
+                            {" × "}
+                            {nights}N × {rooms}R
                           </span>
                           <span className="font-semibold">
                             ₹{roomSubtotal.toLocaleString("en-IN")}
                           </span>
                         </div>
-
-                        {/* Nightly breakdown (only shown when prices vary) */}
-                        {hasVariablePricing && nightlyRates.length > 0 && (
-                          <div className="pl-2 border-l-2 border-orange-200 space-y-0.5">
-                            {nightlyRates.map((n) => (
-                              <div
-                                key={n.date}
-                                className="flex justify-between text-xs text-muted-foreground"
-                              >
-                                <span>
-                                  {format(new Date(n.date), "d MMM, EEE")}
-                                </span>
-                                <span
-                                  className={
-                                    n.isOverride
-                                      ? "text-orange-600 font-medium"
-                                      : ""
-                                  }
-                                >
-                                  ₹
-                                  {(
-                                    n.price + occupancyAdjustment
-                                  ).toLocaleString("en-IN")}
-                                  {n.isOverride && " ✦"}
-                                </span>
-                              </div>
-                            ))}
-                            <p className="text-[10px] text-muted-foreground pt-1">
-                              ✦ Custom price set by host
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Occupancy adjustment label */}
-                        {occupancyLabel && (
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>
-                              {occupancyLabel} (+₹{occupancyAdjustment}/night
-                              included above)
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Meal cost */}
                         {mealOptionPrice > 0 && (
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">
-                              {mealOptionName} × {nights}N × {guests} guests
+                              {mealOptionName}
                             </span>
                             <span className="font-semibold">
                               ₹{mealSubtotal.toLocaleString("en-IN")}
                             </span>
                           </div>
                         )}
-
                         <div className="flex justify-between text-base font-semibold pt-2 border-t">
                           <span>Total</span>
                           <span data-testid="text-total-price">
@@ -2985,10 +2856,6 @@ export default function PropertyDetails() {
                             children,
                             originalPrice,
                             bulkDiscountPercent: discountPercent,
-                            nightlyRates: nightlyPriceBreakdown?.nightlyRates,
-                            hasVariablePricing:
-                              nightlyPriceBreakdown?.hasVariablePricing,
-                            avgNightlyPrice: nightlyPriceBreakdown?.avgPrice,
                           }}
                         />
                       </div>

@@ -281,9 +281,7 @@ export interface IStorage {
   deleteBooking(id: string): Promise<void>;
 
   // Conversation operations
-  getConversationsByUser(
-    userId: string,
-  ): Promise<
+  getConversationsByUser(userId: string): Promise<
     (Conversation & {
       property: Property;
       guest: User;
@@ -460,20 +458,20 @@ export interface IStorage {
     endDate: string,
   ): Promise<RoomPriceOverride[]>;
   upsertRoomPriceOverride(
+    propertyId: string,
     roomTypeId: string,
     date: string,
     price: number,
   ): Promise<RoomPriceOverride>;
   deleteRoomPriceOverride(id: string): Promise<void>;
   getMealPlanPriceOverrides(
-    propertyId: string,
+    roomOptionIds: string[],
     startDate: string,
     endDate: string,
   ): Promise<MealPlanPriceOverride[]>;
   upsertMealPlanPriceOverride(
-    propertyId: string,
+    roomOptionId: string,
     date: string,
-    mealPlan: string,
     price: number,
   ): Promise<MealPlanPriceOverride>;
   deleteMealPlanPriceOverride(id: string): Promise<void>;
@@ -1390,9 +1388,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Conversation operations
-  async getConversationsByUser(
-    userId: string,
-  ): Promise<
+  async getConversationsByUser(userId: string): Promise<
     (Conversation & {
       property: Property;
       guest: User;
@@ -4058,16 +4054,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertRoomPriceOverride(
+    propertyId: string,
     roomTypeId: string,
     date: string,
     price: number,
   ): Promise<RoomPriceOverride> {
     const [result] = await db
       .insert(roomPriceOverrides)
-      .values({ roomTypeId, date, price: price.toString() })
+      .values({ propertyId, roomTypeId, date, roomPrice: price.toString() })
       .onConflictDoUpdate({
         target: [roomPriceOverrides.roomTypeId, roomPriceOverrides.date],
-        set: { price: price.toString(), updatedAt: new Date() },
+        set: { roomPrice: price.toString() },
       })
       .returning();
     return result;
@@ -4077,40 +4074,40 @@ export class DatabaseStorage implements IStorage {
     await db.delete(roomPriceOverrides).where(eq(roomPriceOverrides.id, id));
   }
 
+  // roomOptionIds: array of roomOption IDs to fetch overrides for
   async getMealPlanPriceOverrides(
-    propertyId: string,
+    roomOptionIds: string[],
     startDate: string,
     endDate: string,
   ): Promise<MealPlanPriceOverride[]> {
+    if (roomOptionIds.length === 0) return [];
     return db
       .select()
       .from(mealPlanPriceOverrides)
       .where(
         and(
-          eq(mealPlanPriceOverrides.propertyId, propertyId),
+          inArray(mealPlanPriceOverrides.roomOptionId, roomOptionIds),
           gte(mealPlanPriceOverrides.date, startDate),
           lte(mealPlanPriceOverrides.date, endDate),
         ),
       )
-      .orderBy(mealPlanPriceOverrides.date, mealPlanPriceOverrides.mealPlan);
+      .orderBy(mealPlanPriceOverrides.date);
   }
 
   async upsertMealPlanPriceOverride(
-    propertyId: string,
+    roomOptionId: string,
     date: string,
-    mealPlan: string,
     price: number,
   ): Promise<MealPlanPriceOverride> {
     const [result] = await db
       .insert(mealPlanPriceOverrides)
-      .values({ propertyId, date, mealPlan, price: price.toString() })
+      .values({ roomOptionId, date, price: price.toString() })
       .onConflictDoUpdate({
         target: [
-          mealPlanPriceOverrides.propertyId,
+          mealPlanPriceOverrides.roomOptionId,
           mealPlanPriceOverrides.date,
-          mealPlanPriceOverrides.mealPlan,
         ],
-        set: { price: price.toString(), updatedAt: new Date() },
+        set: { price: price.toString() },
       })
       .returning();
     return result;

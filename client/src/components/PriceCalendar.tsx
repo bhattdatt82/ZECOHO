@@ -35,7 +35,7 @@ import {
   Check,
   Info,
 } from "lucide-react";
-import type { RoomType } from "@shared/schema";
+import type { RoomType, RoomOption } from "@shared/schema";
 
 interface PricingCalendarData {
   propertyId: string;
@@ -45,9 +45,13 @@ interface PricingCalendarData {
     roomTypeId: string;
     roomTypeName: string;
     defaultPrice: number;
-    overrides: Record<string, number>;
+    overrides: Record<string, number>; // date → price
   }[];
-  mealPlanOverrides: Record<string, Record<string, number>>;
+  mealPlanOverrides: Record<string, Record<string, number>>; // date → roomOptionId → price
+  roomOptions: Record<
+    string,
+    { name: string; roomTypeId: string; defaultPrice: number }
+  >;
 }
 
 interface PriceCalendarProps {
@@ -56,12 +60,6 @@ interface PriceCalendarProps {
 }
 
 type EditMode = "room" | "mealplan";
-
-const MEAL_PLANS = [
-  { key: "Breakfast Included", label: "Breakfast Included" },
-  { key: "Breakfast + Dinner/Lunch", label: "Half Board" },
-  { key: "All Meals Included", label: "Full Board" },
-];
 
 const TODAY = startOfDay(new Date());
 
@@ -72,16 +70,13 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>(
     roomTypes[0]?.id ?? "",
   );
-  const [selectedMealPlan, setSelectedMealPlan] = useState<string>(
-    MEAL_PLANS[0].key,
-  );
+  const [selectedRoomOptionId, setSelectedRoomOptionId] = useState<string>("");
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [priceInput, setPriceInput] = useState("");
 
   const dragStartDate = useRef<string | null>(null);
   const isDragging = useRef(false);
   const dragMode = useRef<"select" | "deselect">("select");
-  const dragAccumulator = useRef<Set<string>>(new Set());
 
   const startDate = format(startOfMonth(currentMonth), "yyyy-MM-dd");
   const endDate = format(endOfMonth(currentMonth), "yyyy-MM-dd");
@@ -95,12 +90,35 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
       endDate,
     ],
     queryFn: () =>
-      apiRequest(
-        "GET",
+      fetch(
         `/api/properties/${propertyId}/pricing-calendar?startDate=${startDate}&endDate=${endDate}`,
       ).then((r) => r.json()),
     enabled: !!propertyId,
   });
+
+  // Build list of room options for the currently selected room type
+  const roomOptionsForType = useMemo(() => {
+    if (!calendarData?.roomOptions) return [];
+    return Object.entries(calendarData.roomOptions)
+      .filter(([, opt]) => opt.roomTypeId === selectedRoomTypeId)
+      .map(([id, opt]) => ({ id, ...opt }));
+  }, [calendarData, selectedRoomTypeId]);
+
+  // Auto-select first room option when room type or mode changes
+  useEffect(() => {
+    if (
+      editMode === "mealplan" &&
+      roomOptionsForType.length > 0 &&
+      !selectedRoomOptionId
+    ) {
+      setSelectedRoomOptionId(roomOptionsForType[0].id);
+    }
+  }, [editMode, roomOptionsForType, selectedRoomOptionId]);
+
+  // Reset room option when room type changes
+  useEffect(() => {
+    setSelectedRoomOptionId("");
+  }, [selectedRoomTypeId]);
 
   const setRoomPriceMutation = useMutation({
     mutationFn: ({ roomTypeId, startDate, endDate, price }: any) =>
@@ -109,7 +127,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
         endDate,
         price,
       }).then((r) => r.json()),
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["/api/properties", propertyId, "pricing-calendar"],
       });
@@ -129,11 +147,11 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
   });
 
   const setMealPriceMutation = useMutation({
-    mutationFn: ({ startDate, endDate, mealPlan, price }: any) =>
+    mutationFn: ({ roomOptionId, startDate, endDate, price }: any) =>
       apiRequest(
         "PUT",
-        `/api/owner/properties/${propertyId}/meal-plan-price-overrides`,
-        { startDate, endDate, mealPlan, price },
+        `/api/owner/room-options/${roomOptionId}/meal-plan-price-overrides`,
+        { startDate, endDate, price },
       ).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -189,10 +207,13 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
       if (override !== undefined) return { price: override, isOverride: true };
       return { price: selectedRoomType.defaultPrice, isOverride: false };
     }
-    if (editMode === "mealplan" && calendarData) {
+    if (editMode === "mealplan" && selectedRoomOptionId && calendarData) {
       const override =
-        calendarData.mealPlanOverrides[dateStr]?.[selectedMealPlan];
+        calendarData.mealPlanOverrides[dateStr]?.[selectedRoomOptionId];
       if (override !== undefined) return { price: override, isOverride: true };
+      // Show default price from roomOptions index
+      const opt = calendarData.roomOptions[selectedRoomOptionId];
+      if (opt) return { price: opt.defaultPrice, isOverride: false };
     }
     return { price: null, isOverride: false };
   }
@@ -203,7 +224,6 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
     isDragging.current = true;
     dragStartDate.current = dateStr;
     dragMode.current = selectedDates.has(dateStr) ? "deselect" : "select";
-    dragAccumulator.current = new Set([dateStr]);
     setSelectedDates((prev) => {
       const next = new Set(prev);
       dragMode.current === "select" ? next.add(dateStr) : next.delete(dateStr);
@@ -252,6 +272,11 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
       });
       return;
     }
+    if (editMode === "mealplan" && !selectedRoomOptionId) {
+      toast({ title: "Select a meal plan first", variant: "destructive" });
+      return;
+    }
+
     const sorted = Array.from(selectedDates).sort();
     if (editMode === "room") {
       sorted.forEach((d) =>
@@ -265,9 +290,9 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
     } else {
       sorted.forEach((d) =>
         setMealPriceMutation.mutate({
+          roomOptionId: selectedRoomOptionId,
           startDate: d,
           endDate: d,
-          mealPlan: selectedMealPlan,
           price,
         }),
       );
@@ -298,22 +323,24 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
         ([d]) => d >= startDate && d <= endDate,
       );
     }
-    if (editMode === "mealplan" && calendarData) {
+    if (editMode === "mealplan" && selectedRoomOptionId && calendarData) {
       return Object.entries(calendarData.mealPlanOverrides)
         .filter(
-          ([d, plans]) =>
+          ([d, opts]) =>
             d >= startDate &&
             d <= endDate &&
-            plans[selectedMealPlan] !== undefined,
+            opts[selectedRoomOptionId] !== undefined,
         )
-        .map(([d, plans]) => [d, plans[selectedMealPlan]] as [string, number]);
+        .map(
+          ([d, opts]) => [d, opts[selectedRoomOptionId]] as [string, number],
+        );
     }
-    return [];
+    return [] as [string, number][];
   }, [
     calendarData,
     editMode,
     selectedRoomType,
-    selectedMealPlan,
+    selectedRoomOptionId,
     startDate,
     endDate,
   ]);
@@ -364,46 +391,55 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
           </button>
         </div>
 
-        {editMode === "room" ? (
+        {/* Room type selector (always shown) */}
+        <Select
+          value={selectedRoomTypeId}
+          onValueChange={(v) => {
+            setSelectedRoomTypeId(v);
+            setSelectedDates(new Set());
+          }}
+        >
+          <SelectTrigger className="w-48 bg-white">
+            <SelectValue placeholder="Select room type" />
+          </SelectTrigger>
+          <SelectContent>
+            {roomTypes.map((rt) => (
+              <SelectItem key={rt.id} value={rt.id}>
+                {rt.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Meal plan selector (only in meal mode) */}
+        {editMode === "mealplan" && (
           <Select
-            value={selectedRoomTypeId}
+            value={selectedRoomOptionId}
             onValueChange={(v) => {
-              setSelectedRoomTypeId(v);
-              setSelectedDates(new Set());
-            }}
-          >
-            <SelectTrigger className="w-52 bg-white">
-              <SelectValue placeholder="Select room type" />
-            </SelectTrigger>
-            <SelectContent>
-              {roomTypes.map((rt) => (
-                <SelectItem key={rt.id} value={rt.id}>
-                  {rt.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Select
-            value={selectedMealPlan}
-            onValueChange={(v) => {
-              setSelectedMealPlan(v);
+              setSelectedRoomOptionId(v);
               setSelectedDates(new Set());
             }}
           >
             <SelectTrigger className="w-56 bg-white">
-              <SelectValue placeholder="Select meal plan" />
+              <SelectValue
+                placeholder={
+                  roomOptionsForType.length === 0
+                    ? "No meal plans"
+                    : "Select meal plan"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
-              {MEAL_PLANS.map((mp) => (
-                <SelectItem key={mp.key} value={mp.key}>
-                  {mp.label}
+              {roomOptionsForType.map((opt) => (
+                <SelectItem key={opt.id} value={opt.id}>
+                  {opt.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
 
+        {/* Default price chip */}
         {editMode === "room" && selectedRoomType && (
           <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-lg text-sm">
             <span className="text-gray-400 text-xs">Default</span>
@@ -413,6 +449,20 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
             <span className="text-gray-400 text-xs">/night</span>
           </div>
         )}
+        {editMode === "mealplan" &&
+          selectedRoomOptionId &&
+          calendarData?.roomOptions[selectedRoomOptionId] && (
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-lg text-sm">
+              <span className="text-gray-400 text-xs">Default</span>
+              <span className="font-bold text-gray-800">
+                ₹
+                {calendarData.roomOptions[
+                  selectedRoomOptionId
+                ].defaultPrice.toLocaleString("en-IN")}
+              </span>
+              <span className="text-gray-400 text-xs">/person/night</span>
+            </div>
+          )}
 
         {overridesThisMonth.length > 0 && (
           <Badge variant="secondary" className="text-xs">
@@ -422,11 +472,18 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
         )}
       </div>
 
+      {/* ── Meal plan notice ── */}
+      {editMode === "mealplan" && roomOptionsForType.length === 0 && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
+          No meal plans found for this room type. Add meal plans in the Rooms
+          tab first.
+        </div>
+      )}
+
       {/* ── Main grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_296px] gap-5">
         {/* Calendar */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          {/* Month nav */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <button
               onClick={() => {
@@ -452,7 +509,6 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
           </div>
 
           <div className="p-4">
-            {/* Day headers */}
             <div className="grid grid-cols-7 mb-2">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div
@@ -531,11 +587,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
                             : price}
                         </span>
                       )}
-                      {editMode === "mealplan" && !isOverride && !past && (
-                        <span className="text-[9px] text-gray-300 leading-none mt-0.5">
-                          default
-                        </span>
-                      )}
+
                       {isOverride && !selected && (
                         <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-orange-500 rounded-full" />
                       )}
@@ -545,7 +597,6 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
               </div>
             )}
 
-            {/* Legend */}
             <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100 flex-wrap">
               <span className="flex items-center gap-1.5 text-[11px] text-gray-400">
                 <span className="w-3 h-3 rounded bg-orange-500 inline-block" />{" "}
@@ -579,7 +630,6 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
               </p>
             </div>
 
-            {/* Selected dates */}
             <div>
               {selectedDates.size === 0 ? (
                 <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -615,7 +665,6 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
               )}
             </div>
 
-            {/* Price input */}
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">
                 ₹
@@ -633,7 +682,12 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
 
             <Button
               onClick={handleApply}
-              disabled={isPending || selectedDates.size === 0 || !priceInput}
+              disabled={
+                isPending ||
+                selectedDates.size === 0 ||
+                !priceInput ||
+                (editMode === "mealplan" && !selectedRoomOptionId)
+              }
               className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl text-sm"
             >
               {isPending ? (
@@ -703,20 +757,31 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
                           ₹{Number(price).toLocaleString("en-IN")}
                         </span>
                         <button
-                          title="To revert: select this date and set the default price"
+                          title="Select this date to revert to default"
                           className="p-1 rounded-lg hover:bg-orange-200 text-orange-300 hover:text-orange-700 transition-colors"
                           onClick={() => {
+                            setSelectedDates(new Set([dateStr]));
                             if (editMode === "room" && selectedRoomType) {
-                              setSelectedDates(new Set([dateStr]));
                               setPriceInput(
                                 String(selectedRoomType.defaultPrice),
                               );
-                              toast({
-                                title: "Ready to revert",
-                                description:
-                                  "Hit Apply to reset this date to the default price.",
-                              });
+                            } else if (
+                              editMode === "mealplan" &&
+                              selectedRoomOptionId &&
+                              calendarData?.roomOptions[selectedRoomOptionId]
+                            ) {
+                              setPriceInput(
+                                String(
+                                  calendarData.roomOptions[selectedRoomOptionId]
+                                    .defaultPrice,
+                                ),
+                              );
                             }
+                            toast({
+                              title: "Ready to revert",
+                              description:
+                                "Hit Apply to reset this date to the default price.",
+                            });
                           }}
                         >
                           <RotateCcw className="h-3 w-3" />
