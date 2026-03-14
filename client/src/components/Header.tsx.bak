@@ -331,6 +331,7 @@ export function Header() {
                             Subscriptions
                           </Link>
                         </DropdownMenuItem>
+                        <DropdownMenuItem asChild data-testid="link-admin-owners">
                       <DropdownMenuItem asChild data-testid="link-admin-owners">
                         <Link href="/admin/owners">
                           <Users className="h-4 w-4 mr-2" />
@@ -371,19 +372,20 @@ export function Header() {
                         asChild
                         data-testid="link-admin-coming-soon"
                       >
-                        <Link href="/admin/coming-soon">
-                          <Clock className="h-4 w-4 mr-2" />
-                          Coming Soon Mode
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin/subscription-plans">
-                          Subscription Plans
-                        </Link>
-                      </DropdownMenuItem>
+                    <Link href="/admin/coming-soon">
+                      <Clock className="h-4 w-4 mr-2" />
+                      Coming Soon Mode
+              Coming Soon Mode
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/subscription-plans">
+                        Subscription Plans
+                      </Link>
+                    </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </div>
+              </div>
               )}
 
               {/* Messages - hidden on mobile for all users (moved to bottom nav) except on property detail pages where bottom nav is hidden */}
@@ -528,8 +530,8 @@ export function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </>
-          ) : (
+                </div>
+              ) : (
             <div className="flex items-center gap-2 md:gap-3">
               <Link
                 href="/login?returnTo=/list-property"
