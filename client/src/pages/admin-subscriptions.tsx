@@ -384,7 +384,21 @@ export default function AdminSubscriptions() {
 
   function openEditPlan(plan: SubscriptionPlan) {
     setEditingPlan(plan);
-    setPlanForm({ ...plan, cutoffPrice: plan.cutoffPrice || "" });
+    setPlanForm({
+      tier: plan.tier,
+      name: plan.name,
+      description: plan.description || "",
+      duration: plan.duration,
+      price: Number(plan.price),
+      cutoffPrice: plan.cutoffPrice ? Number(plan.cutoffPrice) : "",
+      maxProperties: plan.maxProperties,
+      maxPhotosPerProperty: plan.maxPhotosPerProperty,
+      bookingManagementEnabled: plan.bookingManagementEnabled,
+      priorityPlacement: plan.priorityPlacement,
+      analyticsEnabled: plan.analyticsEnabled,
+      isActive: plan.isActive,
+      sortOrder: plan.sortOrder,
+    });
     setShowPlanDialog(true);
   }
 
