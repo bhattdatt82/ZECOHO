@@ -344,9 +344,7 @@ export default function AdminSubscriptions() {
     setEndDate(end.toISOString().split("T")[0]);
   };
 
-  const handleConfirm = () => {
-    if (!selectedSub) return;
-
+  // ── Plans Query ──
   const { data: plans = [], refetch: refetchPlans } = useQuery<SubscriptionPlan[]>({
     queryKey: ["/api/admin/subscription-plans"],
     queryFn: async () => {
@@ -389,6 +387,9 @@ export default function AdminSubscriptions() {
     if (!plan.cutoffPrice || Number(plan.cutoffPrice) <= Number(plan.price)) return null;
     return Math.round(((Number(plan.cutoffPrice) - Number(plan.price)) / Number(plan.cutoffPrice)) * 100);
   }
+
+  const handleConfirm = () => {
+    if (!selectedSub) return;
     if (actionType === "activate")
       activateMutation.mutate({ id: selectedSub.id, note, startDate, endDate });
     if (actionType === "cancel")
@@ -396,7 +397,6 @@ export default function AdminSubscriptions() {
     if (actionType === "waive")
       waiveMutation.mutate({ id: selectedSub.id, note });
   };
-
   const isActionLoading =
     activateMutation.isPending ||
     cancelMutation.isPending ||
