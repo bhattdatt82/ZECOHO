@@ -76,7 +76,14 @@ function AnimatedCounter({
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isOwner } = useAuth();
+
+  const { data: subStatus } = useQuery({
+    queryKey: ['/api/owner/subscription-status', user?.id],
+    queryFn: () => fetch('/api/owner/subscription-status/' + user?.id, { credentials: 'include' }).then(r => r.json()),
+    enabled: !!user?.id && !!isOwner,
+  });
+  const subExpired = isOwner && subStatus && !subStatus.isActive;
 
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
@@ -125,6 +132,17 @@ export default function Home() {
     <div className="min-h-screen">
       {/* Location Permission Dialog - appears after login */}
       <LocationPermissionDialog isAuthenticated={isAuthenticated} />
+
+      {subExpired && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-300 px-4 py-3 text-center">
+          <span className="text-amber-800 dark:text-amber-200 text-sm font-medium">
+            Your subscription is not active. {" "}
+            <a href="/owner/subscription" className="font-semibold underline hover:text-amber-900">
+              Renew or activate your subscription
+            </a>
+          </span>
+        </div>
+      )}
 
       {/* Hero Section - Clean & Modern */}
       <div className="relative bg-gradient-to-br from-rose-50 via-background to-amber-50 dark:from-rose-950/20 dark:via-background dark:to-amber-950/20">
