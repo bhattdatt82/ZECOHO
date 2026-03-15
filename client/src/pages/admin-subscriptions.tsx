@@ -363,7 +363,7 @@ export default function AdminSubscriptions() {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
       return res.json();
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] }); setShowPlanDialog(false); toast({ title: editingPlan ? "Plan updated" : "Plan created" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] }); queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] }); setShowPlanDialog(false); toast({ title: editingPlan ? "Plan updated" : "Plan created" }); },
     onError: () => toast({ title: "Error saving plan", variant: "destructive" }),
   });
 
@@ -371,7 +371,7 @@ export default function AdminSubscriptions() {
     mutationFn: async (id: string) => {
       await fetch('/api/admin/subscription-plans/' + id, { method: "DELETE", credentials: "include" });
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] }); toast({ title: "Plan deleted" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] }); queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] }); toast({ title: "Plan deleted" }); },
   });
 
   function openNewPlan() {
