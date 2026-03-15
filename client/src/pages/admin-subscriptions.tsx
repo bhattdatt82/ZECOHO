@@ -52,6 +52,9 @@ import {
   Gift,
   Ban,
   Calendar,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
