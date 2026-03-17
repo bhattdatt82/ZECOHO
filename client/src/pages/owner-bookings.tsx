@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -57,6 +58,7 @@ import {
   CheckCircle,
   AlertCircle,
   Phone,
+  Search,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -122,12 +124,10 @@ const CONTACT_VISIBLE_STATUSES = [
   "completed",
 ] as const;
 
-// Helper to check if contact should be visible for a booking status
 const isContactVisible = (status: Booking["status"]): boolean => {
   return (CONTACT_VISIBLE_STATUSES as readonly string[]).includes(status);
 };
 
-// Helper to format phone for WhatsApp (remove spaces, add country code if needed)
 const formatPhoneForWhatsApp = (phone: string): string => {
   let cleaned = phone.replace(/[\s\-\(\)]/g, "");
   if (cleaned.startsWith("0")) {
@@ -138,7 +138,6 @@ const formatPhoneForWhatsApp = (phone: string): string => {
   return cleaned.replace("+", "");
 };
 
-// Helper to generate WhatsApp URL with prefilled message for owner
 const getWhatsAppUrl = (
   phone: string,
   bookingCode: string | null | undefined,
@@ -157,7 +156,9 @@ export default function OwnerBookings() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [location, setLocation] = useLocation();
 
-  // Derive active tab from URL query params
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get("tab");
@@ -169,7 +170,6 @@ export default function OwnerBookings() {
       : "pending";
   });
 
-  // Highlight a specific booking (from urgent alert redirect)
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(
     () => {
       const params = new URLSearchParams(window.location.search);
@@ -180,7 +180,6 @@ export default function OwnerBookings() {
     return !!new URLSearchParams(window.location.search).get("highlight");
   });
 
-  // Sync tab state when URL changes
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get("tab");
@@ -196,15 +195,12 @@ export default function OwnerBookings() {
     if (highlightId) {
       setHighlightBookingId(highlightId);
       setShowEscalationMsg(true);
-      // Switch to pending tab where the booking will be
       setActiveTab("pending");
     }
   }, [location]);
 
-  // Cache invalidation via WebSocket (urgent alert is handled globally in App.tsx)
   useBookingUpdates({ userId: user?.id });
 
-  // Auto-scroll to highlighted booking after data loads
   const { data: bookings, isLoading } = useQuery<Booking[]>({
     queryKey: ["/api/owner/bookings"],
   });
@@ -218,7 +214,6 @@ export default function OwnerBookings() {
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-      // Clear highlight after 5 seconds
       const clearTimer = setTimeout(() => {
         setHighlightBookingId(null);
         setShowEscalationMsg(false);
@@ -228,7 +223,6 @@ export default function OwnerBookings() {
     return () => clearTimeout(timer);
   }, [highlightBookingId, isLoading]);
 
-  // Listen for service worker messages (push action buttons)
   useEffect(() => {
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === "BOOKING_ACTION") {
@@ -257,7 +251,6 @@ export default function OwnerBookings() {
             })
             .catch(console.error);
         }
-        // Log the push action
         apiRequest("POST", "/api/push/log-action", {
           bookingId,
           action,
@@ -557,7 +550,6 @@ export default function OwnerBookings() {
     setBookingToAccept(null);
   };
 
-  // Log contact interaction (call/whatsapp) for audit
   const logContactInteraction = async (
     bookingId: string,
     actionType: "call" | "whatsapp",
@@ -578,12 +570,10 @@ export default function OwnerBookings() {
         },
       });
     } catch (error) {
-      // Silent fail - don't block the user action
       console.error("Failed to log contact interaction:", error);
     }
   };
 
-  // Handle call button click with logging
   const handleCallClick = (booking: Booking) => {
     if (booking.guest?.phone) {
       logContactInteraction(
@@ -597,7 +587,6 @@ export default function OwnerBookings() {
     }
   };
 
-  // Handle WhatsApp button click with logging
   const handleWhatsAppClick = (booking: Booking) => {
     if (booking.guest?.phone) {
       logContactInteraction(
@@ -713,12 +702,11 @@ export default function OwnerBookings() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  // Helper to check if no-show can be marked (guest-confirmed, past check-in time + 2 hour grace period)
   const NO_SHOW_GRACE_PERIOD_HOURS = 2;
 
   const getNoShowAvailableAt = (booking: Booking): Date => {
     const checkInDateTime = new Date(booking.checkIn);
-    checkInDateTime.setHours(12, 0, 0, 0); // Standard hotel check-in at 12 PM
+    checkInDateTime.setHours(12, 0, 0, 0);
     return new Date(
       checkInDateTime.getTime() + NO_SHOW_GRACE_PERIOD_HOURS * 60 * 60 * 1000,
     );
@@ -728,26 +716,21 @@ export default function OwnerBookings() {
     if (booking.status !== "customer_confirmed") return false;
     const now = new Date();
     const noShowAvailableAt = getNoShowAvailableAt(booking);
-
-    // Check if we're past the check-in date entirely
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const checkInDateOnly = new Date(booking.checkIn);
     checkInDateOnly.setHours(0, 0, 0, 0);
     const isPastCheckInDate = today > checkInDateOnly;
-
-    // Allow no-show if: current time >= check-in + grace period, OR current date > check-in date
     return now >= noShowAvailableAt || isPastCheckInDate;
   };
 
-  // Check if no-show button should be shown (for guest-confirmed bookings on/after check-in date)
   const shouldShowNoShowButton = (booking: Booking) => {
     if (booking.status !== "customer_confirmed") return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const checkInDateOnly = new Date(booking.checkIn);
     checkInDateOnly.setHours(0, 0, 0, 0);
-    return today >= checkInDateOnly; // Show button on check-in day or later
+    return today >= checkInDateOnly;
   };
 
   const getNoShowTooltipMessage = (booking: Booking): string => {
@@ -778,7 +761,6 @@ export default function OwnerBookings() {
     });
   };
 
-  // Helper to check if check-in is allowed (today >= check-in date)
   const canCheckIn = (booking: Booking) => {
     if (
       booking.status !== "confirmed" &&
@@ -792,12 +774,10 @@ export default function OwnerBookings() {
     return today >= checkInDate;
   };
 
-  // Helper to check if check-out is allowed (any checked-in booking can be checked out)
   const canCheckOut = (booking: Booking) => {
     return booking.status === "checked_in";
   };
 
-  // Check if this is an early checkout (before scheduled date)
   const isEarlyCheckout = (booking: Booking) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -806,7 +786,6 @@ export default function OwnerBookings() {
     return today < checkOutDate;
   };
 
-  // Handle check-out button click
   const handleCheckOut = (booking: Booking) => {
     if (isEarlyCheckout(booking)) {
       setEarlyCheckoutBooking(booking);
@@ -816,7 +795,6 @@ export default function OwnerBookings() {
     }
   };
 
-  // Confirm early checkout
   const confirmEarlyCheckout = () => {
     if (!earlyCheckoutBooking) return;
     checkOutMutation.mutate({
@@ -825,7 +803,6 @@ export default function OwnerBookings() {
     });
   };
 
-  // Handle extend stay
   const openExtendStayDialog = (booking: Booking) => {
     setExtendStayBooking(booking);
     const defaultDate = new Date(booking.checkOut);
@@ -842,7 +819,6 @@ export default function OwnerBookings() {
     });
   };
 
-  // Helper to check if a booking is ongoing (checked-in, between check-in and check-out dates)
   const isOngoing = (booking: Booking) => {
     if (booking.status === "checked_in") return true;
     if (booking.checkInTime) {
@@ -857,7 +833,6 @@ export default function OwnerBookings() {
     return false;
   };
 
-  // Helper to check if check-in is in the future (upcoming)
   const isUpcoming = (booking: Booking) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -869,7 +844,6 @@ export default function OwnerBookings() {
     );
   };
 
-  // Helper to check if booking is in the past (check-out date has passed)
   const isPast = (booking: Booking) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -882,45 +856,77 @@ export default function OwnerBookings() {
     );
   };
 
+  // ── Search helper ────────────────────────────────────────────────
+  const matchesSearch = (booking: Booking, query: string): boolean => {
+    if (!query.trim()) return true;
+    const q = query.trim().toLowerCase();
+
+    // Match booking ID or booking code
+    if (booking.id.toLowerCase().includes(q)) return true;
+    if (booking.bookingCode?.toLowerCase().includes(q)) return true;
+
+    // Match guest name
+    if (booking.guest?.name?.toLowerCase().includes(q)) return true;
+
+    // Match guest phone (strip spaces/dashes for comparison)
+    if (booking.guest?.phone) {
+      const cleanPhone = booking.guest.phone.replace(/[\s\-\(\)]/g, "");
+      const cleanQuery = q.replace(/[\s\-\(\)]/g, "");
+      if (cleanPhone.includes(cleanQuery)) return true;
+    }
+
+    // Match check-in or check-out date (dd mmm yyyy / yyyy-mm-dd)
+    const checkInFormatted = format(
+      new Date(booking.checkIn),
+      "dd MMM yyyy",
+    ).toLowerCase();
+    const checkOutFormatted = format(
+      new Date(booking.checkOut),
+      "dd MMM yyyy",
+    ).toLowerCase();
+    if (checkInFormatted.includes(q)) return true;
+    if (checkOutFormatted.includes(q)) return true;
+    if (booking.checkIn.includes(q)) return true;
+    if (booking.checkOut.includes(q)) return true;
+
+    return false;
+  };
+  // ────────────────────────────────────────────────────────────────
+
   const filteredBookings = bookings?.filter((booking) => {
-    if (activeTab === "all") {
+    // Tab filter
+    const tabMatch = (() => {
+      if (activeTab === "all") return true;
+      if (activeTab === "pending") return booking.status === "pending";
+      if (activeTab === "upcoming")
+        return (
+          (booking.status === "confirmed" ||
+            booking.status === "customer_confirmed") &&
+          isUpcoming(booking)
+        );
+      if (activeTab === "ongoing") return booking.status === "checked_in";
+      if (activeTab === "past")
+        return (
+          booking.status === "completed" ||
+          booking.status === "checked_out" ||
+          (isPast(booking) &&
+            !["pending", "cancelled", "rejected", "no_show"].includes(
+              booking.status,
+            ))
+        );
+      if (activeTab === "cancelled")
+        return (
+          booking.status === "cancelled" ||
+          booking.status === "rejected" ||
+          booking.status === "no_show"
+        );
       return true;
-    }
-    if (activeTab === "pending") {
-      return booking.status === "pending";
-    }
-    if (activeTab === "upcoming") {
-      // Confirmed/customer_confirmed bookings with check-in in the future or today (not checked-in yet)
-      return (
-        (booking.status === "confirmed" ||
-          booking.status === "customer_confirmed") &&
-        isUpcoming(booking)
-      );
-    }
-    if (activeTab === "ongoing") {
-      // Currently checked-in guests - aligned with backend which counts only checked_in status
-      return booking.status === "checked_in";
-    }
-    if (activeTab === "past") {
-      // Completed, checked_out, or check-out date passed (excluding cancelled/no-show)
-      return (
-        booking.status === "completed" ||
-        booking.status === "checked_out" ||
-        (isPast(booking) &&
-          !["pending", "cancelled", "rejected", "no_show"].includes(
-            booking.status,
-          ))
-      );
-    }
-    if (activeTab === "cancelled") {
-      // Cancelled, rejected, or no-show
-      return (
-        booking.status === "cancelled" ||
-        booking.status === "rejected" ||
-        booking.status === "no_show"
-      );
-    }
-    return true;
+    })();
+
+    // Search filter
+    const searchMatch = matchesSearch(booking, searchQuery);
+
+    return tabMatch && searchMatch;
   });
 
   const renderBookingCard = (booking: Booking) => (
@@ -996,7 +1002,6 @@ export default function OwnerBookings() {
           </div>
         </div>
 
-        {/* Booked On date */}
         {(booking.bookingCreatedAt || booking.createdAt) && (
           <div
             className="flex items-center gap-2 text-sm text-muted-foreground"
@@ -1394,7 +1399,6 @@ export default function OwnerBookings() {
                 </span>
               )}
             </div>
-            {/* Only show contact for completed status, not checked_out */}
             {booking.status === "completed" && booking.guest?.phone && (
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
@@ -1469,7 +1473,13 @@ export default function OwnerBookings() {
         </div>
       )}
       <div className="space-y-6" data-testid="owner-bookings">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => {
+            setActiveTab(val);
+            setSearchQuery("");
+          }}
+        >
           <TabsList
             className="w-full h-auto flex-wrap justify-start gap-1 p-1"
             data-testid="booking-tabs"
@@ -1518,7 +1528,39 @@ export default function OwnerBookings() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="mt-6">
+          {/* ── Search Bar ── */}
+          <div className="relative mt-4" data-testid="booking-search">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search by name, mobile no., booking ID or date (e.g. 12 Mar 2025)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9"
+              data-testid="input-booking-search"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                data-testid="clear-search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {/* ── Search result count ── */}
+          {searchQuery && (
+            <p
+              className="text-xs text-muted-foreground mt-1.5 ml-1"
+              data-testid="search-result-count"
+            >
+              {filteredBookings?.length === 0
+                ? "No bookings found"
+                : `${filteredBookings?.length} booking${filteredBookings?.length === 1 ? "" : "s"} found`}
+            </p>
+          )}
+
+          <TabsContent value={activeTab} className="mt-4">
             {isLoading ? (
               <div className="space-y-4">
                 <Skeleton className="h-48 w-full" />
@@ -1532,7 +1574,21 @@ export default function OwnerBookings() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No bookings found</p>
+                  <p className="text-muted-foreground">
+                    {searchQuery
+                      ? `No bookings match "${searchQuery}"`
+                      : "No bookings found"}
+                  </p>
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      Clear search
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1540,13 +1596,13 @@ export default function OwnerBookings() {
         </Tabs>
       </div>
 
+      {/* ── Dialogs (unchanged) ── */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Decline Booking Request</DialogTitle>
             <DialogDescription>
               Let the guest know why you're declining their booking request.
-              This helps them understand and find a better match.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
@@ -1613,7 +1669,6 @@ export default function OwnerBookings() {
         </DialogContent>
       </Dialog>
 
-      {/* Early Checkout Confirmation Dialog */}
       <Dialog
         open={earlyCheckoutDialogOpen}
         onOpenChange={setEarlyCheckoutDialogOpen}
@@ -1625,8 +1680,7 @@ export default function OwnerBookings() {
               Early Check-out Confirmation
             </DialogTitle>
             <DialogDescription>
-              The guest is checking out before their scheduled date. Please
-              confirm to proceed.
+              The guest is checking out before their scheduled date.
             </DialogDescription>
           </DialogHeader>
           {earlyCheckoutBooking && (
@@ -1649,8 +1703,7 @@ export default function OwnerBookings() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Note</AlertTitle>
                 <AlertDescription>
-                  Early check-out does not automatically process refunds. Please
-                  discuss any refund policies directly with the guest.
+                  Early check-out does not automatically process refunds.
                 </AlertDescription>
               </Alert>
             </div>
@@ -1679,7 +1732,6 @@ export default function OwnerBookings() {
         </DialogContent>
       </Dialog>
 
-      {/* Extend Stay Dialog */}
       <Dialog
         open={extendStayDialogOpen}
         onOpenChange={setExtendStayDialogOpen}
@@ -1691,8 +1743,7 @@ export default function OwnerBookings() {
               Extend Guest Stay
             </DialogTitle>
             <DialogDescription>
-              Select a new check-out date to extend the guest's stay. Payment
-              will be collected at the hotel.
+              Select a new check-out date. Payment collected at hotel.
             </DialogDescription>
           </DialogHeader>
           {extendStayBooking && (
@@ -1711,7 +1762,6 @@ export default function OwnerBookings() {
                   </p>
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label>New Check-out Date</Label>
                 <Popover>
@@ -1741,7 +1791,6 @@ export default function OwnerBookings() {
                   </PopoverContent>
                 </Popover>
               </div>
-
               {extendDate && extendStayBooking.property?.pricePerNight && (
                 <div className="bg-primary/5 p-4 rounded-lg">
                   <p className="text-sm font-medium">Extension Summary:</p>
@@ -1799,7 +1848,6 @@ export default function OwnerBookings() {
         </DialogContent>
       </Dialog>
 
-      {/* Accept Confirmation Dialog */}
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1854,14 +1902,11 @@ export default function OwnerBookings() {
         </DialogContent>
       </Dialog>
 
-      {/* No-Show Confirmation Dialog */}
       <Dialog
         open={noShowDialogOpen}
         onOpenChange={(open) => {
           setNoShowDialogOpen(open);
-          if (!open) {
-            setNoShowReason("");
-          }
+          if (!open) setNoShowReason("");
         }}
       >
         <DialogContent>
