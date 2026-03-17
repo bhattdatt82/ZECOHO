@@ -35,7 +35,12 @@ export interface UrgentBookingAlert {
 }
 
 export function useBookingUpdates(options: BookingUpdateOptions = {}) {
-  const { userId, onUpdate, onUrgentBookic, pollingInterval = 60000 } = options;
+  const {
+    userId,
+    onUpdate,
+    onUrgentBooking,
+    pollingInterval = 60000,
+  } = options;
   const { toast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
