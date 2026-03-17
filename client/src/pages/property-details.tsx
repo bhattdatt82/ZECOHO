@@ -1175,8 +1175,20 @@ export default function PropertyDetails() {
       return;
     }
 
-    // If on select step, move to details step
+    // If on select step, prefill and skip details step if user data exists
     if (bookingStep === "select") {
+      const prefillData = {
+        guestName: [user.firstName, user.lastName].filter(Boolean).join(" "),
+        guestMobile: user.phone?.replace(/^\+91\s?/, "") || "",
+        guestEmail: user.email || "",
+        hasGst: false,
+        gstNumber: "",
+        specialRequests: "",
+        adults: adults,
+        childrenCount: children,
+      };
+      setGuestDetailsValid(true);
+      setGuestDetailsData(prefillData);
       setBookingStep("details");
       return;
     }
