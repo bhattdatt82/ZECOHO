@@ -322,15 +322,15 @@ export function Header() {
                           Booking Management
                         </Link>
                       </DropdownMenuItem>
-                        <DropdownMenuItem
-                          asChild
-                          data-testid="link-admin-subscriptions"
-                        >
-                          <Link href="/admin/subscriptions">
-                            <CreditCard className="h-4 w-4 mr-2" />
-                            Subscriptions
-                          </Link>
-                        </DropdownMenuItem>
+                      <DropdownMenuItem
+                        asChild
+                        data-testid="link-admin-subscriptions"
+                      >
+                        <Link href="/admin/subscriptions">
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Subscriptions
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild data-testid="link-admin-owners">
                         <Link href="/admin/owners">
                           <Users className="h-4 w-4 mr-2" />
@@ -377,9 +377,11 @@ export function Header() {
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
+                        {/* 
                         <Link href="/admin/subscription-plans">
                           Subscription Plans
                         </Link>
+                        */}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
