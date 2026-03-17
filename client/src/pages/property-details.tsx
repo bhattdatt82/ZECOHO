@@ -2862,8 +2862,7 @@ export default function PropertyDetails() {
                     !selectedRoomTypeId ||
                     hasDateOverlap ||
                     hasBlockedDateOverlap ||
-                    isBookingDisabled ||
-                    (bookingStep === "details" && !guestDetailsValid)
+                    isBookingDisabled
                   }
                   data-testid="button-reserve"
                 >
@@ -2988,8 +2987,7 @@ export default function PropertyDetails() {
           !checkOut ||
           !selectedRoomTypeId ||
           hasDateOverlap ||
-          hasBlockedDateOverlap ||
-          (bookingStep === "details" && !guestDetailsValid)
+          hasBlockedDateOverlap
         }
         disabledReason={
           !selectedRoomTypeId
