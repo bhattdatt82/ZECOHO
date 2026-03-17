@@ -612,7 +612,7 @@ export default function OwnerDashboard() {
           </Alert>
         )}
 
-        {hasPublishedProperty && property?.isLive && isSubscriptionActive && (
+        {hasPublishedProperty && isSubscriptionActive && (
           <Alert className="bg-green-50 border-green-200 dark:border-green-800">
             <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
             <AlertTitle className="text-green-800 dark:text-green-200">
