@@ -11413,9 +11413,6 @@ export async function registerRoutes(
         const range = (req.query.range as string) || "monthly";
         const since = getDateRangeBoundary(range);
 
-        const range = (req.query.range as string) || "monthly";
-        const since = getDateRangeBoundary(range);
-
         const chats = await db
           .select()
           .from(chatLogs)

@@ -35,7 +35,7 @@ export interface UrgentBookingAlert {
 }
 
 export function useBookingUpdates(options: BookingUpdateOptions = {}) {
-  const { userId, onUpdate, onUrgentBooking, pollingInterval = 20000 } = options;
+  const { userId, onUpdate, onUrgentBooking, pollingInterval = 60000 } = options;
   const { toast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -187,17 +187,6 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
         stopPolling();
       };
     }, [userId, connectWebSocket, startPolling, stopPolling]);
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      stopPolling();
-    };
-  }, [userId, connectWebSocket, startPolling, stopPolling]);
 
   const refresh = useCallback(() => {
     invalidateBookingQueries();
