@@ -6,16 +6,20 @@ import type { Notification } from "@shared/schema";
 
 export function useNotifications() {
   const { isAuthenticated } = useAuth();
-  const { data: notifications = [], isLoading, refetch } = useQuery<Notification[]>({
+  const {
+    data: notifications = [],
+    isLoading,
+    refetch,
+  } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
-    refetchInterval: false,  // WebSocket handles updates instead
-    staleTime: 1000 * 60 * 2, // 2 min cache
+    refetchInterval: false,
+    staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     enabled: isAuthenticated,
   });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   useNotificationSound(unreadCount, !!isAuthenticated, true);
 

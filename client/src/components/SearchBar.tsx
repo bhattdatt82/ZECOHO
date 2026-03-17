@@ -290,13 +290,18 @@ export function SearchBar({
       script.async = true;
       script.defer = true;
       script.onload = () => {
-        if ((window as any).google) {
-          autocompleteServiceRef.current = new (
-            window as any
-          ).google.maps.places.AutocompleteService();
-          geocoderRef.current = new (window as any).google.maps.Geocoder();
-          setGoogleMapsLoaded(true);
-        }
+        const checkGoogle = () => {
+          if ((window as any).google?.maps?.places) {
+            autocompleteServiceRef.current = new (
+              window as any
+            ).google.maps.places.AutocompleteService();
+            geocoderRef.current = new (window as any).google.maps.Geocoder();
+            setGoogleMapsLoaded(true);
+          } else {
+            setTimeout(checkGoogle, 100);
+          }
+        };
+        checkGoogle();
       };
       document.head.appendChild(script);
     } else if ((window as any).google?.maps?.places) {

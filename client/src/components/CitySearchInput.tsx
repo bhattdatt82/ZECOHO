@@ -73,13 +73,18 @@ export function CitySearchInput({
       script.async = true;
       script.defer = true;
       script.onload = () => {
-        if ((window as any).google) {
-          autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
-          placesServiceRef.current = new (window as any).google.maps.places.PlacesService(
-            document.createElement("div")
-          );
-          setGoogleMapsLoaded(true);
-        }
+        const checkGoogle = () => {
+          if ((window as any).google?.maps?.places) {
+            autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+            placesServiceRef.current = new (window as any).google.maps.places.PlacesService(
+              document.createElement("div")
+            );
+            setGoogleMapsLoaded(true);
+          } else {
+            setTimeout(checkGoogle, 100);
+          }
+        };
+        checkGoogle();
       };
       document.head.appendChild(script);
     } else if ((window as any).google?.maps?.places) {
