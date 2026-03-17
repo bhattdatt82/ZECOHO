@@ -35,7 +35,7 @@ export interface UrgentBookingAlert {
 }
 
 export function useBookingUpdates(options: BookingUpdateOptions = {}) {
-  const { userId, onUpdate, onUrgentBooking, pollingInterval = 60000 } = options;
+  const { userId, onUpdate, onUrgentBookic, pollingInterval = 60000 } = options;
   const { toast } = useToast();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,46 +51,51 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
     queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
   }, []);
 
-  const handleBookingUpdate = useCallback((data: BookingStatusUpdate) => {
-    invalidateBookingQueries();
-    
-    if (data.bookingId) {
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings", data.bookingId] });
-    }
+  const handleBookingUpdate = useCallback(
+    (data: BookingStatusUpdate) => {
+      invalidateBookingQueries();
+      if (data.bookingId) {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/bookings", data.bookingId],
+        });
+      }
+      if (data.message && data.propertyTitle) {
+        const statusMessages: Record<
+          string,
+          { title: string; variant?: "default" | "destructive" }
+        > = {
+          confirmed: { title: "Booking Accepted" },
+          rejected: { title: "Booking Declined", variant: "destructive" },
+          checked_in: { title: "Checked In" },
+          checked_out: { title: "Checked Out" },
+          completed: { title: "Stay Completed" },
+          no_show: { title: "Marked as No-Show", variant: "destructive" },
+          cancelled: { title: "Booking Cancelled", variant: "destructive" },
+        };
+        const statusInfo = statusMessages[data.status] || {
+          title: "Booking Updated",
+        };
+        toast({
+          title: statusInfo.title,
+          description: data.message,
+          variant: statusInfo.variant,
+        });
+      }
+      onUpdate?.(data);
+    },
+    [invalidateBookingQueries, onUpdate, toast],
+  );
 
-    if (data.message && data.propertyTitle) {
-      const statusMessages: Record<string, { title: string; variant?: "default" | "destructive" }> = {
-        confirmed: { title: "Booking Accepted" },
-        rejected: { title: "Booking Declined", variant: "destructive" },
-        checked_in: { title: "Checked In" },
-        checked_out: { title: "Checked Out" },
-        completed: { title: "Stay Completed" },
-        no_show: { title: "Marked as No-Show", variant: "destructive" },
-        cancelled: { title: "Booking Cancelled", variant: "destructive" },
-      };
-      
-      const statusInfo = statusMessages[data.status] || { title: "Booking Updated" };
-      
-      toast({
-        title: statusInfo.title,
-        description: data.message,
-        variant: statusInfo.variant,
-      });
-    }
-
-    onUpdate?.(data);
-  }, [invalidateBookingQueries, onUpdate, toast]);
-
-  const handleUrgentBookingAlert = useCallback((data: UrgentBookingAlert) => {
-    invalidateBookingQueries();
-    onUrgentBooking?.(data);
-  }, [invalidateBookingQueries, onUrgentBooking]);
+  const handleUrgentBookingAlert = useCallback(
+    (data: UrgentBookingAlert) => {
+      invalidateBookingQueries();
+      onUrgentBooking?.(data);
+    },
+    [invalidateBookingQueries, onUrgentBooking],
+  );
 
   const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-    
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     pollingIntervalRef.current = setInterval(() => {
       if (!isConnectedRef.current) {
         invalidateBookingQueries();
@@ -107,20 +112,16 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
 
   const connectWebSocket = useCallback(() => {
     if (!userId) return;
-
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      return;
-    }
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws?userId=${userId}`;
-    
+
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("[BookingUpdates] WebSocket connected");
         isConnectedRef.current = true;
         reconnectAttemptsRef.current = 0;
         stopPolling();
@@ -129,7 +130,6 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
           if (data.type === "booking_status_update") {
             handleBookingUpdate(data as BookingStatusUpdate);
           } else if (data.type === "urgent_booking_alert") {
@@ -142,23 +142,17 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
         }
       };
 
-      ws.onclose = (event) => {
-        console.log("[BookingUpdates] WebSocket closed:", event.code, event.reason);
+      ws.onclose = () => {
         isConnectedRef.current = false;
         wsRef.current = null;
-        
         startPolling();
-        
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+          const delay = Math.min(
+            1000 * Math.pow(2, reconnectAttemptsRef.current),
+            30000,
+          );
           reconnectAttemptsRef.current++;
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log(`[BookingUpdates] Reconnecting... attempt ${reconnectAttemptsRef.current}`);
-            connectWebSocket();
-          }, delay);
-        } else {
-          console.log("[BookingUpdates] Max reconnect attempts reached, using polling only");
+          reconnectTimeoutRef.current = setTimeout(connectWebSocket, delay);
         }
       };
 
@@ -169,24 +163,29 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
       console.error("[BookingUpdates] Failed to create WebSocket:", error);
       startPolling();
     }
-  }, [userId, handleBookingUpdate, handleUrgentBookingAlert, startPolling, stopPolling]);
+  }, [
+    userId,
+    handleBookingUpdate,
+    handleUrgentBookingAlert,
+    startPolling,
+    stopPolling,
+  ]);
 
-    useEffect(() => {
-      if (userId) {
-        connectWebSocket();
-        // Don't start polling here — WebSocket onclose handles it
+  useEffect(() => {
+    if (userId) {
+      connectWebSocket();
+    }
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
       }
-      return () => {
-        if (wsRef.current) {
-          wsRef.current.close();
-          wsRef.current = null;
-        }
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
-        stopPolling();
-      };
-    }, [userId, connectWebSocket, startPolling, stopPolling]);
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      stopPolling();
+    };
+  }, [userId, connectWebSocket, startPolling, stopPolling]);
 
   const refresh = useCallback(() => {
     invalidateBookingQueries();

@@ -451,7 +451,7 @@ export default function OwnerDashboard() {
 
   const { data: stats, isLoading } = useQuery<OwnerStats>({
     queryKey: ["/api/owner/stats"],
-    refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
+    refetchInterval: 60000, // Refresh every 30 seconds for real-time updates
   });
 
   // Separate query for monthly summary with month selection
@@ -468,7 +468,7 @@ export default function OwnerDashboard() {
         if (!response.ok) throw new Error("Failed to fetch monthly summary");
         return response.json();
       },
-      refetchInterval: 30000,
+      refetchInterval: 60000,
     });
 
   // Communication analytics query
