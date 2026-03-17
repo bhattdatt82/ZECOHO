@@ -819,6 +819,27 @@ export default function PropertyDetails() {
     [],
   );
 
+  // Auto-validate prefilled guest details when entering details step
+  useEffect(() => {
+    if (bookingStep === "details" && user) {
+      const hasName = !!(user.firstName || user.lastName);
+      const hasEmail = !!user.email;
+      if (hasName && hasEmail) {
+        setGuestDetailsValid(true);
+        setGuestDetailsData({
+          guestName: [user.firstName, user.lastName].filter(Boolean).join(" "),
+          guestMobile: user.phone?.replace(/^\+91\s?/, "") || "",
+          guestEmail: user.email || "",
+          hasGst: false,
+          gstNumber: "",
+          specialRequests: "",
+          adults: adults,
+          childrenCount: children,
+        });
+      }
+    }
+  }, [bookingStep, user, adults, children]);
+
   // On desktop: scroll to the traveller details form when Reserve is clicked
   useEffect(() => {
     if (bookingStep === "details" && travellerDetailsRef.current) {
@@ -830,7 +851,6 @@ export default function PropertyDetails() {
       }, 100);
     }
   }, [bookingStep]);
-
   const bookingMutation = useMutation({
     mutationFn: async () => {
       if (!checkIn || !checkOut) {
