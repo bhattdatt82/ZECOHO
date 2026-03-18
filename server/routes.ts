@@ -4949,12 +4949,12 @@ export async function registerRoutes(
 
             if (existingConv) {
               // Send system message to owner about confirmation
-              await storage.createMessage({
-                conversationId: existingConv.id,
-                senderId: userId,
-                content: `Great news! I've confirmed my booking (${booking.bookingCode || booking.id.slice(0, 8).toUpperCase()}). Looking forward to my stay!`,
-                read: false,
-              });
+              //await storage.createMessage({
+              //  conversationId: existingConv.id,
+              //  senderId: userId,
+              //  content: `Great news! I've confirmed my booking (${booking.bookingCode || booking.id.slice(0, 8).toUpperCase()}). Looking forward to my stay!`,
+              //  read: false,
+              //});
             }
           } catch (msgError) {
             console.error("Error sending confirmation notification:", msgError);
@@ -5107,23 +5107,23 @@ export async function registerRoutes(
           };
 
           // Email to guest: "Booking Confirmed"
-          if (guest?.email) {
-            sendBookingConfirmedGuestEmail(
-              guest.email,
-              guest.firstName || "",
-              bookingEmailData,
-            ).catch(console.error);
-          }
+          //if (guest?.email) {
+          //  sendBookingConfirmedGuestEmail(
+          //   guest.email,
+          //    guest.firstName || "",
+          //    bookingEmailData,
+          //  ).catch(console.error);
+          //}
 
           // Email to owner: "Guest Confirmed"
-          const owner = await storage.getUser(property.ownerId);
-          if (owner?.email) {
-            sendBookingConfirmedOwnerEmail(
-              owner.email,
-              owner.firstName || "",
-              bookingEmailData,
-            ).catch(console.error);
-          }
+          //const owner = await storage.getUser(property.ownerId);
+          //if (owner?.email) {
+          //  sendBookingConfirmedOwnerEmail(
+          //   owner.email,
+          //    owner.firstName || "",
+          //    bookingEmailData,
+          //  ).catch(console.error);
+          //}
         }
 
         res.json({
