@@ -184,14 +184,24 @@ export default function ComparePage() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clearCompare}
-            data-testid="button-clear-all"
-          >
-            Clear All
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/search")}
+              data-testid="button-add-property"
+            >
+              + Add Property
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearCompare}
+              data-testid="button-clear-all"
+            >
+              Clear All
+            </Button>
+          </div>
         </div>
       </div>
 

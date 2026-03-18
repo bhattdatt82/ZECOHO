@@ -4,7 +4,8 @@ import { useCompare } from "@/contexts/CompareContext";
 import { useLocation } from "wouter";
 
 export function CompareBar() {
-  const { compareList, removeFromCompare, clearCompare, maxCompareItems } = useCompare();
+  const { compareList, removeFromCompare, clearCompare, maxCompareItems } =
+    useCompare();
   const [, setLocation] = useLocation();
 
   if (compareList.length === 0) {
@@ -12,8 +13,8 @@ export function CompareBar() {
   }
 
   return (
-    <div 
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t shadow-lg"
+    <div
+      className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50 bg-background border-t shadow-lg"
       data-testid="compare-bar"
     >
       <div className="container mx-auto px-4 py-3">
