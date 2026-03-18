@@ -52,6 +52,7 @@ export function ConsentModal({
           ? "Thank you for reviewing and accepting the updated policies."
           : "Your preferences have been saved.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
     },
     onError: (error: Error) => {
       toast({
