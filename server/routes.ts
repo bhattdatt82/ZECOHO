@@ -9771,8 +9771,7 @@ export async function registerRoutes(
           // Excludes cancelled, no_show, rejected, and pending bookings
           if (
             booking.status === "completed" ||
-            booking.status === "checked_out" ||
-            booking.status === "checked_in"
+            booking.status === "checked_out"
           ) {
             monthlySummary.totalRevenue += price;
           }
@@ -9780,19 +9779,14 @@ export async function registerRoutes(
 
         // Revenue calculations for active bookings (using property timezone)
         if (
-          booking.status === "confirmed" ||
           booking.status === "completed" ||
-          booking.status === "customer_confirmed" ||
-          booking.status === "checked_in" ||
           booking.status === "checked_out"
         ) {
           const price = parseFloat(booking.totalPrice as string) || 0;
-
           if (createdAtStr === propertyTodayStr) {
             bookingsToday++;
             revenueToday += price;
           }
-
           if (createdAtStr >= propStartOfMonthStr) {
             bookingsThisMonth++;
             revenueThisMonth += price;
