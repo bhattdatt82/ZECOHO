@@ -79,15 +79,18 @@ export default function Home() {
   const { user, isAuthenticated, isOwner } = useAuth();
 
   const { data: subStatus } = useQuery({
-    queryKey: ['/api/owner/subscription-status', user?.id],
-    queryFn: () => fetch('/api/owner/subscription-status/' + user?.id, { credentials: 'include' }).then(r => r.json()),
+    queryKey: ["/api/owner/subscription-status", user?.id],
+    queryFn: () =>
+      fetch("/api/owner/subscription-status/" + user?.id, {
+        credentials: "include",
+      }).then((r) => r.json()),
     enabled: !!user?.id && !!isOwner,
   });
   const subExpired = isOwner && subStatus && !subStatus.isActive;
 
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
-    refetchInterval: 60000, // Refresh every 60 seconds for price/availability updates
+    refetchInterval: 300000, // Refresh every 60 seconds for price/availability updates
   });
 
   const { data: wishlists = [] } = useQuery<any[]>({
@@ -136,8 +139,11 @@ export default function Home() {
       {subExpired && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-300 px-4 py-3 text-center">
           <span className="text-amber-800 dark:text-amber-200 text-sm font-medium">
-            Your subscription is not active. {" "}
-            <a href="/owner/subscription" className="font-semibold underline hover:text-amber-900">
+            Your subscription is not active.{" "}
+            <a
+              href="/owner/subscription"
+              className="font-semibold underline hover:text-amber-900"
+            >
               Renew or activate your subscription
             </a>
           </span>
@@ -739,4 +745,3 @@ export default function Home() {
     </div>
   );
 }
-

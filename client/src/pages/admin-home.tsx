@@ -170,7 +170,7 @@ export default function AdminHome() {
         fetch(`/api/communication/admin?range=${timeFilter}`, {
           credentials: "include",
         }).then((r) => r.json()),
-      refetchInterval: 60000,
+      refetchInterval: 300000,
       enabled: user?.userRole === "admin",
     });
 

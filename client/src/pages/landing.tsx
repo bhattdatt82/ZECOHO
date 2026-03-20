@@ -84,7 +84,7 @@ export default function Landing() {
     Property[]
   >({
     queryKey: ["/api/properties"],
-    refetchInterval: 60000, // Refresh every 60 seconds for price/availability updates
+    refetchInterval: 300000, // Refresh every 60 seconds for price/availability updates
   });
 
   const { data: featuredDestinations = [], isLoading: destinationsLoading } =

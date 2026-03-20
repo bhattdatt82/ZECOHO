@@ -31,32 +31,45 @@ export function usePropertyUpdates(options: PropertyUpdateOptions = {}) {
     queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
   }, []);
 
-  const handlePropertyUpdate = useCallback((data: PropertyStatusUpdate) => {
-    invalidatePropertyQueries();
-    
-    if (data.propertyId) {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", data.propertyId] });
-    }
+  const handlePropertyUpdate = useCallback(
+    (data: PropertyStatusUpdate) => {
+      invalidatePropertyQueries();
 
-    if (data.message && data.propertyTitle) {
-      const statusMessages: Record<string, { title: string; variant?: "default" | "destructive" }> = {
-        published: { title: "Property Approved!" },
-        draft: { title: "Property Needs Attention", variant: "destructive" },
-        paused: { title: "Property Paused" },
-        deactivated: { title: "Property Deactivated", variant: "destructive" },
-      };
-      
-      const statusInfo = statusMessages[data.status] || { title: "Property Updated" };
-      
-      toast({
-        title: statusInfo.title,
-        description: data.message,
-        variant: statusInfo.variant,
-      });
-    }
+      if (data.propertyId) {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/properties", data.propertyId],
+        });
+      }
 
-    onUpdate?.(data);
-  }, [invalidatePropertyQueries, onUpdate, toast]);
+      if (data.message && data.propertyTitle) {
+        const statusMessages: Record<
+          string,
+          { title: string; variant?: "default" | "destructive" }
+        > = {
+          published: { title: "Property Approved!" },
+          draft: { title: "Property Needs Attention", variant: "destructive" },
+          paused: { title: "Property Paused" },
+          deactivated: {
+            title: "Property Deactivated",
+            variant: "destructive",
+          },
+        };
+
+        const statusInfo = statusMessages[data.status] || {
+          title: "Property Updated",
+        };
+
+        toast({
+          title: statusInfo.title,
+          description: data.message,
+          variant: statusInfo.variant,
+        });
+      }
+
+      onUpdate?.(data);
+    },
+    [invalidatePropertyQueries, onUpdate, toast],
+  );
 
   const connectWebSocket = useCallback(() => {
     if (!userId) return;
@@ -67,7 +80,7 @@ export function usePropertyUpdates(options: PropertyUpdateOptions = {}) {
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws?userId=${userId}`;
-    
+
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -81,7 +94,7 @@ export function usePropertyUpdates(options: PropertyUpdateOptions = {}) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
+
           if (data.type === "property_status_update") {
             handlePropertyUpdate(data as PropertyStatusUpdate);
           }
@@ -91,16 +104,25 @@ export function usePropertyUpdates(options: PropertyUpdateOptions = {}) {
       };
 
       ws.onclose = (event) => {
-        console.log("[PropertyUpdates] WebSocket closed:", event.code, event.reason);
+        console.log(
+          "[PropertyUpdates] WebSocket closed:",
+          event.code,
+          event.reason,
+        );
         isConnectedRef.current = false;
         wsRef.current = null;
-        
+
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+          const delay = Math.min(
+            1000 * Math.pow(2, reconnectAttemptsRef.current),
+            120000,
+          );
           reconnectAttemptsRef.current++;
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log(`[PropertyUpdates] Reconnecting... attempt ${reconnectAttemptsRef.current}`);
+            console.log(
+              `[PropertyUpdates] Reconnecting... attempt ${reconnectAttemptsRef.current}`,
+            );
             connectWebSocket();
           }, delay);
         }

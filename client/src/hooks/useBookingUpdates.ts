@@ -154,7 +154,7 @@ export function useBookingUpdates(options: BookingUpdateOptions = {}) {
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           const delay = Math.min(
             1000 * Math.pow(2, reconnectAttemptsRef.current),
-            30000,
+            120000,
           );
           reconnectAttemptsRef.current++;
           reconnectTimeoutRef.current = setTimeout(connectWebSocket, delay);
