@@ -138,15 +138,6 @@ export function SearchBar({
   const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
   const [guestsDrawerOpen, setGuestsDrawerOpen] = useState(false);
   const [selectingCheckOut, setSelectingCheckOut] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Mobile detection
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   // Calculate total guests whenever adults/children change
   useEffect(() => {
@@ -1430,8 +1421,7 @@ export function SearchBar({
                 data-testid="input-destination-full"
               />
               {/* Desktop suggestions dropdown */}
-              {isMobile &&
-                showSuggestions &&
+              {showSuggestions &&
                 createPortal(
                   <div
                     ref={portalRef}
