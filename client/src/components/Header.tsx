@@ -141,8 +141,8 @@ export function Header() {
     <header
       className={`fixed md:sticky top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300 ${hideOnMobile ? "hidden md:block" : ""} ${
         isScrolled
-          ? "bg-background/98 backdrop-blur-lg shadow-md border-border/50"
-          : "bg-background border-border"
+          ? "bg-white shadow-md border-border/50"
+          : "bg-white border-border"
       }`}
     >
       <div className="w-full max-w-screen-2xl mx-auto flex h-14 items-center justify-between px-3 md:px-6 overflow-hidden">

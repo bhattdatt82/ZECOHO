@@ -938,7 +938,7 @@ export function SearchBar({
     <div
       className="w-full max-w-4xl relative"
       ref={suggestionsRef}
-      style={{ zIndex: 1000, isolation: "isolate" }}
+      style={{ zIndex: 1000 }}
     >
       {/* Mobile Card-Based Layout */}
       <div className="md:hidden space-y-3">
@@ -1396,9 +1396,9 @@ export function SearchBar({
 
       {/* Desktop Layout - Original Style */}
       <div className="hidden md:block">
-        <div className="bg-white dark:bg-gray-900 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 p-1.5 flex flex-row items-center w-full">
+        <div className="bg-white dark:bg-gray-900 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 p-1.5 flex flex-row items-center w-full overflow-visible">
           {/* Destination */}
-          <div className="flex-1 px-4 py-2 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <div className="flex-1 px-4 py-2 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors overflow-visible">
             <label className="text-xs font-semibold block mb-0.5 text-gray-700 dark:text-gray-300">
               Where
             </label>
