@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
+import { createPortal } from "react-dom";
 import {
   Popover,
   PopoverContent,
@@ -1419,10 +1420,17 @@ export function SearchBar({
                 data-testid="input-destination-full"
               />
               {/* Desktop suggestions dropdown */}
-              {showSuggestions && (
+              {showSuggestions && createPortal(
                 <div
-                  className="absolute top-full left-0 mt-3 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl max-h-[400px] overflow-y-auto"
-                  style={{ zIndex: 9999 }}
+                  className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl max-h-[400px] overflow-y-auto"
+                  style={{
+                    zIndex: 99999,
+                    top: suggestionsRef.current?.getBoundingClientRect().bottom
+                      ? suggestionsRef.current.getBoundingClientRect().bottom + 12
+                      : 0,
+                    left: suggestionsRef.current?.getBoundingClientRect().left ?? 0,
+                    width: "320px",
+                  }}
                 >
                   <button
                     type="button"
@@ -1532,7 +1540,8 @@ export function SearchBar({
                         )}
                       </div>
                     )}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
