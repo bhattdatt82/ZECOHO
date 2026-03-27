@@ -1428,9 +1428,8 @@ export function SearchBar({
                   setDestination(e.target.value);
                   setShowSuggestions(true);
                 }}
-                onFocus={() => {
-                  if (!isMobile) setShowSuggestions(true);
-                }}
+                onClick={() => setShowSuggestions(true)}
+                onFocus={() => {}}
                 className="w-full bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-full"
               />
