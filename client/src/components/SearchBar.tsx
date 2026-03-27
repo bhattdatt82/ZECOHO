@@ -138,7 +138,15 @@ export function SearchBar({
   const [dateDrawerOpen, setDateDrawerOpen] = useState(false);
   const [guestsDrawerOpen, setGuestsDrawerOpen] = useState(false);
   const [selectingCheckOut, setSelectingCheckOut] = useState(false);
-
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  );
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   // Calculate total guests whenever adults/children change
   useEffect(() => {
     setGuests(adults + children);
@@ -938,6 +946,11 @@ export function SearchBar({
       className="w-full max-w-4xl relative"
       ref={suggestionsRef}
       style={{ zIndex: 1000 }}
+      onBlur={(e) => {
+        if (!suggestionsRef.current?.contains(e.relatedTarget as Node)) {
+          setShowSuggestions(false);
+        }
+      }}
     >
       {/* Mobile Card-Based Layout */}
       <div className="md:hidden space-y-3">
@@ -1416,12 +1429,15 @@ export function SearchBar({
                   setDestination(e.target.value);
                   setShowSuggestions(true);
                 }}
-                onFocus={() => setShowSuggestions(true)}
+                onFocus={() => {
+                  if (!isMobile) setShowSuggestions(true);
+                }}
                 className="w-full bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-full"
               />
               {/* Desktop suggestions dropdown */}
-              {showSuggestions &&
+              {!isMobile &&
+                showSuggestions &&
                 createPortal(
                   <div
                     ref={portalRef}
