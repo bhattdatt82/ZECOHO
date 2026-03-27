@@ -141,6 +141,7 @@ export function SearchBar({
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false,
   );
+  const [desktopInputActive, setDesktopInputActive] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -1428,14 +1429,20 @@ export function SearchBar({
                   setDestination(e.target.value);
                   setShowSuggestions(true);
                 }}
-                onClick={() => setShowSuggestions(true)}
-                onFocus={() => {}}
+                onClick={() => {
+                  setDesktopInputActive(true);
+                  setShowSuggestions(true);
+                }}
+                onBlur={() => {
+                  setTimeout(() => setDesktopInputActive(false), 200);
+                }}
                 className="w-full bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-full"
               />
               {/* Desktop suggestions dropdown */}
               {!isMobile &&
                 showSuggestions &&
+                desktopInputActive &&
                 createPortal(
                   <div
                     ref={portalRef}
