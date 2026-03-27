@@ -114,6 +114,7 @@ export function SearchBar({
   const [children, setChildren] = useState(initialChildren);
   const [rooms, setRooms] = useState(initialRooms);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const userInteractedRef = useRef(false);
   const [googleCityPredictions, setGoogleCityPredictions] = useState<
     GooglePlacePrediction[]
   >([]);
@@ -574,7 +575,18 @@ export function SearchBar({
   }, [filteredDestinations, googleCityPredictions, cityTopHotels, matchedCity]);
 
   // Legacy combinedDestinations for backward compatibility
-
+  // Prevent dropdown opening until user explicitly interacts
+  useEffect(() => {
+    const markInteracted = () => {
+      userInteractedRef.current = true;
+    };
+    document.addEventListener("mousedown", markInteracted, { once: true });
+    document.addEventListener("keydown", markInteracted, { once: true });
+    return () => {
+      document.removeEventListener("mousedown", markInteracted);
+      document.removeEventListener("keydown", markInteracted);
+    };
+  }, []);
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1427,15 +1439,21 @@ export function SearchBar({
                 value={destination}
                 onChange={(e) => {
                   setDestination(e.target.value);
-                  setShowSuggestions(true);
+                  if (userInteractedRef.current) {
+                    setShowSuggestions(true);
+                  }
                 }}
                 onClick={() => {
-                  setDesktopInputActive(true);
-                  setShowSuggestions(true);
+                  if (userInteractedRef.current) {
+                    setDesktopInputActive(true);
+                    setShowSuggestions(true);
+                  }
                 }}
                 onBlur={() => {
                   setTimeout(() => setDesktopInputActive(false), 200);
                 }}
+                autoComplete="off"
+                autoFocus={false}
                 className="w-full bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-full"
               />
