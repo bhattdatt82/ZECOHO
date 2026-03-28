@@ -1449,9 +1449,11 @@ export function SearchBar({
                 value={destination}
                 onChange={(e) => {
                   setDestination(e.target.value);
-                  setShowDesktopDropdown(true);
+                  if (showDesktopDropdown) {
+                    setShowDesktopDropdown(true);
+                  }
                 }}
-                onClick={() => {
+                onPointerDown={() => {
                   setShowDesktopDropdown(true);
                 }}
                 onBlur={() => {
@@ -1459,6 +1461,7 @@ export function SearchBar({
                 }}
                 autoComplete="off"
                 autoFocus={false}
+                readOnly={false}
                 className="w-full bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-full"
               />
