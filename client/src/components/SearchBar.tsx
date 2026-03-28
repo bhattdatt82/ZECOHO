@@ -124,6 +124,7 @@ export function SearchBar({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
+  const destSectionRef = useRef<HTMLDivElement>(null);
   const autocompleteServiceRef = useRef<any>(null);
   const lastQueryRef = useRef<string>("");
   const guestsInputRef = useRef<HTMLInputElement>(null);
@@ -1438,7 +1439,7 @@ export function SearchBar({
           style={{ overflow: "visible" }}
         >
           {/* Destination */}
-          <div className="flex-1 px-4 py-2 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors overflow-visible">
+          <div ref={destSectionRef} className="flex-1 px-4 py-2 rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors overflow-visible">
             <label className="text-xs font-semibold block mb-0.5 text-gray-700 dark:text-gray-300">
               Where
             </label>
@@ -1465,12 +1466,17 @@ export function SearchBar({
                 className="w-full bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder:text-gray-400"
                 data-testid="input-destination-full"
               />
-              {/* Desktop suggestions dropdown */}
-              {showDesktopDropdown && (
+              {/* Desktop suggestions dropdown - rendered via portal to escape stacking contexts */}
+              {showDesktopDropdown && destSectionRef.current && createPortal(
                 <div
                   ref={portalRef}
-                  className="absolute top-full left-0 mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl max-h-[400px] overflow-y-auto"
-                  style={{ zIndex: 99999, width: "320px" }}
+                  className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl max-h-[400px] overflow-y-auto"
+                  style={{
+                    zIndex: 99999,
+                    width: "320px",
+                    top: destSectionRef.current.getBoundingClientRect().bottom + 6,
+                    left: destSectionRef.current.getBoundingClientRect().left,
+                  }}
                 >
                   <button
                     type="button"
@@ -1586,7 +1592,8 @@ export function SearchBar({
                         )}
                       </div>
                     )}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
