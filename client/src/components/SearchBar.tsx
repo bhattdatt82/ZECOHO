@@ -143,12 +143,10 @@ export function SearchBar({
     typeof window !== "undefined" ? window.innerWidth < 768 : false,
   );
   const [desktopInputActive, setDesktopInputActive] = useState(false);
-  const mountedRef = useRef(false);
+  const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      mountedRef.current = true;
-    }, 1000);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setIsMounted(true), 800);
+    return () => clearTimeout(t);
   }, []);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -1449,13 +1447,12 @@ export function SearchBar({
                 value={destination}
                 onChange={(e) => {
                   setDestination(e.target.value);
-                  if (mountedRef.current) {
-                    setDesktopInputActive(true);
+                  if (isMounted && desktopInputActive) {
                     setShowSuggestions(true);
                   }
                 }}
                 onClick={() => {
-                  if (mountedRef.current) {
+                  if (isMounted) {
                     setDesktopInputActive(true);
                     setShowSuggestions(true);
                   }
@@ -1469,7 +1466,7 @@ export function SearchBar({
                 data-testid="input-destination-full"
               />
               {/* Desktop suggestions dropdown */}
-              {showSuggestions && desktopInputActive && mountedRef.current && (
+              {isMounted && showSuggestions && desktopInputActive && (
                 <div
                   ref={portalRef}
                   className="absolute top-full left-0 mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl max-h-[400px] overflow-y-auto"
