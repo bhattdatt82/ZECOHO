@@ -957,7 +957,7 @@ export function SearchBar({
     <div
       className="w-full max-w-4xl relative"
       ref={suggestionsRef}
-      style={{ zIndex: 1000 }}
+      style={{ zIndex: 9999, overflow: "visible" }}
       onBlur={(e) => {
         if (!suggestionsRef.current?.contains(e.relatedTarget as Node)) {
           setShowSuggestions(false);
@@ -1422,7 +1422,10 @@ export function SearchBar({
       </div>
 
       {/* Desktop Layout - Original Style */}
-      <div className="hidden md:block">
+      <div
+        className="hidden md:block"
+        style={{ overflow: "visible", position: "relative", zIndex: 9999 }}
+      >
         <div
           className="bg-white dark:bg-gray-900 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 p-1.5 flex flex-row items-center w-full overflow-visible"
           style={{ overflow: "visible" }}
