@@ -131,6 +131,9 @@ export function SearchBar({
   const geocoderRef = useRef<any>(null);
   // Mobile detection
 
+  // Stable position for the desktop portal dropdown (captured once on open)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+
   // Popover open states for custom calendar and guests (desktop)
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [checkOutOpen, setCheckOutOpen] = useState(false);
@@ -594,6 +597,14 @@ export function SearchBar({
       document.removeEventListener("keydown", markInteracted);
     };
   }, []);
+  // Capture dropdown position once when it opens (prevents jitter on cursor move)
+  useEffect(() => {
+    if (showDesktopDropdown && destSectionRef.current) {
+      const rect = destSectionRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 6, left: rect.left });
+    }
+  }, [showDesktopDropdown]);
+
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -1467,15 +1478,15 @@ export function SearchBar({
                 data-testid="input-destination-full"
               />
               {/* Desktop suggestions dropdown - rendered via portal to escape stacking contexts */}
-              {showDesktopDropdown && destSectionRef.current && createPortal(
+              {showDesktopDropdown && dropdownPos.top > 0 && createPortal(
                 <div
                   ref={portalRef}
                   className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl max-h-[400px] overflow-y-auto"
                   style={{
                     zIndex: 99999,
                     width: "320px",
-                    top: destSectionRef.current.getBoundingClientRect().bottom + 6,
-                    left: destSectionRef.current.getBoundingClientRect().left,
+                    top: dropdownPos.top,
+                    left: dropdownPos.left,
                   }}
                 >
                   <button
