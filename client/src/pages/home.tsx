@@ -694,9 +694,8 @@ export default function Home() {
           </div>
         </div>
       </div>
-      {/* ===== END HOTEL OWNERS SECTION ===== */}
 
-      {/* Owner FAQ */}
+    {/* Owner FAQ */}
       <div className="py-16 px-4 md:px-6 bg-background">
         <div className="container mx-auto max-w-3xl">
           <div className="text-center mb-10">
