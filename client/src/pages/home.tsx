@@ -308,9 +308,12 @@ export default function Home() {
               <HomeIcon className="h-7 w-7" />
             </div>
             <div>
-              <h3 className="font-bold text-xl">List Your Hotel Free — Keep 100% Revenue</h3>
+              <h3 className="font-bold text-xl">
+                List Your Hotel Free — Keep 100% Revenue
+              </h3>
               <p className="text-sm text-white/95">
-                No commission. No middlemen. Direct bookings from verified guests — OTA-free forever.
+                No commission. No middlemen. Direct bookings from verified
+                guests — OTA-free forever.
               </p>
             </div>
           </div>
@@ -596,23 +599,30 @@ export default function Home() {
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
               India's only hotel booking platform that charges{" "}
-              <span className="font-semibold text-foreground">0% commission — forever.</span>{" "}
+              <span className="font-semibold text-foreground">
+                0% commission — forever.
+              </span>{" "}
               Join hundreds of hotel owners who stopped paying OTAs.
             </p>
           </div>
 
           {/* Stats Row */}
-          className="grid grid-cols-3 gap-3 md:gap-4 max-w-2xl mx-auto mb-14"
+          <div className="grid grid-cols-3 gap-3 md:gap-4 max-w-2xl mx-auto mb-14">
             {[
               { value: "0%", label: "Commission Charged" },
               { value: "100%", label: "Revenue Yours" },
               { value: "5 min", label: "To List & Go Live" },
             ].map((stat) => (
-              <div key={stat.label} className="text-center p-4 bg-background rounded-2xl shadow-sm border">
+              <div
+                key={stat.label}
+                className="text-center p-4 bg-background rounded-2xl shadow-sm border"
+              >
                 <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">
                   {stat.value}
                 </div>
-                <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  {stat.label}
+                </div>
               </div>
             ))}
           </div>
@@ -624,9 +634,13 @@ export default function Home() {
                 <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl inline-flex mb-5">
                   <Percent className="h-7 w-7 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Zero Commission. Forever.</h3>
+                <h3 className="text-xl font-bold mb-2">
+                  Zero Commission. Forever.
+                </h3>
                 <p className="text-muted-foreground">
-                  OTAs take 15–25% of every booking. On ZECOHO, you keep everything. A ₹5,000 booking means ₹5,000 in your pocket — not ₹3,750.
+                  OTAs take 15–25% of every booking. On ZECOHO, you keep
+                  everything. A ₹5,000 booking means ₹5,000 in your pocket — not
+                  ₹3,750.
                 </p>
               </CardContent>
             </Card>
@@ -636,9 +650,13 @@ export default function Home() {
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl inline-flex mb-5">
                   <MessageSquare className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Direct Guest Communication</h3>
+                <h3 className="text-xl font-bold mb-2">
+                  Direct Guest Communication
+                </h3>
                 <p className="text-muted-foreground">
-                  Guests contact you directly via call or WhatsApp. No barriers, no blocked numbers — build real relationships and repeat bookings.
+                  Guests contact you directly via call or WhatsApp. No barriers,
+                  no blocked numbers — build real relationships and repeat
+                  bookings.
                 </p>
               </CardContent>
             </Card>
@@ -648,9 +666,12 @@ export default function Home() {
                 <div className="p-3 bg-rose-100 dark:bg-rose-900/30 rounded-xl inline-flex mb-5">
                   <FileCheck2 className="h-7 w-7 text-rose-600 dark:text-rose-400" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Free Listing. Full Control.</h3>
+                <h3 className="text-xl font-bold mb-2">
+                  Free Listing. Full Control.
+                </h3>
                 <p className="text-muted-foreground">
-                  List unlimited rooms, set your own prices, manage availability — all from your owner dashboard. Go live in under 5 minutes.
+                  List unlimited rooms, set your own prices, manage availability
+                  — all from your owner dashboard. Go live in under 5 minutes.
                 </p>
               </CardContent>
             </Card>
@@ -658,13 +679,31 @@ export default function Home() {
 
           {/* How It Works */}
           <div className="bg-background rounded-3xl border p-8 md:p-10 mb-10 shadow-sm">
-            <h3 className="text-2xl font-bold text-center mb-8">How to List Your Property</h3>
+            <h3 className="text-2xl font-bold text-center mb-8">
+              How to List Your Property
+            </h3>
             <div className="grid md:grid-cols-4 gap-6">
               {[
-                { step: "1", title: "Sign Up Free", desc: "Create your owner account — no credit card, no fees" },
-                { step: "2", title: "Add Your Property", desc: "Upload photos, set room types, pricing & availability" },
-                { step: "3", title: "Get Verified", desc: "Our team verifies your listing for quality assurance" },
-                { step: "4", title: "Start Earning", desc: "Receive direct bookings — 100% revenue goes to you" },
+                {
+                  step: "1",
+                  title: "Sign Up Free",
+                  desc: "Create your owner account — no credit card, no fees",
+                },
+                {
+                  step: "2",
+                  title: "Add Your Property",
+                  desc: "Upload photos, set room types, pricing & availability",
+                },
+                {
+                  step: "3",
+                  title: "Get Verified",
+                  desc: "Our team verifies your listing for quality assurance",
+                },
+                {
+                  step: "4",
+                  title: "Start Earning",
+                  desc: "Receive direct bookings — 100% revenue goes to you",
+                },
               ].map((item) => (
                 <div key={item.step} className="text-center">
                   <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-lg mx-auto mb-3">
@@ -694,13 +733,16 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-    {/* Owner FAQ */}
+      {/* Owner FAQ */}
       <div className="py-16 px-4 md:px-6 bg-background">
         <div className="container mx-auto max-w-3xl">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-3">Frequently Asked Questions</h2>
-            <p className="text-muted-foreground">Everything hotel owners want to know</p>
+            <h2 className="text-3xl font-bold mb-3">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-muted-foreground">
+              Everything hotel owners want to know
+            </p>
           </div>
           <div className="space-y-4">
             {[
@@ -727,7 +769,9 @@ export default function Home() {
             ].map((faq, i) => (
               <div key={i} className="bg-muted/40 rounded-2xl p-6">
                 <h3 className="font-semibold text-base mb-2">{faq.q}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{faq.a}</p>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {faq.a}
+                </p>
               </div>
             ))}
           </div>
@@ -743,7 +787,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-  
+
       {/* Discover India Section - Enhanced */}
       <div className="py-16 px-4 md:px-6">
         <div className="container mx-auto">
