@@ -308,10 +308,9 @@ export default function Home() {
               <HomeIcon className="h-7 w-7" />
             </div>
             <div>
-              <h3 className="font-bold text-xl">Become a Property Owner</h3>
+              <h3 className="font-bold text-xl">List Your Hotel Free — Keep 100% Revenue</h3>
               <p className="text-sm text-white/95">
-                List your property and reach customers directly — zero
-                commission for you too!
+                No commission. No middlemen. Direct bookings from verified guests — OTA-free forever.
               </p>
             </div>
           </div>
@@ -582,7 +581,170 @@ export default function Home() {
           </div>
         </div>
       </div>
+      {/* ===== FOR HOTEL OWNERS SECTION — SEO + Conversion ===== */}
+      <div className="py-20 px-4 md:px-6 bg-gradient-to-br from-amber-50 via-background to-rose-50 dark:from-amber-950/20 dark:via-background dark:to-rose-950/20">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-0 px-4 py-1.5">
+              🏨 For Hotel Owners
+            </Badge>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">
+              List Your Hotel Free.{" "}
+              <span className="bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">
+                Earn More. Always.
+              </span>
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+              India's only hotel booking platform that charges{" "}
+              <span className="font-semibold text-foreground">0% commission — forever.</span>{" "}
+              Join hundreds of hotel owners who stopped paying OTAs.
+            </p>
+          </div>
 
+          {/* Stats Row */}
+          className="grid grid-cols-3 gap-3 md:gap-4 max-w-2xl mx-auto mb-14"
+            {[
+              { value: "0%", label: "Commission Charged" },
+              { value: "100%", label: "Revenue Yours" },
+              { value: "5 min", label: "To List & Go Live" },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center p-4 bg-background rounded-2xl shadow-sm border">
+                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">
+                  {stat.value}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Benefits Grid */}
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            <Card className="rounded-3xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardContent className="p-7">
+                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl inline-flex mb-5">
+                  <Percent className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Zero Commission. Forever.</h3>
+                <p className="text-muted-foreground">
+                  OTAs take 15–25% of every booking. On ZECOHO, you keep everything. A ₹5,000 booking means ₹5,000 in your pocket — not ₹3,750.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-3xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardContent className="p-7">
+                <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl inline-flex mb-5">
+                  <MessageSquare className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Direct Guest Communication</h3>
+                <p className="text-muted-foreground">
+                  Guests contact you directly via call or WhatsApp. No barriers, no blocked numbers — build real relationships and repeat bookings.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-3xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardContent className="p-7">
+                <div className="p-3 bg-rose-100 dark:bg-rose-900/30 rounded-xl inline-flex mb-5">
+                  <FileCheck2 className="h-7 w-7 text-rose-600 dark:text-rose-400" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Free Listing. Full Control.</h3>
+                <p className="text-muted-foreground">
+                  List unlimited rooms, set your own prices, manage availability — all from your owner dashboard. Go live in under 5 minutes.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* How It Works */}
+          <div className="bg-background rounded-3xl border p-8 md:p-10 mb-10 shadow-sm">
+            <h3 className="text-2xl font-bold text-center mb-8">How to List Your Property</h3>
+            <div className="grid md:grid-cols-4 gap-6">
+              {[
+                { step: "1", title: "Sign Up Free", desc: "Create your owner account — no credit card, no fees" },
+                { step: "2", title: "Add Your Property", desc: "Upload photos, set room types, pricing & availability" },
+                { step: "3", title: "Get Verified", desc: "Our team verifies your listing for quality assurance" },
+                { step: "4", title: "Start Earning", desc: "Receive direct bookings — 100% revenue goes to you" },
+              ].map((item) => (
+                <div key={item.step} className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-lg mx-auto mb-3">
+                    {item.step}
+                  </div>
+                  <h4 className="font-semibold mb-1">{item.title}</h4>
+                  <p className="text-sm text-muted-foreground">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Final CTA */}
+          <div className="text-center">
+            <Button
+              size="lg"
+              onClick={() => setLocation("/list-property")}
+              data-testid="button-owner-section-cta"
+              className="bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-bold text-lg px-10 py-6 rounded-2xl shadow-xl group"
+            >
+              List Your Property Free Today
+              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <p className="text-sm text-muted-foreground mt-3">
+              No credit card required · Free forever · Setup in 5 minutes
+            </p>
+          </div>
+        </div>
+      </div>
+      {/* ===== END HOTEL OWNERS SECTION ===== */}
+
+      {/* Owner FAQ */}
+      <div className="py-16 px-4 md:px-6 bg-background">
+        <div className="container mx-auto max-w-3xl">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-3">Frequently Asked Questions</h2>
+            <p className="text-muted-foreground">Everything hotel owners want to know</p>
+          </div>
+          <div className="space-y-4">
+            {[
+              {
+                q: "Is listing my hotel on ZECOHO really free?",
+                a: "Yes, 100% free. We never charge you any listing fee, setup fee, or commission on bookings — ever. Our revenue model is based on premium features for guests, not commissions from hotels.",
+              },
+              {
+                q: "How is ZECOHO different from MakeMyTrip or Booking.com?",
+                a: "OTAs like MakeMyTrip charge 15–25% commission per booking. On ZECOHO, you pay zero commission and communicate directly with guests. You set your own prices and policies — no middleman.",
+              },
+              {
+                q: "How quickly can I list my property?",
+                a: "Most owners complete their listing in under 10 minutes. Add your property details, upload photos, set room types and pricing — and our team verifies it within 24 hours.",
+              },
+              {
+                q: "Can I manage multiple properties?",
+                a: "Yes. Your owner dashboard supports multiple properties, room types, and availability calendars — all from one account.",
+              },
+              {
+                q: "What types of properties can I list?",
+                a: "Hotels, villas, resorts, homestays, farmhouses, lodges, apartments, and hostels are all welcome on ZECOHO.",
+              },
+            ].map((faq, i) => (
+              <div key={i} className="bg-muted/40 rounded-2xl p-6">
+                <h3 className="font-semibold text-base mb-2">{faq.q}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-8">
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/list-property")}
+              className="group"
+            >
+              Still have questions? List your property and talk to us
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </div>
+        </div>
+      </div>
+  
       {/* Discover India Section - Enhanced */}
       <div className="py-16 px-4 md:px-6">
         <div className="container mx-auto">
