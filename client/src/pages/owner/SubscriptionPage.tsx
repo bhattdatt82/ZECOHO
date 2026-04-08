@@ -456,15 +456,6 @@ function PaymentDialog({
   const [screenshotUrl, setScreenshotUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Reset state when dialog opens/closes
-  useEffect(() => {
-    if (!open) {
-      setStep("details");
-      setTransactionId("");
-      setScreenshotUrl("");
-      setUploading(false);
-    }
-  }, [open]);
   useEffect(() => {
     if (!open) {
       setStep("details");
@@ -474,14 +465,38 @@ function PaymentDialog({
     }
   }, [open]);
 
-  const { data: paymentAccounts = [] } = useQuery<any[]>({
+  const { data: paymentAccountsRaw = [] } = useQuery<any[]>({
     queryKey: ["/api/payment-accounts"],
-    queryFn: () => fetch("/api/payment-accounts").then((r) => r.json()),
+    queryFn: () =>
+      fetch("/api/payment-accounts", { credentials: "include" }).then((r) =>
+        r.json(),
+      ),
     enabled: open,
   });
 
-  const upiAccounts = paymentAccounts.filter((a) => a.accountType === "upi");
-  const bankAccounts = paymentAccounts.filter((a) => a.accountType === "bank");
+  // Normalize field names — handle both camelCase and snake_case
+  const paymentAccounts = paymentAccountsRaw
+    .map((a: any) => ({
+      id: a.id,
+      accountType: a.accountType || a.account_type,
+      accountName: a.accountName || a.account_name,
+      upiId: a.upiId || a.upi_id,
+      qrCodeUrl: a.qrCodeUrl || a.qr_code_url,
+      bankName: a.bankName || a.bank_name,
+      accountNumber: a.accountNumber || a.account_number,
+      ifscCode: a.ifscCode || a.ifsc_code,
+      branchName: a.branchName || a.branch_name,
+      priority: a.priority,
+      isActive: a.isActive ?? a.is_active,
+    }))
+    .filter((a: any) => a.isActive);
+
+  const upiAccounts = paymentAccounts.filter(
+    (a: any) => a.accountType === "upi",
+  );
+  const bankAccounts = paymentAccounts.filter(
+    (a: any) => a.accountType === "bank",
+  );
 
   const handleFileUpload = async (file: File) => {
     setUploading(true);
@@ -527,21 +542,17 @@ function PaymentDialog({
     });
   };
 
-  const resetAndClose = () => {
-    setStep("details");
-    setTransactionId("");
-    setScreenshotUrl("");
-    onClose();
-  };
-
   if (!plan) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && resetAndClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] min-h-[400px] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        className="sm:max-w-lg"
+        style={{ maxHeight: "90vh", overflowY: "auto" }}
+      >
         <DialogHeader>
           <DialogTitle>
-            {step === "details" ? "How to Pay" : "Submit Payment Proof"}
+            {step === "details" ? "Payment Details" : "Submit Payment Proof"}
           </DialogTitle>
           <DialogDescription>
             {plan.name} — ₹{Number(plan.price).toLocaleString("en-IN")}/
@@ -549,9 +560,10 @@ function PaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* STEP 1: Payment Details */}
         {step === "details" && (
           <div className="space-y-4">
-            {/* Amount */}
+            {/* Amount Box */}
             <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">
                 Amount to pay
@@ -564,6 +576,7 @@ function PaymentDialog({
               </p>
             </div>
 
+            {/* No accounts configured */}
             {paymentAccounts.length === 0 && (
               <div className="text-center py-6 text-muted-foreground text-sm border rounded-xl">
                 <IndianRupee className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -588,43 +601,38 @@ function PaymentDialog({
                   {acc.qrCodeUrl && (
                     <img
                       src={acc.qrCodeUrl}
-                      alt="QR"
-                      className="w-20 h-20 rounded-lg border bg-white object-contain flex-shrink-0"
+                      alt="UPI QR Code"
+                      className="w-24 h-24 rounded-lg border bg-white object-contain flex-shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
                     />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">UPI Payment</p>
                     <p className="font-semibold">{acc.accountName}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <code className="text-sm bg-muted px-2 py-0.5 rounded truncate">
-                        {acc.upiId}
-                      </code>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(acc.upiId);
-                          toast({ title: "UPI ID copied!" });
-                        }}
-                      >
-                        <Copy className="h-3.5 w-3.5 text-primary" />
-                      </button>
-                    </div>
-                    {/* UPI Deep Link */}
+                    {acc.upiId && (
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <code className="text-sm bg-muted px-2 py-0.5 rounded">
+                          {acc.upiId}
+                        </code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(acc.upiId);
+                            toast({ title: "UPI ID copied!" });
+                          }}
+                        >
+                          <Copy className="h-3.5 w-3.5 text-primary" />
+                        </button>
+                      </div>
+                    )}
                     <a
-                      href={`upi://pay?pa=${encodeURIComponent(acc.upiId)}&pn=${encodeURIComponent(acc.accountName)}&am=${plan?.price}&cu=INR&tn=ZECOHO+Subscription`}
+                      href={`upi://pay?pa=${encodeURIComponent(acc.upiId || "")}&pn=${encodeURIComponent(acc.accountName)}&am=${plan.price}&cu=INR&tn=ZECOHO+Subscription`}
                       className="inline-flex items-center gap-1.5 mt-2 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      📱 Pay ₹
-                      {plan
-                        ? Number(plan.price).toLocaleString("en-IN")
-                        : ""}{" "}
-                      via UPI App
+                      📱 Pay via UPI App (mobile only)
                     </a>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Open this page on your <strong>mobile phone</strong> to
-                      pay directly via GPay / PhonePe / Paytm. On desktop, scan
-                      the QR code or copy the UPI ID above.
-                    </p>
                   </div>
                 </div>
               </div>
@@ -632,10 +640,7 @@ function PaymentDialog({
 
             {/* Bank Accounts */}
             {bankAccounts.map((acc: any) => (
-              <div
-                key={acc.id}
-                className={`rounded-xl border p-4 ${acc.priority === "primary" && upiAccounts.length === 0 ? "border-primary bg-primary/5" : ""}`}
-              >
+              <div key={acc.id} className="rounded-xl border p-4">
                 <p className="text-xs text-muted-foreground mb-2">
                   Bank Transfer
                 </p>
@@ -682,7 +687,7 @@ function PaymentDialog({
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={resetAndClose}>
+              <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button
@@ -695,24 +700,38 @@ function PaymentDialog({
           </div>
         )}
 
+        {/* STEP 2: Payment Proof */}
         {step === "proof" && (
           <div className="space-y-4 py-2">
+            <div className="rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 p-3 text-sm">
+              <p className="font-medium text-green-800 dark:text-green-300">
+                ✅ Great! Now submit your payment proof
+              </p>
+              <p className="text-green-700 dark:text-green-400 mt-0.5">
+                Our team will verify and activate your plan within 24 hours.
+              </p>
+            </div>
+
             <div className="space-y-1.5">
               <Label>Transaction ID / UTR Number *</Label>
               <Input
-                placeholder="e.g. 412345678901 or UPI reference number"
+                placeholder="e.g. 412345678901"
                 value={transactionId}
                 onChange={(e) => setTransactionId(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Find this in your UPI app or bank statement after payment
+                Find this in your UPI app or bank statement
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label>Payment Screenshot *</Label>
               <div
-                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${screenshotUrl ? "border-green-400 bg-green-50 dark:bg-green-950/20" : "border-muted-foreground/30"}`}
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+                  screenshotUrl
+                    ? "border-green-400 bg-green-50 dark:bg-green-950/20"
+                    : "border-muted-foreground/30"
+                }`}
               >
                 {screenshotUrl ? (
                   <div>
@@ -761,7 +780,7 @@ function PaymentDialog({
 
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setStep("details")}>
-                ← Back to Payment Details
+                ← Back
               </Button>
               <Button
                 onClick={handleSubmit}
@@ -776,7 +795,6 @@ function PaymentDialog({
     </Dialog>
   );
 }
-
 // ── Confirm Dialog (kept for reference, replaced by PaymentDialog) ──────────
 function ConfirmDialog({
   plan,

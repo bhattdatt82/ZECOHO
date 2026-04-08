@@ -424,14 +424,31 @@ export default function AdminSubscriptions() {
     }
   };
   // ── Payment Accounts Query ──
-  const { data: paymentAccountsList = [], refetch: refetchPaymentAccounts } =
-    useQuery<PaymentAccount[]>({
+  const { data: paymentAccountsRaw = [], refetch: refetchPaymentAccounts } =
+    useQuery<any[]>({
       queryKey: ["/api/admin/payment-accounts"],
       queryFn: () =>
         fetch("/api/admin/payment-accounts", { credentials: "include" }).then(
           (r) => r.json(),
         ),
     });
+
+  const paymentAccountsList: PaymentAccount[] = paymentAccountsRaw.map(
+    (a: any) => ({
+      id: a.id,
+      accountType: a.accountType || a.account_type,
+      accountName: a.accountName || a.account_name,
+      upiId: a.upiId || a.upi_id,
+      qrCodeUrl: a.qrCodeUrl || a.qr_code_url,
+      bankName: a.bankName || a.bank_name,
+      accountNumber: a.accountNumber || a.account_number,
+      ifscCode: a.ifscCode || a.ifsc_code,
+      branchName: a.branchName || a.branch_name,
+      priority: a.priority,
+      isActive: a.isActive ?? a.is_active,
+      displayOrder: a.displayOrder || a.display_order || 0,
+    }),
+  );
 
   const savePaymentAccountMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -509,9 +526,21 @@ export default function AdminSubscriptions() {
     setShowPaymentAccountDialog(true);
   }
 
-  function openEditPaymentAccount(acc: PaymentAccount) {
+  function openEditPaymentAccount(acc: any) {
     setEditingPaymentAccount(acc);
-    setPaymentAccountForm({ ...acc });
+    setPaymentAccountForm({
+      accountType: acc.accountType || acc.account_type || "upi",
+      accountName: acc.accountName || acc.account_name || "",
+      upiId: acc.upiId || acc.upi_id || "",
+      qrCodeUrl: acc.qrCodeUrl || acc.qr_code_url || "",
+      bankName: acc.bankName || acc.bank_name || "",
+      accountNumber: acc.accountNumber || acc.account_number || "",
+      ifscCode: acc.ifscCode || acc.ifsc_code || "",
+      branchName: acc.branchName || acc.branch_name || "",
+      priority: acc.priority || "secondary",
+      displayOrder: acc.displayOrder || acc.display_order || 0,
+      isActive: acc.isActive ?? acc.is_active ?? true,
+    });
     setShowPaymentAccountDialog(true);
   }
   // ── Plans Query ──
