@@ -288,23 +288,19 @@ export async function registerRoutes(
         user = await storage.createUserFromEmail(email);
       }
 
-      // Create session for the user
-      req.user = {
+      // Create session using Passport's official login method
+      const sessionUser = {
         claims: { sub: user.id, email: user.email },
         access_token: `otp-session-${user.id}`,
-        expires_at: Math.floor(Date.now() / 1000) + 86400, // 24 hours
+        expires_at: Math.floor(Date.now() / 1000) + 86400,
       };
 
-      // Save session
-      if (req.session) {
-        req.session.passport = { user: req.user };
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err: any) => {
-            if (err) reject(err);
-            else resolve();
-          });
+      await new Promise<void>((resolve, reject) => {
+        req.login(sessionUser, (err: any) => {
+          if (err) reject(err);
+          else resolve();
         });
-      }
+      });
 
       res.json({
         message: "Login successful",
@@ -472,22 +468,18 @@ export async function registerRoutes(
       await storage.updateUserEmailVerified(user.id);
 
       // Create session for the user
-      req.user = {
+      const sessionUser = {
         claims: { sub: user.id, email: user.email },
         access_token: `local-session-${user.id}`,
         expires_at: Math.floor(Date.now() / 1000) + 86400,
       };
 
-      if (req.session) {
-        req.session.passport = { user: req.user };
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err: any) => {
-            if (err) reject(err);
-            else resolve();
-          });
+      await new Promise<void>((resolve, reject) => {
+        req.login(sessionUser, (err: any) => {
+          if (err) reject(err);
+          else resolve();
         });
-      }
-
+      });
       res.json({
         message: "Email verified successfully! Welcome to ZECOHO.",
         user: {
@@ -569,22 +561,18 @@ export async function registerRoutes(
       }
 
       // Create session
-      req.user = {
+      const sessionUser = {
         claims: { sub: user.id, email: user.email },
         access_token: `local-session-${user.id}`,
         expires_at: Math.floor(Date.now() / 1000) + 86400,
       };
 
-      if (req.session) {
-        req.session.passport = { user: req.user };
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err: any) => {
-            if (err) reject(err);
-            else resolve();
-          });
+      await new Promise<void>((resolve, reject) => {
+        req.login(sessionUser, (err: any) => {
+          if (err) reject(err);
+          else resolve();
         });
-      }
-
+      });
       res.json({
         message: "Login successful",
         user: {
