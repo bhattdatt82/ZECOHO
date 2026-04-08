@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { OwnerLayout } from "@/components/OwnerLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -466,12 +468,13 @@ function PaymentDialog({
   }, [open]);
 
   const { data: paymentAccountsRaw = [] } = useQuery<any[]>({
-    queryKey: ["/api/payment-accounts"],
+    queryKey: ["/api/payment-accounts", open],
     queryFn: () =>
       fetch("/api/payment-accounts", { credentials: "include" }).then((r) =>
         r.json(),
       ),
     enabled: open,
+    staleTime: 0,
   });
 
   // Normalize field names — handle both camelCase and snake_case
@@ -690,10 +693,7 @@ function PaymentDialog({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button
-                onClick={() => setStep("proof")}
-                disabled={paymentAccounts.length === 0}
-              >
+              <Button onClick={() => setStep("proof")}>
                 I've Made the Payment →
               </Button>
             </DialogFooter>
