@@ -14,6 +14,8 @@ import {
   messages,
   ownerReferrals,
   ownerSubscriptions,
+  paymentAccounts,
+  subscriptionPayments,
 } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import subscriptionRoutes from "./subscriptions.ts";
@@ -9584,6 +9586,252 @@ export async function registerRoutes(
       return res.sendStatus(500);
     }
   });
+  // ─── Payment Accounts Routes ────────────────────────────────────────
+
+  // Public: owners see where to pay
+  app.get("/api/payment-accounts", async (req, res) => {
+    try {
+      const accounts = await db
+        .select()
+        .from(paymentAccounts)
+        .where(eq(paymentAccounts.isActive, true))
+        .orderBy(paymentAccounts.displayOrder);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payment accounts" });
+    }
+  });
+
+  // Admin: get all payment accounts
+  app.get(
+    "/api/admin/payment-accounts",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+        const accounts = await db
+          .select()
+          .from(paymentAccounts)
+          .orderBy(paymentAccounts.displayOrder);
+        res.json(accounts);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to fetch payment accounts" });
+      }
+    },
+  );
+
+  // Admin: create payment account
+  app.post(
+    "/api/admin/payment-accounts",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+        const {
+          accountType,
+          accountName,
+          upiId,
+          qrCodeUrl,
+          bankName,
+          accountNumber,
+          ifscCode,
+          branchName,
+          priority,
+          displayOrder,
+        } = req.body;
+        if (!accountType || !accountName)
+          return res
+            .status(400)
+            .json({ message: "accountType and accountName required" });
+        // If new primary, demote existing primary of same type
+        if (priority === "primary") {
+          await db
+            .update(paymentAccounts)
+            .set({ priority: "secondary" })
+            .where(
+              and(
+                eq(paymentAccounts.accountType, accountType),
+                eq(paymentAccounts.priority, "primary"),
+              ),
+            );
+        }
+        const [account] = await db
+          .insert(paymentAccounts)
+          .values({
+            accountType,
+            accountName,
+            upiId: upiId || null,
+            qrCodeUrl: qrCodeUrl || null,
+            bankName: bankName || null,
+            accountNumber: accountNumber || null,
+            ifscCode: ifscCode || null,
+            branchName: branchName || null,
+            priority: priority || "secondary",
+            displayOrder: displayOrder || 0,
+            isActive: true,
+            createdBy: userId,
+          })
+          .returning();
+        res.json(account);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to create payment account" });
+      }
+    },
+  );
+
+  // Admin: update payment account
+  app.patch(
+    "/api/admin/payment-accounts/:id",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+        const updateData = req.body;
+        // If setting as primary, demote existing primary
+        if (updateData.priority === "primary" && updateData.accountType) {
+          await db
+            .update(paymentAccounts)
+            .set({ priority: "secondary" })
+            .where(
+              and(
+                eq(paymentAccounts.accountType, updateData.accountType),
+                eq(paymentAccounts.priority, "primary"),
+                sql`id != ${req.params.id}`,
+              ),
+            );
+        }
+        const [updated] = await db
+          .update(paymentAccounts)
+          .set(updateData)
+          .where(eq(paymentAccounts.id, req.params.id))
+          .returning();
+        if (!updated)
+          return res.status(404).json({ message: "Account not found" });
+        res.json(updated);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to update payment account" });
+      }
+    },
+  );
+
+  // Admin: delete payment account
+  app.delete(
+    "/api/admin/payment-accounts/:id",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+        await db
+          .delete(paymentAccounts)
+          .where(eq(paymentAccounts.id, req.params.id));
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ message: "Failed to delete payment account" });
+      }
+    },
+  );
+
+  // Owner: submit payment proof
+  app.post(
+    "/api/owner/payment-proof",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const {
+          subscriptionId,
+          transactionId,
+          screenshotUrl,
+          paymentMethod,
+          amount,
+        } = req.body;
+        if (!subscriptionId || !transactionId || !amount) {
+          return res.status(400).json({
+            message: "subscriptionId, transactionId, and amount are required",
+          });
+        }
+        const [proof] = await db
+          .insert(subscriptionPayments)
+          .values({
+            subscriptionId,
+            ownerId: userId,
+            transactionId,
+            screenshotUrl: screenshotUrl || null,
+            paymentMethod: paymentMethod || "upi",
+            amount: String(amount),
+            status: "pending",
+          })
+          .returning();
+        res.json(proof);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to submit payment proof" });
+      }
+    },
+  );
+
+  // Admin: get payment proof by subscription
+  app.get(
+    "/api/admin/payment-proofs/by-subscription/:subscriptionId",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+        const proofs = await db
+          .select()
+          .from(subscriptionPayments)
+          .where(
+            eq(subscriptionPayments.subscriptionId, req.params.subscriptionId),
+          )
+          .orderBy(desc(subscriptionPayments.submittedAt));
+        res.json(proofs);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to fetch payment proof" });
+      }
+    },
+  );
+
+  // Admin: verify or reject payment proof
+  app.patch(
+    "/api/admin/payment-proofs/:id/verify",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+        const { action, notes } = req.body;
+        const [updated] = await db
+          .update(subscriptionPayments)
+          .set({
+            status: action,
+            verifiedAt: new Date(),
+            verifiedBy: userId,
+            adminNotes: notes || null,
+          })
+          .where(eq(subscriptionPayments.id, req.params.id))
+          .returning();
+        res.json(updated);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to update payment proof" });
+      }
+    },
+  );
   // ─── Referral Routes ────────────────────────────────────────────────
   app.get("/api/referral/my-code", isAuthenticated, async (req: any, res) => {
     if (!req.isAuthenticated())

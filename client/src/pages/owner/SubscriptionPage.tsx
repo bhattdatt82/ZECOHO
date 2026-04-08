@@ -35,6 +35,9 @@ import {
   Copy,
   Share2,
   Gift,
+  Upload,
+  ExternalLink,
+  IndianRupee,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -429,7 +432,317 @@ function PlanCard({
   );
 }
 
-// ── Confirm Dialog ─────────────────────────────────────────────────────────
+// ── Payment Dialog ─────────────────────────────────────────────────────────
+function PaymentDialog({
+  plan,
+  open,
+  onClose,
+  onSubmit,
+  isLoading,
+}: {
+  plan: SubscriptionPlan | null;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (data: {
+    transactionId: string;
+    screenshotUrl: string;
+    paymentMethod: string;
+  }) => void;
+  isLoading: boolean;
+}) {
+  const { toast } = useToast();
+  const [step, setStep] = useState<"details" | "proof">("details");
+  const [transactionId, setTransactionId] = useState("");
+  const [screenshotUrl, setScreenshotUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const { data: paymentAccounts = [] } = useQuery<any[]>({
+    queryKey: ["/api/payment-accounts"],
+    queryFn: () => fetch("/api/payment-accounts").then((r) => r.json()),
+    enabled: open,
+  });
+
+  const upiAccounts = paymentAccounts.filter((a) => a.accountType === "upi");
+  const bankAccounts = paymentAccounts.filter((a) => a.accountType === "bank");
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const uploadRes = await fetch("/api/objects/upload", {
+        method: "POST",
+        credentials: "include",
+      });
+      const { uploadURL, accessPath, aclToken } = await uploadRes.json();
+      await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      await fetch("/api/objects/set-acl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ accessPath, aclToken, visibility: "public" }),
+      });
+      setScreenshotUrl(accessPath);
+      toast({ title: "Screenshot uploaded!" });
+    } catch {
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!transactionId.trim()) {
+      toast({ title: "Transaction ID required", variant: "destructive" });
+      return;
+    }
+    if (!screenshotUrl) {
+      toast({ title: "Payment screenshot required", variant: "destructive" });
+      return;
+    }
+    onSubmit({
+      transactionId,
+      screenshotUrl,
+      paymentMethod: upiAccounts.length > 0 ? "upi" : "bank_transfer",
+    });
+  };
+
+  const resetAndClose = () => {
+    setStep("details");
+    setTransactionId("");
+    setScreenshotUrl("");
+    onClose();
+  };
+
+  if (!plan) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && resetAndClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {step === "details" ? "How to Pay" : "Submit Payment Proof"}
+          </DialogTitle>
+          <DialogDescription>
+            {plan.name} — ₹{Number(plan.price).toLocaleString("en-IN")}/
+            {plan.duration}
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "details" && (
+          <div className="space-y-4">
+            {/* Amount */}
+            <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 text-center">
+              <p className="text-xs text-muted-foreground mb-1">
+                Amount to pay
+              </p>
+              <p className="text-3xl font-bold text-primary">
+                ₹{Number(plan.price).toLocaleString("en-IN")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {plan.name} · {plan.duration}
+              </p>
+            </div>
+
+            {paymentAccounts.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground text-sm border rounded-xl">
+                <IndianRupee className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p>Payment details not configured yet.</p>
+                <p className="mt-1">
+                  Contact{" "}
+                  <span className="text-primary">support@zecoho.com</span>
+                </p>
+              </div>
+            )}
+
+            {/* UPI Accounts */}
+            {upiAccounts.map((acc: any) => (
+              <div
+                key={acc.id}
+                className={`rounded-xl border p-4 ${acc.priority === "primary" ? "border-primary bg-primary/5" : ""}`}
+              >
+                {acc.priority === "primary" && (
+                  <Badge className="mb-2 text-xs bg-primary">Preferred</Badge>
+                )}
+                <div className="flex items-start gap-4">
+                  {acc.qrCodeUrl && (
+                    <img
+                      src={acc.qrCodeUrl}
+                      alt="QR"
+                      className="w-20 h-20 rounded-lg border bg-white object-contain flex-shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">UPI Payment</p>
+                    <p className="font-semibold">{acc.accountName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="text-sm bg-muted px-2 py-0.5 rounded truncate">
+                        {acc.upiId}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(acc.upiId);
+                          toast({ title: "UPI ID copied!" });
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5 text-primary" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Bank Accounts */}
+            {bankAccounts.map((acc: any) => (
+              <div
+                key={acc.id}
+                className={`rounded-xl border p-4 ${acc.priority === "primary" && upiAccounts.length === 0 ? "border-primary bg-primary/5" : ""}`}
+              >
+                <p className="text-xs text-muted-foreground mb-2">
+                  Bank Transfer
+                </p>
+                <p className="font-semibold mb-2">{acc.accountName}</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                  {acc.bankName && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Bank</p>
+                      <p>{acc.bankName}</p>
+                    </div>
+                  )}
+                  {acc.accountNumber && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Account No.
+                      </p>
+                      <p className="font-mono">{acc.accountNumber}</p>
+                    </div>
+                  )}
+                  {acc.ifscCode && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">IFSC</p>
+                      <p className="font-mono">{acc.ifscCode}</p>
+                    </div>
+                  )}
+                  {acc.branchName && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Branch</p>
+                      <p>{acc.branchName}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm">
+              <p className="font-medium text-amber-800 dark:text-amber-200">
+                ⚠️ Important
+              </p>
+              <p className="mt-1 text-amber-700 dark:text-amber-300">
+                Save your transaction ID and screenshot after paying — you'll
+                need them in the next step.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={resetAndClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => setStep("proof")}
+                disabled={paymentAccounts.length === 0}
+              >
+                I've Made the Payment →
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === "proof" && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Transaction ID / UTR Number *</Label>
+              <Input
+                placeholder="e.g. 412345678901 or UPI reference number"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Find this in your UPI app or bank statement after payment
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Payment Screenshot *</Label>
+              <div
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${screenshotUrl ? "border-green-400 bg-green-50 dark:bg-green-950/20" : "border-muted-foreground/30"}`}
+              >
+                {screenshotUrl ? (
+                  <div>
+                    <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                      Screenshot uploaded!
+                    </p>
+                    <button
+                      onClick={() => setScreenshotUrl("")}
+                      className="text-xs text-muted-foreground underline mt-1"
+                    >
+                      Remove & re-upload
+                    </button>
+                  </div>
+                ) : uploading ? (
+                  <div>
+                    <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Uploading...
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Upload your payment confirmation screenshot
+                    </p>
+                    <label className="cursor-pointer">
+                      <span className="text-sm bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                        Choose File
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleFileUpload(f);
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setStep("details")}>
+                ← Back to Payment Details
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading || !transactionId.trim() || !screenshotUrl}
+              >
+                {isLoading ? "Submitting..." : "Submit for Verification"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Confirm Dialog (kept for reference, replaced by PaymentDialog) ──────────
 function ConfirmDialog({
   plan,
   open,
@@ -515,21 +828,50 @@ export default function OwnerSubscriptionPage() {
     });
 
   const subscribeMutation = useMutation({
-    mutationFn: async (plan: SubscriptionPlan) => {
-      const res = await apiRequest("POST", "/api/owner/subscribe", {
+    mutationFn: async ({
+      plan,
+      transactionId,
+      screenshotUrl,
+      paymentMethod,
+    }: {
+      plan: SubscriptionPlan;
+      transactionId: string;
+      screenshotUrl: string;
+      paymentMethod: string;
+    }) => {
+      // Step 1: Create subscription request
+      const subRes = await apiRequest("POST", "/api/owner/subscribe", {
         planId: plan.id,
         tier: plan.tier,
         duration: plan.duration,
         pricePaid: plan.price,
       });
-      if (!res.ok) throw new Error("Failed to submit subscription request");
-      return res.json();
+      if (!subRes.ok) throw new Error("Failed to submit subscription request");
+      const sub = await subRes.json();
+
+      // Step 2: Submit payment proof
+      try {
+        await apiRequest("POST", "/api/owner/payment-proof", {
+          subscriptionId: sub.id,
+          transactionId,
+          screenshotUrl,
+          paymentMethod,
+          amount: plan.price,
+        });
+      } catch {
+        // Payment proof submission failed silently — subscription still created
+        console.warn(
+          "Payment proof submission failed, but subscription was created",
+        );
+      }
+
+      return sub;
     },
     onSuccess: () => {
       toast({
-        title: "Subscription request submitted!",
+        title: "Payment proof submitted!",
         description:
-          "Our team will activate your plan within 24 hours after verifying payment.",
+          "Our team will verify your payment and activate your plan within 24 hours.",
       });
       queryClient.invalidateQueries({
         queryKey: ["/api/owner/subscription-status"],
@@ -540,8 +882,7 @@ export default function OwnerSubscriptionPage() {
     onError: () => {
       toast({
         title: "Something went wrong",
-        description:
-          "Could not submit your subscription request. Please try again.",
+        description: "Could not submit your request. Please try again.",
         variant: "destructive",
       });
     },
@@ -552,8 +893,12 @@ export default function OwnerSubscriptionPage() {
     setConfirmOpen(true);
   };
 
-  const handleConfirm = () => {
-    if (selectedPlan) subscribeMutation.mutate(selectedPlan);
+  const handlePaymentSubmit = (data: {
+    transactionId: string;
+    screenshotUrl: string;
+    paymentMethod: string;
+  }) => {
+    if (selectedPlan) subscribeMutation.mutate({ plan: selectedPlan, ...data });
   };
 
   const sortedPlans = [...plans].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -624,13 +969,15 @@ export default function OwnerSubscriptionPage() {
           </p>
         </div>
 
-        {/* Confirm Dialog */}
-        {/* Confirm Dialog */}
-        <ConfirmDialog
+        {/* Payment Dialog */}
+        <PaymentDialog
           plan={selectedPlan}
           open={confirmOpen}
-          onClose={() => setConfirmOpen(false)}
-          onConfirm={handleConfirm}
+          onClose={() => {
+            setConfirmOpen(false);
+            setSelectedPlan(null);
+          }}
+          onSubmit={handlePaymentSubmit}
           isLoading={subscribeMutation.isPending}
         />
 

@@ -33,7 +33,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -55,6 +61,13 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Upload,
+  ExternalLink,
+  Wallet,
+  IndianRupee,
+  QrCode,
+  Building,
+  Copy,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -102,7 +115,32 @@ interface SubscriptionPlan {
   isActive: boolean;
   sortOrder: number;
 }
+interface PaymentAccount {
+  id: string;
+  accountType: "upi" | "bank";
+  accountName: string;
+  upiId?: string;
+  qrCodeUrl?: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  branchName?: string;
+  priority: "primary" | "secondary";
+  isActive: boolean;
+  displayOrder: number;
+}
 
+interface SubscriptionPaymentProof {
+  id: string;
+  subscriptionId: string;
+  transactionId: string;
+  screenshotUrl?: string;
+  paymentMethod: string;
+  amount: string;
+  status: "pending" | "verified" | "rejected";
+  submittedAt: string;
+  adminNotes?: string;
+}
 // ── Helpers ────────────────────────────────────────────────────────────────
 function formatDate(d: string | null) {
   if (!d) return "—";
@@ -207,9 +245,44 @@ export default function AdminSubscriptions() {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("pending_payment");
   const [mainTab, setMainTab] = useState("subscriptions");
+  const [showPaymentAccountDialog, setShowPaymentAccountDialog] =
+    useState(false);
+  const [editingPaymentAccount, setEditingPaymentAccount] =
+    useState<PaymentAccount | null>(null);
+  const [paymentAccountForm, setPaymentAccountForm] = useState<any>({
+    accountType: "upi",
+    accountName: "",
+    upiId: "",
+    qrCodeUrl: "",
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+    branchName: "",
+    priority: "secondary",
+    displayOrder: 0,
+    isActive: true,
+  });
+  const [selectedSubProofs, setSelectedSubProofs] = useState<
+    SubscriptionPaymentProof[]
+  >([]);
+  const [proofLoading, setProofLoading] = useState(false);
   const [showPlanDialog, setShowPlanDialog] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
-  const [planForm, setPlanForm] = useState<any>({ tier: "basic", name: "", description: "", duration: "monthly", price: "", cutoffPrice: "", maxProperties: 1, maxPhotosPerProperty: 10, bookingManagementEnabled: true, priorityPlacement: false, analyticsEnabled: false, isActive: true, sortOrder: 0 });
+  const [planForm, setPlanForm] = useState<any>({
+    tier: "basic",
+    name: "",
+    description: "",
+    duration: "monthly",
+    price: "",
+    cutoffPrice: "",
+    maxProperties: 1,
+    maxPhotosPerProperty: 10,
+    bookingManagementEnabled: true,
+    priorityPlacement: false,
+    analyticsEnabled: false,
+    isActive: true,
+    sortOrder: 0,
+  });
   const [selectedSub, setSelectedSub] = useState<OwnerSubscription | null>(
     null,
   );
@@ -339,46 +412,188 @@ export default function AdminSubscriptions() {
   ) => {
     setSelectedSub(sub);
     setActionType(type);
-    // Default end date to 1 month from now
+    setSelectedSubProofs([]);
     const now = new Date();
     const end = new Date(now);
     end.setMonth(end.getMonth() + 1);
     setStartDate(now.toISOString().split("T")[0]);
     setEndDate(end.toISOString().split("T")[0]);
+    // Fetch payment proofs for this subscription
+    if (type === "activate") {
+      fetchPaymentProofs(sub.id);
+    }
+  };
+  // ── Payment Accounts Query ──
+  const { data: paymentAccountsList = [], refetch: refetchPaymentAccounts } =
+    useQuery<PaymentAccount[]>({
+      queryKey: ["/api/admin/payment-accounts"],
+      queryFn: () =>
+        fetch("/api/admin/payment-accounts", { credentials: "include" }).then(
+          (r) => r.json(),
+        ),
+    });
+
+  const savePaymentAccountMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const url = editingPaymentAccount
+        ? `/api/admin/payment-accounts/${editingPaymentAccount.id}`
+        : "/api/admin/payment-accounts";
+      const method = editingPaymentAccount ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/payment-accounts"],
+      });
+      setShowPaymentAccountDialog(false);
+      toast({
+        title: editingPaymentAccount ? "Account updated" : "Account added",
+      });
+    },
+    onError: () =>
+      toast({ title: "Failed to save account", variant: "destructive" }),
+  });
+
+  const deletePaymentAccountMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/admin/payment-accounts/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/payment-accounts"],
+      });
+      toast({ title: "Account deleted" });
+    },
+  });
+
+  const fetchPaymentProofs = async (subscriptionId: string) => {
+    setProofLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/payment-proofs/by-subscription/${subscriptionId}`,
+        { credentials: "include" },
+      );
+      const proofs = await res.json();
+      setSelectedSubProofs(proofs);
+    } catch {
+      setSelectedSubProofs([]);
+    } finally {
+      setProofLoading(false);
+    }
   };
 
+  function openNewPaymentAccount() {
+    setEditingPaymentAccount(null);
+    setPaymentAccountForm({
+      accountType: "upi",
+      accountName: "",
+      upiId: "",
+      qrCodeUrl: "",
+      bankName: "",
+      accountNumber: "",
+      ifscCode: "",
+      branchName: "",
+      priority: "secondary",
+      displayOrder: 0,
+      isActive: true,
+    });
+    setShowPaymentAccountDialog(true);
+  }
+
+  function openEditPaymentAccount(acc: PaymentAccount) {
+    setEditingPaymentAccount(acc);
+    setPaymentAccountForm({ ...acc });
+    setShowPaymentAccountDialog(true);
+  }
   // ── Plans Query ──
-  const { data: plans = [], refetch: refetchPlans } = useQuery<SubscriptionPlan[]>({
+  const { data: plans = [], refetch: refetchPlans } = useQuery<
+    SubscriptionPlan[]
+  >({
     queryKey: ["/api/admin/subscription-plans"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/subscription-plans?includeInactive=true", { credentials: "include" });
+      const res = await fetch(
+        "/api/admin/subscription-plans?includeInactive=true",
+        { credentials: "include" },
+      );
       return res.json();
     },
   });
 
   const savePlanMutation = useMutation({
     mutationFn: async (data: any) => {
-      console.log("savePlan editingPlan:", editingPlan?.id, "method:", editingPlan ? "PATCH" : "POST");
+      console.log(
+        "savePlan editingPlan:",
+        editingPlan?.id,
+        "method:",
+        editingPlan ? "PATCH" : "POST",
+      );
       console.log("savePlan data:", JSON.stringify(data));
-      const url = editingPlan ? '/api/admin/subscription-plans/' + editingPlan.id : "/api/admin/subscription-plans";
+      const url = editingPlan
+        ? "/api/admin/subscription-plans/" + editingPlan.id
+        : "/api/admin/subscription-plans";
       const method = editingPlan ? "PATCH" : "POST";
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(data) });
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
       return res.json();
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] }); queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] }); setShowPlanDialog(false); toast({ title: editingPlan ? "Plan updated" : "Plan created" }); },
-    onError: () => toast({ title: "Error saving plan", variant: "destructive" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/subscription-plans"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] });
+      setShowPlanDialog(false);
+      toast({ title: editingPlan ? "Plan updated" : "Plan created" });
+    },
+    onError: () =>
+      toast({ title: "Error saving plan", variant: "destructive" }),
   });
 
   const deletePlanMutation = useMutation({
     mutationFn: async (id: string) => {
-      await fetch('/api/admin/subscription-plans/' + id, { method: "DELETE", credentials: "include" });
+      await fetch("/api/admin/subscription-plans/" + id, {
+        method: "DELETE",
+        credentials: "include",
+      });
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] }); queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] }); toast({ title: "Plan deleted" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/subscription-plans"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] });
+      toast({ title: "Plan deleted" });
+    },
   });
 
   function openNewPlan() {
     setEditingPlan(null);
-    setPlanForm({ tier: "basic", name: "", description: "", duration: "monthly", price: "", cutoffPrice: "", maxProperties: 1, maxPhotosPerProperty: 10, bookingManagementEnabled: true, priorityPlacement: false, analyticsEnabled: false, isActive: true, sortOrder: 0 });
+    setPlanForm({
+      tier: "basic",
+      name: "",
+      description: "",
+      duration: "monthly",
+      price: "",
+      cutoffPrice: "",
+      maxProperties: 1,
+      maxPhotosPerProperty: 10,
+      bookingManagementEnabled: true,
+      priorityPlacement: false,
+      analyticsEnabled: false,
+      isActive: true,
+      sortOrder: 0,
+    });
     setShowPlanDialog(true);
   }
 
@@ -403,8 +618,13 @@ export default function AdminSubscriptions() {
   }
 
   function planDiscount(plan: SubscriptionPlan) {
-    if (!plan.cutoffPrice || Number(plan.cutoffPrice) <= Number(plan.price)) return null;
-    return Math.round(((Number(plan.cutoffPrice) - Number(plan.price)) / Number(plan.cutoffPrice)) * 100);
+    if (!plan.cutoffPrice || Number(plan.cutoffPrice) <= Number(plan.price))
+      return null;
+    return Math.round(
+      ((Number(plan.cutoffPrice) - Number(plan.price)) /
+        Number(plan.cutoffPrice)) *
+        100,
+    );
   }
 
   const handleConfirm = () => {
@@ -452,8 +672,29 @@ export default function AdminSubscriptions() {
             Review and activate owner subscription requests
           </p>
         </div>
-        {mainTab === "plans" && <Button size="sm" onClick={openNewPlan}><Plus className="h-4 w-4 mr-1" />New Plan</Button>}
-        <Button variant="outline" size="sm" onClick={() => mainTab === "plans" ? refetchPlans() : refetch()}>
+        {mainTab === "plans" && (
+          <Button size="sm" onClick={openNewPlan}>
+            <Plus className="h-4 w-4 mr-1" />
+            New Plan
+          </Button>
+        )}
+        {mainTab === "payment_accounts" && (
+          <Button size="sm" onClick={openNewPaymentAccount}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Account
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            mainTab === "plans"
+              ? refetchPlans()
+              : mainTab === "payment_accounts"
+                ? refetchPaymentAccounts()
+                : refetch()
+          }
+        >
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
         </Button>
       </div>
@@ -462,405 +703,671 @@ export default function AdminSubscriptions() {
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
+          <TabsTrigger value="payment_accounts">Payment Accounts</TabsTrigger>
           <TabsTrigger value="subscriptions">Owner Subscriptions</TabsTrigger>
         </TabsList>
+        {/* PAYMENT ACCOUNTS TAB */}
+        <TabsContent value="payment_accounts" className="space-y-4">
+          {paymentAccountsList.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Wallet className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="mb-2">No payment accounts configured yet.</p>
+                <p className="text-sm">
+                  Add your UPI ID and bank details so owners know where to pay.
+                </p>
+                <Button
+                  className="mt-4"
+                  size="sm"
+                  onClick={openNewPaymentAccount}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add First Account
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
+          {paymentAccountsList.map((acc) => (
+            <Card key={acc.id} className={!acc.isActive ? "opacity-60" : ""}>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${acc.accountType === "upi" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}
+                    >
+                      {acc.accountType === "upi" ? (
+                        <QrCode className="h-5 w-5" />
+                      ) : (
+                        <Building className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-semibold">{acc.accountName}</span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${acc.priority === "primary" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                        >
+                          {acc.priority === "primary" ? "Primary" : "Secondary"}
+                        </span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${acc.accountType === "upi" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}
+                        >
+                          {acc.accountType === "upi" ? "UPI" : "Bank Transfer"}
+                        </span>
+                        {!acc.isActive && (
+                          <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                            Hidden
+                          </span>
+                        )}
+                      </div>
+                      {acc.accountType === "upi" && acc.upiId && (
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm bg-muted px-2 py-0.5 rounded">
+                            {acc.upiId}
+                          </code>
+                          {acc.qrCodeUrl && (
+                            <span className="text-xs text-muted-foreground">
+                              • QR code set
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {acc.accountType === "bank" && (
+                        <div className="text-sm text-muted-foreground">
+                          {acc.bankName && <span>{acc.bankName} · </span>}
+                          {acc.accountNumber && (
+                            <span className="font-mono">
+                              ****{acc.accountNumber.slice(-4)}
+                            </span>
+                          )}
+                          {acc.ifscCode && <span> · {acc.ifscCode}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditPaymentAccount(acc)}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        if (window.confirm("Delete this account?"))
+                          deletePaymentAccountMutation.mutate(acc.id);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
         {/* PLANS TAB */}
         <TabsContent value="plans" className="space-y-4">
           {plans.length === 0 && (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">No plans yet. Click "New Plan" to create one.</CardContent></Card>
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No plans yet. Click "New Plan" to create one.
+              </CardContent>
+            </Card>
           )}
-          {[...plans].sort((a,b) => a.sortOrder - b.sortOrder).map((plan: SubscriptionPlan) => {
-            const disc = planDiscount(plan);
-            return (
-              <Card key={plan.id} className={!plan.isActive ? "opacity-60 bg-muted/30" : ""}>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">{plan.tier}</span>
-                        <span className="font-semibold">{plan.name}</span>
-                        <span className="text-xs text-muted-foreground capitalize">{plan.duration.replace("_","-")}</span>
-                        {!plan.isActive && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Hidden from owners</span>}
-                      </div>
-                      {plan.description && <p className="text-sm text-muted-foreground mb-2">{plan.description}</p>}
-                      <div className="flex flex-wrap gap-2">
-                        <span className="text-xs bg-muted px-2 py-1 rounded">{plan.maxProperties === 999 ? "Unlimited properties" : plan.maxProperties + (plan.maxProperties === 1 ? " property" : " properties")}</span>
-                        <span className="text-xs bg-muted px-2 py-1 rounded">{plan.maxPhotosPerProperty === 999 ? "Unlimited photos" : plan.maxPhotosPerProperty + " photos/property"}</span>
-                        {plan.analyticsEnabled && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">Analytics</span>}
-                        {plan.priorityPlacement && <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">Priority</span>}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="flex items-baseline gap-2 justify-end">
-                        {plan.cutoffPrice && Number(plan.cutoffPrice) > Number(plan.price) && (
-                          <span className="text-sm text-muted-foreground line-through">{"₹" + Number(plan.cutoffPrice).toLocaleString("en-IN")}</span>
+          {[...plans]
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((plan: SubscriptionPlan) => {
+              const disc = planDiscount(plan);
+              return (
+                <Card
+                  key={plan.id}
+                  className={!plan.isActive ? "opacity-60 bg-muted/30" : ""}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
+                            {plan.tier}
+                          </span>
+                          <span className="font-semibold">{plan.name}</span>
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {plan.duration.replace("_", "-")}
+                          </span>
+                          {!plan.isActive && (
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                              Hidden from owners
+                            </span>
+                          )}
+                        </div>
+                        {plan.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {plan.description}
+                          </p>
                         )}
-                        <span className="text-xl font-bold">{"₹" + Number(plan.price).toLocaleString("en-IN")}</span>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-xs bg-muted px-2 py-1 rounded">
+                            {plan.maxProperties === 999
+                              ? "Unlimited properties"
+                              : plan.maxProperties +
+                                (plan.maxProperties === 1
+                                  ? " property"
+                                  : " properties")}
+                          </span>
+                          <span className="text-xs bg-muted px-2 py-1 rounded">
+                            {plan.maxPhotosPerProperty === 999
+                              ? "Unlimited photos"
+                              : plan.maxPhotosPerProperty + " photos/property"}
+                          </span>
+                          {plan.analyticsEnabled && (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                              Analytics
+                            </span>
+                          )}
+                          {plan.priorityPlacement && (
+                            <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                              Priority
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {disc && <p className="text-xs text-green-600 font-medium">{disc}% off</p>}
-                      <div className="flex gap-2 mt-3 justify-end">
-                        <Button size="sm" variant="outline" onClick={() => openEditPlan(plan)}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>
-                        <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => { if(window.confirm("Delete this plan?")) deletePlanMutation.mutate(plan.id); }}><Trash2 className="h-3.5 w-3.5 mr-1" />Delete</Button>
+                      <div className="text-right shrink-0">
+                        <div className="flex items-baseline gap-2 justify-end">
+                          {plan.cutoffPrice &&
+                            Number(plan.cutoffPrice) > Number(plan.price) && (
+                              <span className="text-sm text-muted-foreground line-through">
+                                {"₹" +
+                                  Number(plan.cutoffPrice).toLocaleString(
+                                    "en-IN",
+                                  )}
+                              </span>
+                            )}
+                          <span className="text-xl font-bold">
+                            {"₹" + Number(plan.price).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        {disc && (
+                          <p className="text-xs text-green-600 font-medium">
+                            {disc}% off
+                          </p>
+                        )}
+                        <div className="flex gap-2 mt-3 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditPlan(plan)}
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              if (window.confirm("Delete this plan?"))
+                                deletePlanMutation.mutate(plan.id);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardContent>
+                </Card>
+              );
+            })}
         </TabsContent>
 
         {/* SUBSCRIPTIONS TAB */}
         <TabsContent value="subscriptions">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          icon={<Clock className="h-5 w-5" />}
-          label="Pending Payment"
-          value={pending}
-          loading={isLoading}
-        />
-        <StatCard
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          label="Active"
-          value={active}
-          loading={isLoading}
-        />
-        <StatCard
-          icon={<XCircle className="h-5 w-5" />}
-          label="Expired"
-          value={expired}
-          loading={isLoading}
-        />
-        <StatCard
-          icon={<Gift className="h-5 w-5" />}
-          label="Waived"
-          value={waived}
-          loading={isLoading}
-        />
-      </div>
-
-      {/* Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle className="text-base">Owner Subscriptions</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search owner or plan..."
-                className="pl-8 h-8 text-sm"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard
+              icon={<Clock className="h-5 w-5" />}
+              label="Pending Payment"
+              value={pending}
+              loading={isLoading}
+            />
+            <StatCard
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              label="Active"
+              value={active}
+              loading={isLoading}
+            />
+            <StatCard
+              icon={<XCircle className="h-5 w-5" />}
+              label="Expired"
+              value={expired}
+              loading={isLoading}
+            />
+            <StatCard
+              icon={<Gift className="h-5 w-5" />}
+              label="Waived"
+              value={waived}
+              loading={isLoading}
+            />
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="px-6">
-              <TabsList className="mb-4">
-                <TabsTrigger value="pending_payment">
-                  Pending{" "}
-                  <Badge variant="secondary" className="ml-1.5 text-xs">
-                    {pending}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="expired">Expired</TabsTrigger>
-                <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-                <TabsTrigger value="waived">Waived</TabsTrigger>
-              </TabsList>
-            </div>
 
-            {[
-              "pending_payment",
-              "active",
-              "expired",
-              "cancelled",
-              "waived",
-            ].map((tab) => (
-              <TabsContent key={tab} value={tab} className="mt-0">
-                {isLoading ? (
-                  <div className="p-6 space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-12 w-full" />
-                    ))}
-                  </div>
-                ) : filtered.length === 0 ? (
-                  <div className="py-16 text-center text-muted-foreground">
-                    <CreditCard className="h-8 w-8 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">No subscriptions found</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Owner</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead>Tier</TableHead>
-                        <TableHead>Price Paid</TableHead>
-                        <TableHead>Start</TableHead>
-                        <TableHead>End</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((sub) => (
-                        <TableRow key={sub.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">
-                                {sub.owner.firstName} {sub.owner.lastName}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {sub.owner.email}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {sub.plan.name}
-                          </TableCell>
-                          <TableCell>
-                            <TierBadge tier={sub.tier} />
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {sub.pricePaid
-                              ? `₹${Number(sub.pricePaid).toLocaleString("en-IN")}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {formatDate(sub.startDate)}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {formatDate(sub.endDate)}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={sub.status} />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {sub.status === "pending_payment" && (
-                                <>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-green-600 border-green-200 hover:bg-green-50"
-                                        onClick={() =>
-                                          openAction(sub, "activate")
-                                        }
-                                      >
-                                        <CheckCircle2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Activate</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-purple-600 border-purple-200 hover:bg-purple-50"
-                                        onClick={() => openAction(sub, "waive")}
-                                      >
-                                        <Gift className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Waive Fee</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
-                                        onClick={() =>
-                                          openAction(sub, "cancel")
-                                        }
-                                      >
-                                        <Ban className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Cancel</TooltipContent>
-                                  </Tooltip>
-                                </>
-                              )}
-                              {sub.status === "active" && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
-                                      onClick={() => openAction(sub, "cancel")}
-                                    >
-                                      <Ban className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    Cancel Subscription
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                              {(sub.status === "expired" ||
-                                sub.status === "cancelled") && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 px-2 text-green-600 border-green-200 hover:bg-green-50"
-                                      onClick={() =>
-                                        openAction(sub, "activate")
-                                      }
-                                    >
-                                      <CheckCircle2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Reactivate</TooltipContent>
-                                </Tooltip>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </TabsContent>
-            ))}
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Action Dialog */}
-      <Dialog
-        open={!!selectedSub && !!actionType}
-        onOpenChange={(o) => !o && closeDialog()}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === "activate" && "Activate Subscription"}
-              {actionType === "cancel" && "Cancel Subscription"}
-              {actionType === "waive" && "Waive Subscription Fee"}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedSub && (
-                <>
-                  Owner:{" "}
-                  <strong>
-                    {selectedSub.owner.firstName} {selectedSub.owner.lastName}
-                  </strong>{" "}
-                  — {selectedSub.plan.name} plan
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {actionType === "activate" && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Start Date</Label>
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">End Date</Label>
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Activation Note (optional)</Label>
-                  <Textarea
-                    placeholder="e.g. Payment confirmed via UPI"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={2}
+          {/* Table */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <CardTitle className="text-base">Owner Subscriptions</CardTitle>
+                <div className="relative w-64">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search owner or plan..."
+                    className="pl-8 h-8 text-sm"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-              </>
-            )}
-            {actionType === "cancel" && (
-              <div className="space-y-1">
-                <Label className="text-xs">Reason for Cancellation</Label>
-                <Textarea
-                  placeholder="e.g. Payment not received after 3 days"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={3}
-                />
               </div>
-            )}
-            {actionType === "waive" && (
-              <div className="space-y-1">
-                <Label className="text-xs">Waiver Note</Label>
-                <Textarea
-                  placeholder="e.g. Early adopter benefit, no payment required"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={3}
-                />
+            </CardHeader>
+            <CardContent className="p-0">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <div className="px-6">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="pending_payment">
+                      Pending{" "}
+                      <Badge variant="secondary" className="ml-1.5 text-xs">
+                        {pending}
+                      </Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="active">Active</TabsTrigger>
+                    <TabsTrigger value="expired">Expired</TabsTrigger>
+                    <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                    <TabsTrigger value="waived">Waived</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                {[
+                  "pending_payment",
+                  "active",
+                  "expired",
+                  "cancelled",
+                  "waived",
+                ].map((tab) => (
+                  <TabsContent key={tab} value={tab} className="mt-0">
+                    {isLoading ? (
+                      <div className="p-6 space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <Skeleton key={i} className="h-12 w-full" />
+                        ))}
+                      </div>
+                    ) : filtered.length === 0 ? (
+                      <div className="py-16 text-center text-muted-foreground">
+                        <CreditCard className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">No subscriptions found</p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Owner</TableHead>
+                            <TableHead>Plan</TableHead>
+                            <TableHead>Tier</TableHead>
+                            <TableHead>Price Paid</TableHead>
+                            <TableHead>Start</TableHead>
+                            <TableHead>End</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filtered.map((sub) => (
+                            <TableRow key={sub.id}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {sub.owner.firstName} {sub.owner.lastName}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {sub.owner.email}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {sub.plan.name}
+                              </TableCell>
+                              <TableCell>
+                                <TierBadge tier={sub.tier} />
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {sub.pricePaid
+                                  ? `₹${Number(sub.pricePaid).toLocaleString("en-IN")}`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {formatDate(sub.startDate)}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {formatDate(sub.endDate)}
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge status={sub.status} />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  {sub.status === "pending_payment" && (
+                                    <>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 px-2 text-green-600 border-green-200 hover:bg-green-50"
+                                            onClick={() =>
+                                              openAction(sub, "activate")
+                                            }
+                                          >
+                                            <CheckCircle2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          Activate
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 px-2 text-purple-600 border-purple-200 hover:bg-purple-50"
+                                            onClick={() =>
+                                              openAction(sub, "waive")
+                                            }
+                                          >
+                                            <Gift className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          Waive Fee
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                            onClick={() =>
+                                              openAction(sub, "cancel")
+                                            }
+                                          >
+                                            <Ban className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Cancel</TooltipContent>
+                                      </Tooltip>
+                                    </>
+                                  )}
+                                  {sub.status === "active" && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                          onClick={() =>
+                                            openAction(sub, "cancel")
+                                          }
+                                        >
+                                          <Ban className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        Cancel Subscription
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                  {(sub.status === "expired" ||
+                                    sub.status === "cancelled") && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-2 text-green-600 border-green-200 hover:bg-green-50"
+                                          onClick={() =>
+                                            openAction(sub, "activate")
+                                          }
+                                        >
+                                          <CheckCircle2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        Reactivate
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Action Dialog */}
+          <Dialog
+            open={!!selectedSub && !!actionType}
+            onOpenChange={(o) => !o && closeDialog()}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {actionType === "activate" && "Activate Subscription"}
+                  {actionType === "cancel" && "Cancel Subscription"}
+                  {actionType === "waive" && "Waive Subscription Fee"}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedSub && (
+                    <>
+                      Owner:{" "}
+                      <strong>
+                        {selectedSub.owner.firstName}{" "}
+                        {selectedSub.owner.lastName}
+                      </strong>{" "}
+                      — {selectedSub.plan.name} plan
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Payment Proof Section */}
+                {actionType === "activate" && selectedSub && (
+                  <div className="rounded-xl border p-4 bg-muted/30">
+                    <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+                      Payment Proof
+                    </p>
+                    {proofLoading ? (
+                      <div className="text-sm text-muted-foreground">
+                        Loading proof...
+                      </div>
+                    ) : selectedSubProofs.length === 0 ? (
+                      <div className="flex items-center gap-2 text-amber-600 text-sm">
+                        <XCircle className="h-4 w-4" />
+                        <span>No payment proof submitted by owner yet</span>
+                      </div>
+                    ) : (
+                      selectedSubProofs.map((proof) => (
+                        <div key={proof.id} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                              Proof submitted
+                            </span>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full ${proof.status === "verified" ? "bg-green-100 text-green-700" : proof.status === "rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}
+                            >
+                              {proof.status}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <p className="text-xs text-muted-foreground">
+                                Transaction ID
+                              </p>
+                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                                {proof.transactionId}
+                              </code>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">
+                                Amount Paid
+                              </p>
+                              <p className="font-semibold">
+                                ₹{Number(proof.amount).toLocaleString("en-IN")}
+                              </p>
+                            </div>
+                          </div>
+                          {proof.screenshotUrl && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Screenshot
+                              </p>
+                              <a
+                                href={proof.screenshotUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-primary underline"
+                              >
+                                <ExternalLink className="h-3 w-3" /> View
+                                Screenshot
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {actionType === "activate" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Start Date</Label>
+                        <Input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">End Date</Label>
+                        <Input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        Activation Note (optional)
+                      </Label>
+                      <Textarea
+                        placeholder="e.g. Payment confirmed via UPI"
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        rows={2}
+                      />
+                    </div>
+                  </>
+                )}
+                {actionType === "cancel" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Reason for Cancellation</Label>
+                    <Textarea
+                      placeholder="e.g. Payment not received after 3 days"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                )}
+                {actionType === "waive" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Waiver Note</Label>
+                    <Textarea
+                      placeholder="e.g. Early adopter benefit, no payment required"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={closeDialog}
-              disabled={isActionLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirm}
-              disabled={
-                isActionLoading ||
-                (actionType === "cancel" && !note) ||
-                (actionType === "waive" && !note)
-              }
-              variant={actionType === "cancel" ? "destructive" : "default"}
-            >
-              {isActionLoading
-                ? "Processing..."
-                : actionType === "activate"
-                  ? "Activate"
-                  : actionType === "cancel"
-                    ? "Cancel Subscription"
-                    : "Waive Fee"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={closeDialog}
+                  disabled={isActionLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirm}
+                  disabled={
+                    isActionLoading ||
+                    (actionType === "cancel" && !note) ||
+                    (actionType === "waive" && !note)
+                  }
+                  variant={actionType === "cancel" ? "destructive" : "default"}
+                >
+                  {isActionLoading
+                    ? "Processing..."
+                    : actionType === "activate"
+                      ? "Activate"
+                      : actionType === "cancel"
+                        ? "Cancel Subscription"
+                        : "Waive Fee"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-      {/* close subscriptions tab content and main tabs */}
-      </TabsContent>
+          {/* close subscriptions tab content and main tabs */}
+        </TabsContent>
       </Tabs>
 
       {/* Plan Create/Edit Dialog */}
       <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingPlan ? "Edit Plan" : "New Subscription Plan"}</DialogTitle>
+            <DialogTitle>
+              {editingPlan ? "Edit Plan" : "New Subscription Plan"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Tier</Label>
-                <Select value={planForm.tier} onValueChange={v => setPlanForm((f:any) => ({...f, tier: v}))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+              <div>
+                <Label>Tier</Label>
+                <Select
+                  value={planForm.tier}
+                  onValueChange={(v) =>
+                    setPlanForm((f: any) => ({ ...f, tier: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="basic">Basic</SelectItem>
                     <SelectItem value="standard">Standard</SelectItem>
@@ -868,9 +1375,17 @@ export default function AdminSubscriptions() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Duration</Label>
-                <Select value={planForm.duration} onValueChange={v => setPlanForm((f:any) => ({...f, duration: v}))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+              <div>
+                <Label>Duration</Label>
+                <Select
+                  value={planForm.duration}
+                  onValueChange={(v) =>
+                    setPlanForm((f: any) => ({ ...f, duration: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="quarterly">Quarterly</SelectItem>
@@ -880,61 +1395,397 @@ export default function AdminSubscriptions() {
                 </Select>
               </div>
             </div>
-            <div><Label>Plan name</Label>
-              <Input value={planForm.name} onChange={(e:any) => setPlanForm((f:any) => ({...f, name: e.target.value}))} placeholder="e.g. Starter Monthly" />
+            <div>
+              <Label>Plan name</Label>
+              <Input
+                value={planForm.name}
+                onChange={(e: any) =>
+                  setPlanForm((f: any) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="e.g. Starter Monthly"
+              />
             </div>
-            <div><Label>Description</Label>
-              <Textarea value={planForm.description} onChange={(e:any) => setPlanForm((f:any) => ({...f, description: e.target.value}))} rows={2} placeholder="Short description for owners" />
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={planForm.description}
+                onChange={(e: any) =>
+                  setPlanForm((f: any) => ({
+                    ...f,
+                    description: e.target.value,
+                  }))
+                }
+                rows={2}
+                placeholder="Short description for owners"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Selling price (₹) <span className="text-xs text-muted-foreground">actual</span></Label>
-                <Input type="number" value={planForm.price} onChange={(e:any) => setPlanForm((f:any) => ({...f, price: e.target.value}))} placeholder="999" />
+                <Label>
+                  Selling price (₹){" "}
+                  <span className="text-xs text-muted-foreground">actual</span>
+                </Label>
+                <Input
+                  type="number"
+                  value={planForm.price}
+                  onChange={(e: any) =>
+                    setPlanForm((f: any) => ({ ...f, price: e.target.value }))
+                  }
+                  placeholder="999"
+                />
               </div>
               <div>
-                <Label>Cut-off price (₹) <span className="text-xs text-muted-foreground">strikethrough</span></Label>
-                <Input type="number" value={planForm.cutoffPrice} onChange={(e:any) => setPlanForm((f:any) => ({...f, cutoffPrice: e.target.value}))} placeholder="1499 (optional)" />
-                {planForm.cutoffPrice && Number(planForm.cutoffPrice) > Number(planForm.price) && (
-                  <p className="text-xs text-green-600 mt-1">{Math.round(((Number(planForm.cutoffPrice)-Number(planForm.price))/Number(planForm.cutoffPrice))*100)}% discount shown</p>
-                )}
+                <Label>
+                  Cut-off price (₹){" "}
+                  <span className="text-xs text-muted-foreground">
+                    strikethrough
+                  </span>
+                </Label>
+                <Input
+                  type="number"
+                  value={planForm.cutoffPrice}
+                  onChange={(e: any) =>
+                    setPlanForm((f: any) => ({
+                      ...f,
+                      cutoffPrice: e.target.value,
+                    }))
+                  }
+                  placeholder="1499 (optional)"
+                />
+                {planForm.cutoffPrice &&
+                  Number(planForm.cutoffPrice) > Number(planForm.price) && (
+                    <p className="text-xs text-green-600 mt-1">
+                      {Math.round(
+                        ((Number(planForm.cutoffPrice) -
+                          Number(planForm.price)) /
+                          Number(planForm.cutoffPrice)) *
+                          100,
+                      )}
+                      % discount shown
+                    </p>
+                  )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Max properties</Label>
-                <Input type="number" value={planForm.maxProperties} onChange={(e:any) => setPlanForm((f:any) => ({...f, maxProperties: Number(e.target.value)}))} />
+              <div>
+                <Label>Max properties</Label>
+                <Input
+                  type="number"
+                  value={planForm.maxProperties}
+                  onChange={(e: any) =>
+                    setPlanForm((f: any) => ({
+                      ...f,
+                      maxProperties: Number(e.target.value),
+                    }))
+                  }
+                />
               </div>
-              <div><Label>Max photos/property</Label>
-                <Input type="number" value={planForm.maxPhotosPerProperty} onChange={(e:any) => setPlanForm((f:any) => ({...f, maxPhotosPerProperty: Number(e.target.value)}))} />
+              <div>
+                <Label>Max photos/property</Label>
+                <Input
+                  type="number"
+                  value={planForm.maxPhotosPerProperty}
+                  onChange={(e: any) =>
+                    setPlanForm((f: any) => ({
+                      ...f,
+                      maxPhotosPerProperty: Number(e.target.value),
+                    }))
+                  }
+                />
               </div>
             </div>
             <div className="space-y-3 border rounded-lg p-3">
               <p className="text-sm font-medium">Features</p>
-              {[{k:"bookingManagementEnabled",l:"Booking management"},{k:"analyticsEnabled",l:"Analytics dashboard"},{k:"priorityPlacement",l:"Priority placement"}].map(({k,l}) => (
+              {[
+                { k: "bookingManagementEnabled", l: "Booking management" },
+                { k: "analyticsEnabled", l: "Analytics dashboard" },
+                { k: "priorityPlacement", l: "Priority placement" },
+              ].map(({ k, l }) => (
                 <div key={k} className="flex items-center justify-between">
                   <Label className="font-normal">{l}</Label>
-                  <Switch checked={!!planForm[k]} onCheckedChange={(v:boolean) => setPlanForm((f:any) => ({...f, [k]: v}))} />
+                  <Switch
+                    checked={!!planForm[k]}
+                    onCheckedChange={(v: boolean) =>
+                      setPlanForm((f: any) => ({ ...f, [k]: v }))
+                    }
+                  />
                 </div>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Sort order</Label>
-                <Input type="number" value={planForm.sortOrder} onChange={(e:any) => setPlanForm((f:any) => ({...f, sortOrder: Number(e.target.value)}))} />
+              <div>
+                <Label>Sort order</Label>
+                <Input
+                  type="number"
+                  value={planForm.sortOrder}
+                  onChange={(e: any) =>
+                    setPlanForm((f: any) => ({
+                      ...f,
+                      sortOrder: Number(e.target.value),
+                    }))
+                  }
+                />
               </div>
               <div className="flex items-center gap-2 pt-6">
-                <Switch checked={planForm.isActive} onCheckedChange={(v:boolean) => setPlanForm((f:any) => ({...f, isActive: v}))} />
+                <Switch
+                  checked={planForm.isActive}
+                  onCheckedChange={(v: boolean) =>
+                    setPlanForm((f: any) => ({ ...f, isActive: v }))
+                  }
+                />
                 <Label className="font-normal">Active</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPlanDialog(false)}>Cancel</Button>
-            <Button onClick={() => savePlanMutation.mutate(planForm)} disabled={savePlanMutation.isPending}>
+            <Button variant="outline" onClick={() => setShowPlanDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => savePlanMutation.mutate(planForm)}
+              disabled={savePlanMutation.isPending}
+            >
               {savePlanMutation.isPending ? "Saving..." : "Save plan"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Payment Account Create/Edit Dialog */}
+      <Dialog
+        open={showPaymentAccountDialog}
+        onOpenChange={setShowPaymentAccountDialog}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPaymentAccount
+                ? "Edit Payment Account"
+                : "Add Payment Account"}
+            </DialogTitle>
+            <DialogDescription>
+              This will be shown to owners when they subscribe.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Account Type</Label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 text-sm mt-1"
+                  value={paymentAccountForm.accountType}
+                  onChange={(e) =>
+                    setPaymentAccountForm((f: any) => ({
+                      ...f,
+                      accountType: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="upi">UPI</option>
+                  <option value="bank">Bank Transfer</option>
+                </select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 text-sm mt-1"
+                  value={paymentAccountForm.priority}
+                  onChange={(e) =>
+                    setPaymentAccountForm((f: any) => ({
+                      ...f,
+                      priority: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="primary">Primary (shown first)</option>
+                  <option value="secondary">Secondary</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Account / Display Name *</Label>
+              <Input
+                className="mt-1"
+                placeholder="e.g. ZECOHO Payments"
+                value={paymentAccountForm.accountName}
+                onChange={(e) =>
+                  setPaymentAccountForm((f: any) => ({
+                    ...f,
+                    accountName: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            {paymentAccountForm.accountType === "upi" && (
+              <>
+                <div>
+                  <Label>UPI ID *</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="e.g. zecoho@okaxis"
+                    value={paymentAccountForm.upiId}
+                    onChange={(e) =>
+                      setPaymentAccountForm((f: any) => ({
+                        ...f,
+                        upiId: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>
+                    QR Code Image URL{" "}
+                    <span className="text-xs text-muted-foreground">
+                      (optional)
+                    </span>
+                  </Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="https://..."
+                    value={paymentAccountForm.qrCodeUrl}
+                    onChange={(e) =>
+                      setPaymentAccountForm((f: any) => ({
+                        ...f,
+                        qrCodeUrl: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload your UPI QR to Google Drive/Cloudinary and paste the
+                    public URL here
+                  </p>
+                  {paymentAccountForm.qrCodeUrl && (
+                    <img
+                      src={paymentAccountForm.qrCodeUrl}
+                      alt="QR Preview"
+                      className="w-24 h-24 mt-2 rounded-lg border object-contain bg-white"
+                    />
+                  )}
+                </div>
+              </>
+            )}
+
+            {paymentAccountForm.accountType === "bank" && (
+              <>
+                <div>
+                  <Label>Bank Name *</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="e.g. HDFC Bank"
+                    value={paymentAccountForm.bankName}
+                    onChange={(e) =>
+                      setPaymentAccountForm((f: any) => ({
+                        ...f,
+                        bankName: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Account Number *</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="e.g. 50100123456789"
+                    value={paymentAccountForm.accountNumber}
+                    onChange={(e) =>
+                      setPaymentAccountForm((f: any) => ({
+                        ...f,
+                        accountNumber: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>IFSC Code *</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. HDFC0001234"
+                      value={paymentAccountForm.ifscCode}
+                      onChange={(e) =>
+                        setPaymentAccountForm((f: any) => ({
+                          ...f,
+                          ifscCode: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>
+                      Branch{" "}
+                      <span className="text-xs text-muted-foreground">
+                        (optional)
+                      </span>
+                    </Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="e.g. Connaught Place"
+                      value={paymentAccountForm.branchName}
+                      onChange={(e) =>
+                        setPaymentAccountForm((f: any) => ({
+                          ...f,
+                          branchName: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Display Order</Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  value={paymentAccountForm.displayOrder}
+                  onChange={(e) =>
+                    setPaymentAccountForm((f: any) => ({
+                      ...f,
+                      displayOrder: Number(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-6">
+                <Switch
+                  checked={paymentAccountForm.isActive}
+                  onCheckedChange={(v: boolean) =>
+                    setPaymentAccountForm((f: any) => ({ ...f, isActive: v }))
+                  }
+                />
+                <Label className="font-normal">
+                  Active (visible to owners)
+                </Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowPaymentAccountDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                savePaymentAccountMutation.mutate(paymentAccountForm)
+              }
+              disabled={
+                savePaymentAccountMutation.isPending ||
+                !paymentAccountForm.accountName
+              }
+            >
+              {savePaymentAccountMutation.isPending
+                ? "Saving..."
+                : "Save Account"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

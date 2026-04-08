@@ -2626,3 +2626,45 @@ export const ownerReferrals = pgTable("owner_referrals", {
 
 export type OwnerReferral = typeof ownerReferrals.$inferSelect;
 export type InsertOwnerReferral = typeof ownerReferrals.$inferInsert;
+
+export const paymentAccounts = pgTable("payment_accounts", {
+  id: text("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  accountType: text("account_type").notNull(), // "upi" | "bank"
+  accountName: text("account_name").notNull(),
+  upiId: text("upi_id"),
+  qrCodeUrl: text("qr_code_url"),
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  ifscCode: text("ifsc_code"),
+  branchName: text("branch_name"),
+  priority: text("priority").notNull().default("secondary"), // "primary" | "secondary"
+  isActive: boolean("is_active").notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: text("created_by"),
+});
+
+export const subscriptionPayments = pgTable("subscription_payments", {
+  id: text("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  subscriptionId: text("subscription_id").notNull(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => users.id),
+  transactionId: text("transaction_id").notNull(),
+  screenshotUrl: text("screenshot_url"),
+  paymentMethod: text("payment_method").default("upi"),
+  amount: text("amount").notNull(),
+  status: text("status").notNull().default("pending"), // pending | verified | rejected
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: text("verified_by"),
+  rejectionReason: text("rejection_reason"),
+  adminNotes: text("admin_notes"),
+});
+
+export type PaymentAccount = typeof paymentAccounts.$inferSelect;
+export type SubscriptionPayment = typeof subscriptionPayments.$inferSelect;
