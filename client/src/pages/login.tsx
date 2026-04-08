@@ -91,12 +91,29 @@ export default function Login() {
           description: `We've sent a verification code to ${data.email}`,
         });
       } else {
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in.",
         });
-        setLocation(returnTo);
+        let attempts = 0;
+        const checkAuth = async () => {
+          attempts++;
+          try {
+            const resp = await fetch("/api/auth/user", {
+              credentials: "include",
+            });
+            if (resp.ok) {
+              window.location.href = "/";
+            } else if (attempts < 10) {
+              setTimeout(checkAuth, 500);
+            } else {
+              window.location.href = "/";
+            }
+          } catch {
+            window.location.href = "/";
+          }
+        };
+        setTimeout(checkAuth, 300);
       }
     },
     onError: (error: any) => {
@@ -155,16 +172,16 @@ export default function Login() {
           });
           if (resp.ok) {
             // Session confirmed — safe to redirect
-            window.location.href = returnTo || "/";
+            window.location.href = "/";
           } else if (attempts < 8) {
             // Session not ready yet — retry
             setTimeout(checkAuth, 500);
           } else {
             // Max retries — redirect anyway
-            window.location.href = returnTo || "/";
+            window.location.href = "/";
           }
         } catch {
-          window.location.href = returnTo || "/";
+          window.location.href = "/";
         }
       };
       setTimeout(checkAuth, 500);
@@ -201,14 +218,14 @@ export default function Login() {
             credentials: "include",
           });
           if (resp.ok) {
-            window.location.href = returnTo || "/";
+            window.location.href = "/";
           } else if (attempts < 8) {
             setTimeout(checkAuth, 500);
           } else {
-            window.location.href = returnTo || "/";
+            window.location.href = "/";
           }
         } catch {
-          window.location.href = returnTo || "/";
+          window.location.href = "/";
         }
       };
       setTimeout(checkAuth, 500);
