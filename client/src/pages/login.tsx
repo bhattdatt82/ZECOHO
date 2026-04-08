@@ -145,11 +145,29 @@ export default function Login() {
         title: "Welcome to ZECOHO!",
         description: "You have successfully logged in.",
       });
-      // Full page reload ensures session cookie is fresh
-      // and coming-soon gate gets clean auth state
-      setTimeout(() => {
-        window.location.href = returnTo || "/";
-      }, 500);
+      // Poll until session is confirmed active before redirecting
+      let attempts = 0;
+      const checkAuth = async () => {
+        attempts++;
+        try {
+          const resp = await fetch("/api/auth/user", {
+            credentials: "include",
+          });
+          if (resp.ok) {
+            // Session confirmed — safe to redirect
+            window.location.href = returnTo || "/";
+          } else if (attempts < 8) {
+            // Session not ready yet — retry
+            setTimeout(checkAuth, 500);
+          } else {
+            // Max retries — redirect anyway
+            window.location.href = returnTo || "/";
+          }
+        } catch {
+          window.location.href = returnTo || "/";
+        }
+      };
+      setTimeout(checkAuth, 500);
     },
     onError: (error: any) => {
       toast({
@@ -175,9 +193,25 @@ export default function Login() {
         title: "Welcome to ZECOHO!",
         description: "Your email has been verified.",
       });
-      setTimeout(() => {
-        window.location.href = returnTo || "/";
-      }, 500);
+      let attempts = 0;
+      const checkAuth = async () => {
+        attempts++;
+        try {
+          const resp = await fetch("/api/auth/user", {
+            credentials: "include",
+          });
+          if (resp.ok) {
+            window.location.href = returnTo || "/";
+          } else if (attempts < 8) {
+            setTimeout(checkAuth, 500);
+          } else {
+            window.location.href = returnTo || "/";
+          }
+        } catch {
+          window.location.href = returnTo || "/";
+        }
+      };
+      setTimeout(checkAuth, 500);
     },
     onError: (error: any) => {
       toast({

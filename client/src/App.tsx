@@ -239,7 +239,21 @@ function AppContent() {
   // Gate: redirect to /coming-soon if blocked; redirect away if access granted
   useEffect(() => {
     if (!accessCheck) return;
-    if (!accessCheck.canAccess && location !== "/coming-soon") {
+
+    // These routes must NEVER be blocked — needed for auth flow
+    const exemptRoutes = [
+      "/login",
+      "/register",
+      "/forgot-password",
+      "/auth-error",
+      "/coming-soon",
+      "/terms",
+      "/privacy",
+    ];
+    const isExempt = exemptRoutes.some((r) => location.startsWith(r));
+    if (isExempt) return;
+
+    if (!accessCheck.canAccess) {
       setLocation("/coming-soon");
     }
     // If user is on /coming-soon but now has access (e.g. just logged in), send them home
