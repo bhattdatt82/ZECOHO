@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "@/hooks/useAuth";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -122,6 +123,50 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>
+          ZECOHO — Zero Commission Hotel Booking in India | Save 15–25%
+        </title>
+        <meta
+          name="description"
+          content="Book hotels directly in India with zero commission. No hidden fees, no OTA markup. Save 15–25% on every stay. Verified properties across 65+ Indian destinations."
+        />
+        <meta
+          name="keywords"
+          content="zero commission hotel booking india, cheap hotels india, direct hotel booking, hotel booking without commission, budget hotels india, ZECOHO"
+        />
+        {/* Open Graph for WhatsApp/Social sharing */}
+        <meta
+          property="og:title"
+          content="ZECOHO — Book Hotels Direct. Save 15–25%."
+        />
+        <meta
+          property="og:description"
+          content="Zero commission hotel booking platform. No hidden fees. Direct contact with hotels across India."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.zecoho.com" />
+        {/* Schema.org structured data for Google */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "TravelAgency",
+            name: "ZECOHO",
+            description: "Zero commission hotel booking platform in India",
+            url: "https://www.zecoho.com",
+            areaServed: "IN",
+            priceRange: "₹",
+            sameAs: ["https://www.zecoho.com"],
+            offers: {
+              "@type": "Offer",
+              description: "Hotel bookings with 0% commission",
+              price: "0",
+              priceCurrency: "INR",
+            },
+          })}
+        </script>
+      </Helmet>
+
       {subExpired && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-300 px-4 py-3 text-center">
           <span className="text-amber-800 dark:text-amber-200 text-sm font-medium">
@@ -711,6 +756,101 @@ export default function Landing() {
           </div>
         </div>
       </div>
+
+      {/* Owner SEO Section — targets "list hotel india" searches */}
+      {!isOwner && (
+        <div className="py-16 px-4 md:px-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+          <div className="container mx-auto max-w-4xl">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <Badge className="mb-4 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-0 px-3 py-1">
+                  For Hotel Owners
+                </Badge>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
+                  List Your Hotel on ZECOHO — Pay Zero Commission
+                </h2>
+                <p className="text-muted-foreground mb-6 leading-relaxed">
+                  Join India's fastest-growing zero-commission hotel booking
+                  platform. Keep 100% of every booking. No monthly fees during
+                  launch. Direct access to guests — no middlemen.
+                </p>
+                <ul className="space-y-3 mb-8">
+                  {[
+                    "0% commission on every booking — always",
+                    "Direct communication with guests",
+                    "KYC-verified listing for trust",
+                    "Real-time booking management dashboard",
+                    "Free to list during our launch phase",
+                  ].map((point) => (
+                    <li key={point} className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-foreground/80">
+                        {point}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    size="lg"
+                    className="font-semibold"
+                    onClick={() =>
+                      setLocation("/login?returnTo=/list-property")
+                    }
+                    data-testid="button-owner-cta-seo"
+                  >
+                    List Your Property Free
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => setLocation("/about-us")}
+                  >
+                    Learn More
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  {
+                    value: "0%",
+                    label: "Commission Fee",
+                    color: "text-emerald-600",
+                  },
+                  {
+                    value: "₹0",
+                    label: "Listing Cost",
+                    color: "text-amber-600",
+                  },
+                  {
+                    value: "100%",
+                    label: "Revenue Yours",
+                    color: "text-blue-600",
+                  },
+                  {
+                    value: "24/7",
+                    label: "Booking Access",
+                    color: "text-violet-600",
+                  },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="bg-white dark:bg-muted/50 rounded-2xl p-6 text-center shadow-sm border"
+                  >
+                    <div className={`text-3xl font-bold mb-1 ${stat.color}`}>
+                      {stat.value}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-medium">
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Section */}
       <div className="py-16 px-4 md:px-6 bg-white dark:bg-slate-900 border-t border-b border-border">
