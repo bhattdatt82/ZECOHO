@@ -577,7 +577,7 @@ function PaymentDialog({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">UPI Payment</p>
                     <p className="font-semibold">{acc.accountName}</p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <code className="text-sm bg-muted px-2 py-0.5 rounded truncate">
                         {acc.upiId}
                       </code>
@@ -590,6 +590,21 @@ function PaymentDialog({
                         <Copy className="h-3.5 w-3.5 text-primary" />
                       </button>
                     </div>
+                    {/* UPI Deep Link */}
+                    <a
+                      href={`upi://pay?pa=${encodeURIComponent(acc.upiId)}&pn=${encodeURIComponent(acc.accountName)}&am=${plan?.price}&cu=INR&tn=ZECOHO+Subscription`}
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Pay ₹
+                      {plan
+                        ? Number(plan.price).toLocaleString("en-IN")
+                        : ""}{" "}
+                      via UPI App
+                    </a>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Works on mobile · Opens GPay, PhonePe, Paytm
+                    </p>
                   </div>
                 </div>
               </div>
