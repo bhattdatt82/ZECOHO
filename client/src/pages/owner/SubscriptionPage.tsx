@@ -23,9 +23,6 @@ import {
   Zap,
   Star,
   Calendar,
-  Plus,
-  Pencil,
-  Trash2,
   AlertCircle,
   ArrowUpCircle,
   XCircle,
@@ -65,131 +62,7 @@ interface SubscriptionStatus {
   expiresAt: string | null;
   daysLeft: number | null;
 }
-// ── Referral Card ──────────────────────────────────────────────────────────
-function ReferralCard() {
-  const [copied, setCopied] = useState(false);
-  const { toast } = useToast();
 
-  const { data: referralData } = useQuery({
-    queryKey: ["/api/referral/my-code"],
-    queryFn: () =>
-      fetch("/api/referral/my-code", { credentials: "include" }).then((r) =>
-        r.json(),
-      ),
-  });
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(referralData?.referralCode || "");
-    setCopied(true);
-    toast({ title: "Referral code copied!" });
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(referralData?.referralLink || "");
-    setCopied(true);
-    toast({ title: "Referral link copied!" });
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleWhatsApp = () => {
-    const msg = encodeURIComponent(
-      `Hey! I've been using ZECOHO to get direct hotel bookings with 0% commission. List your property for free here: ${referralData?.referralLink}`,
-    );
-    window.open(`https://wa.me/?text=${msg}`, "_blank");
-  };
-
-  return (
-    <div className="mt-8 rounded-2xl border bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-6">
-      <div className="flex items-center gap-2 mb-2">
-        <Gift className="h-5 w-5 text-amber-600" />
-        <h3 className="text-lg font-bold">
-          Refer a Hotel Owner — Earn Free Months
-        </h3>
-      </div>
-      <p className="text-sm text-muted-foreground mb-6">
-        Share your referral link with other hoteliers. When they subscribe, you
-        get <strong>1 free month</strong> added to your plan.
-      </p>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {[
-          {
-            label: "Hotels Referred",
-            value: referralData?.stats?.totalReferred ?? 0,
-          },
-          {
-            label: "Subscribed",
-            value: referralData?.stats?.totalSubscribed ?? 0,
-          },
-          {
-            label: "Free Months Earned",
-            value: referralData?.stats?.totalMonthsEarned ?? 0,
-          },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white dark:bg-muted/50 rounded-xl p-4 text-center shadow-sm border"
-          >
-            <div className="text-2xl font-bold text-amber-600">
-              {stat.value}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {stat.label}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Referral Code */}
-      <div className="mb-4">
-        <label className="text-xs font-semibold text-muted-foreground mb-1 block">
-          YOUR REFERRAL CODE
-        </label>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-white dark:bg-muted/50 border rounded-lg px-4 py-3 font-mono font-bold text-lg tracking-widest text-center">
-            {referralData?.referralCode || "Loading..."}
-          </div>
-          <button
-            onClick={handleCopyCode}
-            className="p-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors"
-          >
-            {copied ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Share Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={handleCopyLink}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-amber-400 text-amber-700 dark:text-amber-400 rounded-xl font-semibold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors text-sm"
-        >
-          <Copy className="h-4 w-4" />
-          Copy Referral Link
-        </button>
-        <button
-          onClick={handleWhatsApp}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors text-sm"
-        >
-          <Share2 className="h-4 w-4" />
-          Share on WhatsApp
-        </button>
-      </div>
-
-      <p className="text-xs text-muted-foreground text-center mt-4">
-        Reward credited when your referral activates a subscription
-      </p>
-    </div>
-  );
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
 // ── Helpers ────────────────────────────────────────────────────────────────
 const TIER_META: Record<
   string,
@@ -250,6 +123,123 @@ function formatDate(dateStr: string) {
     month: "long",
     year: "numeric",
   });
+}
+
+// ── Referral Card ──────────────────────────────────────────────────────────
+function ReferralCard() {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  const { data: referralData } = useQuery({
+    queryKey: ["/api/referral/my-code"],
+    queryFn: () =>
+      fetch("/api/referral/my-code", { credentials: "include" }).then((r) =>
+        r.json(),
+      ),
+  });
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(referralData?.referralCode || "");
+    setCopied(true);
+    toast({ title: "Referral code copied!" });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralData?.referralLink || "");
+    setCopied(true);
+    toast({ title: "Referral link copied!" });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleWhatsApp = () => {
+    const msg = encodeURIComponent(
+      `Hey! I've been using ZECOHO to get direct hotel bookings with 0% commission. List your property for free here: ${referralData?.referralLink}`,
+    );
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  };
+
+  return (
+    <div className="mt-8 rounded-2xl border bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-6">
+      <div className="flex items-center gap-2 mb-2">
+        <Gift className="h-5 w-5 text-amber-600" />
+        <h3 className="text-lg font-bold">
+          Refer a Hotel Owner — Earn Free Months
+        </h3>
+      </div>
+      <p className="text-sm text-muted-foreground mb-6">
+        Share your referral link with other hoteliers. When they subscribe, you
+        get <strong>1 free month</strong> added to your plan.
+      </p>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          {
+            label: "Hotels Referred",
+            value: referralData?.stats?.totalReferred ?? 0,
+          },
+          {
+            label: "Subscribed",
+            value: referralData?.stats?.totalSubscribed ?? 0,
+          },
+          {
+            label: "Free Months Earned",
+            value: referralData?.stats?.totalMonthsEarned ?? 0,
+          },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="bg-white dark:bg-muted/50 rounded-xl p-4 text-center shadow-sm border"
+          >
+            <div className="text-2xl font-bold text-amber-600">
+              {stat.value}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {stat.label}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mb-4">
+        <label className="text-xs font-semibold text-muted-foreground mb-1 block">
+          YOUR REFERRAL CODE
+        </label>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 bg-white dark:bg-muted/50 border rounded-lg px-4 py-3 font-mono font-bold text-lg tracking-widest text-center">
+            {referralData?.referralCode || "Loading..."}
+          </div>
+          <button
+            onClick={handleCopyCode}
+            className="p-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors"
+          >
+            {copied ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={handleCopyLink}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-amber-400 text-amber-700 dark:text-amber-400 rounded-xl font-semibold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors text-sm"
+        >
+          <Copy className="h-4 w-4" />
+          Copy Referral Link
+        </button>
+        <button
+          onClick={handleWhatsApp}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors text-sm"
+        >
+          <Share2 className="h-4 w-4" />
+          Share on WhatsApp
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground text-center mt-4">
+        Reward credited when your referral activates a subscription
+      </p>
+    </div>
+  );
 }
 
 // ── Status Banner ──────────────────────────────────────────────────────────
@@ -329,7 +319,6 @@ function PlanCard({
     !isCurrentPlan &&
     ["basic", "standard", "premium"].indexOf(plan.tier) <
       ["basic", "standard", "premium"].indexOf(currentTier);
-
   const features = PLAN_FEATURES(plan);
 
   return (
@@ -347,7 +336,6 @@ function PlanCard({
           </span>
         </div>
       )}
-
       {plan.tier === "standard" && !isCurrentPlan && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <span className="bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
@@ -355,8 +343,6 @@ function PlanCard({
           </span>
         </div>
       )}
-
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div
           className={`w-11 h-11 rounded-xl flex items-center justify-center ${meta.badge}`}
@@ -370,8 +356,6 @@ function PlanCard({
           </p>
         </div>
       </div>
-
-      {/* Price */}
       <div className="flex items-end gap-2">
         <span className="text-3xl font-extrabold tracking-tight">
           ₹{Number(plan.price).toLocaleString("en-IN")}
@@ -385,17 +369,11 @@ function PlanCard({
           /{plan.duration}
         </span>
       </div>
-
-      {/* Features */}
       <ul className="space-y-2 flex-1">
         {features.map((f, i) => (
           <li
             key={i}
-            className={`flex items-center gap-2 text-sm ${
-              "enabled" in f && f.enabled === false
-                ? "text-muted-foreground line-through opacity-50"
-                : ""
-            }`}
+            className={`flex items-center gap-2 text-sm ${"enabled" in f && f.enabled === false ? "text-muted-foreground line-through opacity-50" : ""}`}
           >
             <span
               className={`flex-shrink-0 ${"enabled" in f && f.enabled === false ? "text-muted-foreground" : meta.accent}`}
@@ -410,8 +388,6 @@ function PlanCard({
           </li>
         ))}
       </ul>
-
-      {/* CTA */}
       <Button
         className="w-full mt-2"
         variant={isCurrentPlan ? "outline" : "default"}
@@ -430,6 +406,200 @@ function PlanCard({
           "Subscribe"
         )}
       </Button>
+    </div>
+  );
+}
+
+// ── Payment Tabs ───────────────────────────────────────────────────────────
+function PaymentTabs({
+  upiAccounts,
+  bankAccounts,
+  plan,
+  toast,
+}: {
+  upiAccounts: any[];
+  bankAccounts: any[];
+  plan: SubscriptionPlan;
+  toast: any;
+}) {
+  const [activeTab, setActiveTab] = useState<"upi" | "bank">(
+    upiAccounts.length > 0 ? "upi" : "bank",
+  );
+  const [enlargeQR, setEnlargeQR] = useState(false);
+
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      {/* Tab Headers */}
+      <div className="flex border-b">
+        {upiAccounts.length > 0 && (
+          <button
+            onClick={() => setActiveTab("upi")}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              activeTab === "upi"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/40 text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            📱 UPI / QR Code
+          </button>
+        )}
+        {bankAccounts.length > 0 && (
+          <button
+            onClick={() => setActiveTab("bank")}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              activeTab === "bank"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/40 text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            🏦 Bank Transfer
+          </button>
+        )}
+      </div>
+
+      {/* UPI Tab */}
+      {activeTab === "upi" &&
+        upiAccounts.map((acc: any) => (
+          <div key={acc.id} className="p-4 space-y-4">
+            {acc.qrCodeUrl && (
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Scan QR code with any UPI app
+                </p>
+                <div
+                  className="inline-block cursor-pointer relative"
+                  onClick={() => setEnlargeQR(true)}
+                >
+                  <img
+                    src={acc.qrCodeUrl}
+                    alt="UPI QR Code"
+                    className="w-48 h-48 mx-auto rounded-xl border-2 border-primary/20 bg-white object-contain p-2"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
+                    Tap to enlarge
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Works with GPay, PhonePe, Paytm, BHIM & all UPI apps
+                </p>
+              </div>
+            )}
+            {acc.qrCodeUrl && acc.upiId && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 border-t" />
+                <span className="text-xs text-muted-foreground">
+                  or pay using UPI ID
+                </span>
+                <div className="flex-1 border-t" />
+              </div>
+            )}
+            {acc.upiId && (
+              <div className="rounded-lg bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground mb-1">UPI ID</p>
+                <div className="flex items-center justify-between gap-2">
+                  <code className="text-sm font-bold flex-1 break-all">
+                    {acc.upiId}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(acc.upiId);
+                      toast({ title: "UPI ID copied!" });
+                    }}
+                    className="p-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    <Copy className="h-4 w-4 text-primary" />
+                  </button>
+                </div>
+              </div>
+            )}
+            <a
+              href={`upi://pay?pa=${encodeURIComponent(acc.upiId || "")}&pn=${encodeURIComponent(acc.accountName)}&am=${plan.price}&cu=INR&tn=ZECOHO+Subscription`}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open UPI App to Pay ₹{Number(plan.price).toLocaleString("en-IN")}
+            </a>
+            <p className="text-xs text-center text-muted-foreground -mt-2">
+              Opens GPay / PhonePe / Paytm on mobile
+            </p>
+          </div>
+        ))}
+
+      {/* Bank Tab */}
+      {activeTab === "bank" &&
+        bankAccounts.map((acc: any) => (
+          <div key={acc.id} className="p-4 space-y-3">
+            <p className="text-sm font-semibold">{acc.accountName}</p>
+            <div className="space-y-2">
+              {[
+                { label: "Bank Name", value: acc.bankName },
+                {
+                  label: "Account Number",
+                  value: acc.accountNumber,
+                  mono: true,
+                },
+                { label: "IFSC Code", value: acc.ifscCode, mono: true },
+                { label: "Branch", value: acc.branchName },
+              ]
+                .filter((f) => f.value)
+                .map((field) => (
+                  <div
+                    key={field.label}
+                    className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {field.label}
+                      </p>
+                      <p
+                        className={`text-sm font-medium ${field.mono ? "font-mono" : ""}`}
+                      >
+                        {field.value}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(field.value!);
+                        toast({ title: `${field.label} copied!` });
+                      }}
+                      className="p-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
+                    >
+                      <Copy className="h-3.5 w-3.5 text-primary" />
+                    </button>
+                  </div>
+                ))}
+            </div>
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 p-3 text-xs text-blue-700 dark:text-blue-300">
+              Use <strong>NEFT / IMPS / RTGS</strong> for bank transfers. Amount
+              must exactly match ₹{Number(plan.price).toLocaleString("en-IN")}.
+            </div>
+          </div>
+        ))}
+
+      {/* QR Enlarge Modal */}
+      {enlargeQR && upiAccounts[0]?.qrCodeUrl && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setEnlargeQR(false)}
+        >
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
+            <p className="text-sm font-semibold mb-4">
+              Scan to Pay ₹{Number(plan.price).toLocaleString("en-IN")}
+            </p>
+            <img
+              src={upiAccounts[0].qrCodeUrl}
+              alt="UPI QR Code"
+              className="w-full max-w-xs mx-auto rounded-xl border"
+            />
+            <p className="text-xs text-muted-foreground mt-4">
+              Tap anywhere to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -477,7 +647,6 @@ function PaymentDialog({
     staleTime: 0,
   });
 
-  // Normalize field names — handle both camelCase and snake_case
   const paymentAccounts = paymentAccountsRaw
     .map((a: any) => ({
       id: a.id,
@@ -566,7 +735,6 @@ function PaymentDialog({
         {/* STEP 1: Payment Details */}
         {step === "details" && (
           <div className="space-y-4">
-            {/* Amount Box */}
             <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">
                 Amount to pay
@@ -579,7 +747,6 @@ function PaymentDialog({
               </p>
             </div>
 
-            {/* No accounts configured */}
             {paymentAccounts.length === 0 && (
               <div className="text-center py-6 text-muted-foreground text-sm border rounded-xl">
                 <IndianRupee className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -591,93 +758,14 @@ function PaymentDialog({
               </div>
             )}
 
-            {/* UPI Accounts */}
-            {upiAccounts.map((acc: any) => (
-              <div
-                key={acc.id}
-                className={`rounded-xl border p-4 ${acc.priority === "primary" ? "border-primary bg-primary/5" : ""}`}
-              >
-                {acc.priority === "primary" && (
-                  <Badge className="mb-2 text-xs bg-primary">Preferred</Badge>
-                )}
-                <div className="flex items-start gap-4">
-                  {acc.qrCodeUrl && (
-                    <img
-                      src={acc.qrCodeUrl}
-                      alt="UPI QR Code"
-                      className="w-24 h-24 rounded-lg border bg-white object-contain flex-shrink-0"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">UPI Payment</p>
-                    <p className="font-semibold">{acc.accountName}</p>
-                    {acc.upiId && (
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <code className="text-sm bg-muted px-2 py-0.5 rounded">
-                          {acc.upiId}
-                        </code>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(acc.upiId);
-                            toast({ title: "UPI ID copied!" });
-                          }}
-                        >
-                          <Copy className="h-3.5 w-3.5 text-primary" />
-                        </button>
-                      </div>
-                    )}
-                    <a
-                      href={`upi://pay?pa=${encodeURIComponent(acc.upiId || "")}&pn=${encodeURIComponent(acc.accountName)}&am=${plan.price}&cu=INR&tn=ZECOHO+Subscription`}
-                      className="inline-flex items-center gap-1.5 mt-2 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      📱 Pay via UPI App (mobile only)
-                    </a>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Bank Accounts */}
-            {bankAccounts.map((acc: any) => (
-              <div key={acc.id} className="rounded-xl border p-4">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Bank Transfer
-                </p>
-                <p className="font-semibold mb-2">{acc.accountName}</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-                  {acc.bankName && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Bank</p>
-                      <p>{acc.bankName}</p>
-                    </div>
-                  )}
-                  {acc.accountNumber && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Account No.
-                      </p>
-                      <p className="font-mono">{acc.accountNumber}</p>
-                    </div>
-                  )}
-                  {acc.ifscCode && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">IFSC</p>
-                      <p className="font-mono">{acc.ifscCode}</p>
-                    </div>
-                  )}
-                  {acc.branchName && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Branch</p>
-                      <p>{acc.branchName}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+            {paymentAccounts.length > 0 && (
+              <PaymentTabs
+                upiAccounts={upiAccounts}
+                bankAccounts={bankAccounts}
+                plan={plan}
+                toast={toast}
+              />
+            )}
 
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm">
               <p className="font-medium text-amber-800 dark:text-amber-200">
@@ -795,62 +883,6 @@ function PaymentDialog({
     </Dialog>
   );
 }
-// ── Confirm Dialog (kept for reference, replaced by PaymentDialog) ──────────
-function ConfirmDialog({
-  plan,
-  open,
-  onClose,
-  onConfirm,
-  isLoading,
-}: {
-  plan: SubscriptionPlan | null;
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  isLoading: boolean;
-}) {
-  if (!plan) return null;
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Confirm Subscription</DialogTitle>
-          <DialogDescription>
-            You are about to subscribe to the <strong>{plan.name}</strong> plan
-            at{" "}
-            <strong>
-              ₹{Number(plan.price).toLocaleString("en-IN")}/{plan.duration}
-            </strong>
-            .
-          </DialogDescription>
-        </DialogHeader>
-        <div className="rounded-lg border p-4 bg-muted/40 space-y-2 text-sm">
-          <p className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            Payment is manual — our team will activate your plan within 24 hours
-            after payment confirmation.
-          </p>
-          <p className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            You can list up to{" "}
-            <strong>
-              {plan.maxProperties === 999 ? "unlimited" : plan.maxProperties}
-            </strong>{" "}
-            propert{plan.maxProperties === 1 ? "y" : "ies"}.
-          </p>
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button onClick={onConfirm} disabled={isLoading}>
-            {isLoading ? "Submitting..." : "Confirm & Request Activation"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function OwnerSubscriptionPage() {
@@ -892,7 +924,6 @@ export default function OwnerSubscriptionPage() {
       screenshotUrl: string;
       paymentMethod: string;
     }) => {
-      // Single call — backend validates proof and creates subscription together
       const subRes = await apiRequest("POST", "/api/owner/subscribe", {
         planId: plan.id,
         tier: plan.tier,
@@ -947,7 +978,6 @@ export default function OwnerSubscriptionPage() {
   return (
     <OwnerLayout>
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             Subscription Plans
@@ -958,14 +988,12 @@ export default function OwnerSubscriptionPage() {
           </p>
         </div>
 
-        {/* Status Banner */}
         {statusLoading ? (
           <div className="h-16 rounded-xl bg-muted animate-pulse" />
         ) : status ? (
           <StatusBanner status={status} />
         ) : null}
 
-        {/* Plan Cards */}
         {plansLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
@@ -994,7 +1022,6 @@ export default function OwnerSubscriptionPage() {
           </div>
         )}
 
-        {/* FAQ note */}
         <div className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground space-y-1">
           <p className="font-medium text-foreground">
             How does activation work?
@@ -1010,7 +1037,6 @@ export default function OwnerSubscriptionPage() {
           </p>
         </div>
 
-        {/* Payment Dialog */}
         <PaymentDialog
           plan={selectedPlan}
           open={confirmOpen}
@@ -1022,7 +1048,6 @@ export default function OwnerSubscriptionPage() {
           isLoading={subscribeMutation.isPending}
         />
 
-        {/* Referral Program */}
         <ReferralCard />
       </div>
     </OwnerLayout>
