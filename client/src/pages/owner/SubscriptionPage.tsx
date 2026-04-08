@@ -520,7 +520,7 @@ function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && resetAndClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] min-h-[400px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {step === "details" ? "How to Pay" : "Submit Payment Proof"}
@@ -592,18 +592,15 @@ function PaymentDialog({
                     </div>
                     {/* UPI Deep Link */}
                     <a
-                      href={`upi://pay?pa=${encodeURIComponent(acc.upiId)}&pn=${encodeURIComponent(acc.accountName)}&am=${plan?.price}&cu=INR&tn=ZECOHO+Subscription`}
+                    href={`upi://pay?pa=${encodeURIComponent(acc.upiId)}&pn=${encodeURIComponent(acc.accountName)}&am=${plan?.price}&cu=INR&tn=ZECOHO+Subscription`}
                       className="inline-flex items-center gap-1.5 mt-2 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      Pay ₹
-                      {plan
-                        ? Number(plan.price).toLocaleString("en-IN")
-                        : ""}{" "}
-                      via UPI App
+                      📱 Pay ₹{plan ? Number(plan.price).toLocaleString("en-IN") : ""} via UPI App
                     </a>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Works on mobile · Opens GPay, PhonePe, Paytm
+                      Open this page on your <strong>mobile phone</strong> to pay directly via GPay / PhonePe / Paytm.
+                      On desktop, scan the QR code or copy the UPI ID above.
                     </p>
                   </div>
                 </div>
@@ -676,7 +673,7 @@ function PaymentDialog({
         )}
 
         {step === "proof" && (
-          <div className="space-y-4">
+          <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>Transaction ID / UTR Number *</Label>
               <Input

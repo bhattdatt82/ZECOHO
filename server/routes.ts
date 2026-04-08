@@ -9673,13 +9673,15 @@ export async function registerRoutes(
             ifscCode: ifscCode || null,
             branchName: branchName || null,
             priority: priority || "secondary",
-            displayOrder: displayOrder || 0,
+            displayOrder: Number(displayOrder) || 0,
             isActive: true,
             createdBy: userId,
           })
           .returning();
+        console.log("[PAYMENT ACCOUNT] Created:", JSON.stringify(account));
         res.json(account);
       } catch (error) {
+        console.error("[PAYMENT ACCOUNT] Create error:", error);
         res.status(500).json({ message: "Failed to create payment account" });
       }
     },
