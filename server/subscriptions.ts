@@ -113,19 +113,15 @@ router.post("/owner/subscribe", async (req, res) => {
 
     // Block submission if no payment proof provided
     if (!transactionId || !transactionId.trim()) {
-      return res
-        .status(400)
-        .json({
-          error: "Transaction ID is required. Please complete payment first.",
-        });
+      return res.status(400).json({
+        error: "Transaction ID is required. Please complete payment first.",
+      });
     }
     if (!screenshotUrl) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Payment screenshot is required. Please upload proof of payment.",
-        });
+      return res.status(400).json({
+        error:
+          "Payment screenshot is required. Please upload proof of payment.",
+      });
     }
 
     const sub = await storage.createOwnerSubscription({
@@ -183,6 +179,82 @@ router.post("/admin/owner-subscriptions/:id/activate", async (req, res) => {
       adminId,
       note,
     );
+
+    // Auto-approve all pending properties for this owner
+    try {
+      const ownerId = sub.ownerId;
+      const owner = await storage.getUser(ownerId);
+
+      // Only auto-approve if owner's KYC is verified
+      if (owner?.kycStatus === "verified") {
+        const allProperties = await storage.getProperties({
+          ownerId,
+          includeAllStatuses: true,
+        });
+        const pendingProperties = allProperties.filter(
+          (p: any) => p.status === "pending",
+        );
+
+        for (const property of pendingProperties) {
+          // Check property has GPS coordinates (required for publishing)
+          if (!property.latitude || !property.longitude) {
+            console.log(
+              `[AUTO-APPROVE] Skipping ${property.title} — missing GPS coordinates`,
+            );
+            continue;
+          }
+
+          await storage.updateProperty(property.id, {
+            status: "published",
+            verificationNotes:
+              `Auto-approved on subscription activation. ${note || ""}`.trim(),
+            verifiedAt: new Date(),
+            verifiedBy: adminId,
+          });
+
+          // Notify owner their property is live
+          const { broadcastToUser } = await import("./routes");
+          broadcastToUser(ownerId, {
+            type: "property_status_update",
+            propertyId: property.id,
+            status: "published",
+            message: `Great news! Your property "${property.title}" is now live on ZECOHO.`,
+            propertyTitle: property.title,
+          });
+
+          // Send property live email to owner
+          if (owner.email) {
+            const { sendPropertyLiveEmail } = await import("./emailService");
+            sendPropertyLiveEmail(
+              owner.email,
+              owner.firstName || "Property Owner",
+              property.title,
+            ).catch(console.error);
+          }
+
+          console.log(
+            `[AUTO-APPROVE] Property "${property.title}" approved for owner ${ownerId}`,
+          );
+        }
+
+        if (pendingProperties.length > 0) {
+          console.log(
+            `[AUTO-APPROVE] ${pendingProperties.length} properties auto-approved for owner ${ownerId}`,
+          );
+        }
+      } else {
+        console.log(
+          `[AUTO-APPROVE] Skipped — owner KYC status: ${owner?.kycStatus}`,
+        );
+      }
+    } catch (autoApproveError) {
+      // Don't fail subscription activation if auto-approve fails
+      console.error(
+        "[AUTO-APPROVE] Error during auto-approval:",
+        autoApproveError,
+      );
+    }
+
     res.json(sub);
   } catch (error) {
     res.status(500).json({ error: "Failed to activate" });

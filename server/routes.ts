@@ -1268,6 +1268,25 @@ export async function registerRoutes(
               ? "Property submitted successfully! Your property is pending admin review."
               : "Property submitted successfully! Both your KYC and new property are pending admin review.";
 
+            // Notify admins about new property
+            try {
+              const adminUsers = await storage.getAdminUsers();
+              const ownerUser = await storage.getUser(userId);
+              for (const admin of adminUsers) {
+                await createNotification({
+                  userId: admin.id,
+                  title: "New Property Listed",
+                  body: `${ownerUser?.firstName || "An owner"} has listed "${createdProperty.title}" — pending your review.`,
+                  type: "property_pending",
+                  entityId: createdProperty.id,
+                  entityType: "property",
+                });
+                broadcastToUser(admin.id, { type: "notification_update" });
+              }
+            } catch (notifError) {
+              console.error("Failed to notify admins:", notifError);
+            }
+
             return res.json({
               message: statusMessage,
               kycApplicationId: existingKyc.id,
@@ -2555,6 +2574,33 @@ export async function registerRoutes(
       // Set amenities if provided
       if (amenityIds && amenityIds.length > 0) {
         await storage.setPropertyAmenities(property.id, amenityIds);
+      }
+
+      // Notify all admins about new property listing
+      try {
+        const adminUsers = await storage.getAdminUsers();
+        for (const admin of adminUsers) {
+          await createNotification({
+            userId: admin.id,
+            title: "New Property Listed",
+            body: `${user.firstName || "An owner"} has listed a new property: "${property.title}" — pending your review.`,
+            type: "property_pending",
+            entityId: property.id,
+            entityType: "property",
+          });
+          broadcastToUser(admin.id, { type: "notification_update" });
+          // Send email to admin
+          if (admin.email) {
+            sendPropertyStatusEmail(
+              admin.email,
+              admin.firstName || "Admin",
+              property.title,
+              "pending" as any,
+            ).catch(console.error);
+          }
+        }
+      } catch (notifError) {
+        console.error("Failed to notify admins of new property:", notifError);
       }
 
       res.json(property);
