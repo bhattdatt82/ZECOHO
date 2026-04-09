@@ -180,6 +180,62 @@ router.post("/admin/owner-subscriptions/:id/activate", async (req, res) => {
       note,
     );
 
+    // ── Generate GST Invoice ──────────────────────────────────────────
+    try {
+      const { createInvoice, generateInvoicePDF } = await import(
+        "./invoiceService"
+      );
+      const { sendInvoiceEmail } = await import("./emailService");
+
+      // Get payment proof for transaction ID
+      const { db: invoiceDb } = await import("./db");
+      const { subscriptionPayments } = await import("../shared/schema");
+      const { eq: eqOp, desc: descOp } = await import("drizzle-orm");
+
+      const proofs = await invoiceDb
+        .select()
+        .from(subscriptionPayments)
+        .where(eqOp(subscriptionPayments.subscriptionId, req.params.id))
+        .orderBy(descOp(subscriptionPayments.submittedAt))
+        .limit(1);
+
+      const proof = proofs[0];
+      const owner = await storage.getUser(sub.ownerId);
+      const plan = await storage.getSubscriptionPlan(sub.planId);
+
+      if (owner && plan) {
+        const invoice = await createInvoice({
+          subscriptionId: sub.id,
+          ownerId: sub.ownerId,
+          planName: plan.name,
+          planDuration: sub.duration,
+          totalAmountPaid: Number(sub.pricePaid),
+          transactionId: proof?.transactionId || undefined,
+          createdBy: adminId,
+        });
+
+        // Generate PDF and email it
+        const pdfBuffer = await generateInvoicePDF(invoice.id);
+
+        if (owner.email) {
+          await sendInvoiceEmail(
+            owner.email,
+            owner.firstName || "Property Owner",
+            invoice.invoiceNumber,
+            plan.name,
+            invoice.totalAmount,
+            pdfBuffer,
+          );
+          console.log(
+            `[INVOICE] Sent ${invoice.invoiceNumber} to ${owner.email}`,
+          );
+        }
+      }
+    } catch (invoiceError) {
+      // Don't fail activation if invoice generation fails
+      console.error("[INVOICE] Generation failed:", invoiceError);
+    }
+
     // Auto-approve all pending properties for this owner
     try {
       const ownerId = sub.ownerId;

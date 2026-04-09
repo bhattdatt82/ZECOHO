@@ -16,6 +16,7 @@ import {
   ownerSubscriptions,
   paymentAccounts,
   subscriptionPayments,
+  invoices,
 } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import subscriptionRoutes from "./subscriptions.ts";
@@ -9880,6 +9881,77 @@ export async function registerRoutes(
       }
     },
   );
+  // ─── Invoice Routes ─────────────────────────────────────────────────
+
+  // Admin: Get all invoices
+  app.get("/api/admin/invoices", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !userHasRole(user, "admin"))
+        return res.status(403).json({ message: "Admin only" });
+
+      const allInvoices = await db
+        .select()
+        .from(invoices)
+        .orderBy(desc(invoices.createdAt));
+      res.json(allInvoices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  // Admin + Owner: Download invoice PDF
+  app.get(
+    "/api/invoices/:id/download",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+
+        const [invoice] = await db
+          .select()
+          .from(invoices)
+          .where(eq(invoices.id, req.params.id));
+
+        if (!invoice)
+          return res.status(404).json({ message: "Invoice not found" });
+
+        // Allow admin or the invoice owner
+        if (!userHasRole(user, "admin") && invoice.ownerId !== userId)
+          return res.status(403).json({ message: "Not authorized" });
+
+        const { generateInvoicePDF } = await import("./invoiceService");
+        const pdfBuffer = await generateInvoicePDF(req.params.id);
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`,
+        );
+        res.send(pdfBuffer);
+      } catch (error) {
+        console.error("Invoice download error:", error);
+        res.status(500).json({ message: "Failed to generate invoice" });
+      }
+    },
+  );
+
+  // Owner: Get my invoices
+  app.get("/api/owner/invoices", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const myInvoices = await db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.ownerId, userId))
+        .orderBy(desc(invoices.createdAt));
+      res.json(myInvoices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
   // ─── Referral Routes ────────────────────────────────────────────────
   app.get("/api/referral/my-code", isAuthenticated, async (req: any, res) => {
     if (!req.isAuthenticated())

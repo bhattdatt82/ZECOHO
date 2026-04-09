@@ -2668,3 +2668,39 @@ export const subscriptionPayments = pgTable("subscription_payments", {
 
 export type PaymentAccount = typeof paymentAccounts.$inferSelect;
 export type SubscriptionPayment = typeof subscriptionPayments.$inferSelect;
+export const invoices = pgTable("invoices", {
+  id: text("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  financialYear: text("financial_year").notNull(),
+  sequenceNumber: integer("sequence_number").notNull(),
+  subscriptionId: text("subscription_id").notNull(),
+  transactionId: text("transaction_id"),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => users.id),
+  ownerName: text("owner_name").notNull(),
+  ownerEmail: text("owner_email"),
+  ownerPhone: text("owner_phone"),
+  ownerAddress: text("owner_address"),
+  ownerGstin: text("owner_gstin"),
+  ownerState: text("owner_state"),
+  planName: text("plan_name").notNull(),
+  planDuration: text("plan_duration").notNull(),
+  sacCode: text("sac_code").default("998314"),
+  baseAmount: text("base_amount").notNull(),
+  cgstRate: text("cgst_rate").notNull().default("0"),
+  cgstAmount: text("cgst_amount").notNull().default("0"),
+  sgstRate: text("sgst_rate").notNull().default("0"),
+  sgstAmount: text("sgst_amount").notNull().default("0"),
+  igstRate: text("igst_rate").notNull().default("0"),
+  igstAmount: text("igst_amount").notNull().default("0"),
+  totalAmount: text("total_amount").notNull(),
+  status: text("status").notNull().default("generated"),
+  invoiceDate: timestamp("invoice_date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: text("created_by"),
+});
+
+export type Invoice = typeof invoices.$inferSelect;

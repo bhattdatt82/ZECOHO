@@ -1,9 +1,9 @@
 // Referenced from connection:conn_resend_01KBVF5WVPAY4D2KC0ESJT2VAN
-import { Resend } from 'resend';
+import { Resend } from "resend";
 
 function getAppBaseUrl(): string {
   // Production domain - never use replit.app in emails
-  return process.env.APP_BASE_URL || 'https://www.zecoho.com';
+  return process.env.APP_BASE_URL || "https://www.zecoho.com";
 }
 
 function getEmailHeader(): string {
@@ -17,33 +17,104 @@ function getEmailHeader(): string {
 
 async function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'ZECOHO <onboarding@resend.dev>';
-  
+  const fromEmail =
+    process.env.RESEND_FROM_EMAIL || "ZECOHO <onboarding@resend.dev>";
+
   if (!apiKey) {
-    throw new Error('RESEND_API_KEY environment variable not set');
+    throw new Error("RESEND_API_KEY environment variable not set");
   }
-  
+
   return {
     client: new Resend(apiKey),
-    fromEmail: fromEmail
+    fromEmail: fromEmail,
   };
 }
-
-export async function sendOtpEmail(email: string, otp: string, purpose: 'Login' | 'Password Reset' = 'Login'): Promise<boolean> {
+export async function sendInvoiceEmail(
+  to: string,
+  ownerName: string,
+  invoiceNumber: string,
+  planName: string,
+  totalAmount: string,
+  pdfBuffer: Buffer,
+  whatsappLink?: string,
+): Promise<boolean> {
   try {
-    console.log('Attempting to send OTP email to:', email, 'for:', purpose);
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    await resend.emails.send({
+      from: "billing@zecoho.com",
+      to,
+      subject: `Invoice ${invoiceNumber} — ZECOHO Subscription`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #E67E22; padding: 24px; border-radius: 8px 8px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 20px;">ZECOHO TECHNOLOGIES PRIVATE LIMITED</h1>
+            <p style="color: rgba(255,255,255,0.85); margin: 4px 0 0;">Tax Invoice</p>
+          </div>
+          <div style="background: #fff; border: 1px solid #e0e0e0; border-top: none; padding: 28px; border-radius: 0 0 8px 8px;">
+            <p style="color: #333;">Dear <strong>${ownerName}</strong>,</p>
+            <p style="color: #555;">Thank you for subscribing to ZECOHO. Please find your GST invoice attached.</p>
+            <div style="background: #f8f8f8; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="color: #888; font-size: 13px; padding: 6px 0;">Invoice Number</td>
+                  <td style="font-weight: bold; color: #333; font-size: 13px;">${invoiceNumber}</td>
+                </tr>
+                <tr>
+                  <td style="color: #888; font-size: 13px; padding: 6px 0;">Plan</td>
+                  <td style="color: #333; font-size: 13px;">${planName}</td>
+                </tr>
+                <tr>
+                  <td style="color: #888; font-size: 13px; padding: 6px 0;">Amount Paid</td>
+                  <td style="font-weight: bold; color: #E67E22; font-size: 16px;">₹${Number(totalAmount).toLocaleString("en-IN")}</td>
+                </tr>
+              </table>
+            </div>
+            <p style="color: #555; font-size: 13px;">The invoice PDF is attached to this email. You can also download it from your <a href="https://zecoho.com/owner/subscription" style="color: #E67E22;">subscription page</a>.</p>
+            ${whatsappLink ? `<p style="color: #555; font-size: 13px;">Share via <a href="${whatsappLink}" style="color: #25D366;">WhatsApp</a></p>` : ""}
+            <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+            <p style="color: #aaa; font-size: 11px; text-align: center;">
+              ZECOHO TECHNOLOGIES PRIVATE LIMITED | GSTIN: 09AACCZ8890L1ZC<br>
+              UG-24, Ansal Plaza, Vaishali, Vasundhara, Ghaziabad - 201012
+            </p>
+          </div>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: `Invoice-${invoiceNumber}.pdf`,
+          content: pdfBuffer.toString("base64"),
+        },
+      ],
+    });
+    return true;
+  } catch (error) {
+    console.error("Invoice email error:", error);
+    return false;
+  }
+}
+export async function sendOtpEmail(
+  email: string,
+  otp: string,
+  purpose: "Login" | "Password Reset" = "Login",
+): Promise<boolean> {
+  try {
+    console.log("Attempting to send OTP email to:", email, "for:", purpose);
     const { client, fromEmail } = await getResendClient();
-    console.log('Resend client obtained, using from email:', fromEmail);
-    
-    const isPasswordReset = purpose === 'Password Reset';
-    const subject = isPasswordReset ? 'Reset Your ZECOHO Password' : 'Your ZECOHO Login Code';
-    const heading = isPasswordReset ? 'Password Reset Code' : 'Your Login Code';
-    const description = isPasswordReset 
-      ? 'Enter this code to reset your ZECOHO password. This code expires in 10 minutes.'
-      : 'Enter this code to sign in to your ZECOHO account. This code expires in 10 minutes.';
-    
+    console.log("Resend client obtained, using from email:", fromEmail);
+
+    const isPasswordReset = purpose === "Password Reset";
+    const subject = isPasswordReset
+      ? "Reset Your ZECOHO Password"
+      : "Your ZECOHO Login Code";
+    const heading = isPasswordReset ? "Password Reset Code" : "Your Login Code";
+    const description = isPasswordReset
+      ? "Enter this code to reset your ZECOHO password. This code expires in 10 minutes."
+      : "Enter this code to sign in to your ZECOHO account. This code expires in 10 minutes.";
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
       subject: subject,
       html: `
@@ -85,30 +156,39 @@ export async function sendOtpEmail(email: string, otp: string, purpose: 'Login' 
     });
 
     if (error) {
-      console.error('Resend API error sending OTP email:', JSON.stringify(error, null, 2));
+      console.error(
+        "Resend API error sending OTP email:",
+        JSON.stringify(error, null, 2),
+      );
       return false;
     }
 
-    console.log('OTP email sent successfully:', data?.id);
+    console.log("OTP email sent successfully:", data?.id);
     return true;
   } catch (error: any) {
-    console.error('Failed to send OTP email - Exception:', error?.message || error);
-    console.error('Full error details:', JSON.stringify(error, null, 2));
+    console.error(
+      "Failed to send OTP email - Exception:",
+      error?.message || error,
+    );
+    console.error("Full error details:", JSON.stringify(error, null, 2));
     return false;
   }
 }
 
 // KYC Email Notifications
 
-export async function sendKycSubmittedEmail(email: string, firstName: string): Promise<boolean> {
+export async function sendKycSubmittedEmail(
+  email: string,
+  firstName: string,
+): Promise<boolean> {
   try {
-    console.log('Sending KYC submitted notification to:', email);
+    console.log("Sending KYC submitted notification to:", email);
     const { client, fromEmail } = await getResendClient();
-    
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
-      subject: 'KYC Application Received - ZECOHO',
+      subject: "KYC Application Received - ZECOHO",
       html: `
         <!DOCTYPE html>
         <html>
@@ -123,7 +203,7 @@ export async function sendKycSubmittedEmail(email: string, firstName: string): P
             <div style="padding: 32px;">
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Application Received!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${firstName || 'Property Owner'},
+                Hi ${firstName || "Property Owner"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 We've received your KYC application and property listing request. Our team is now reviewing your documents and information.
@@ -156,27 +236,34 @@ export async function sendKycSubmittedEmail(email: string, firstName: string): P
     });
 
     if (error) {
-      console.error('Failed to send KYC submitted email:', error);
+      console.error("Failed to send KYC submitted email:", error);
       return false;
     }
 
-    console.log('KYC submitted email sent successfully:', data?.id);
+    console.log("KYC submitted email sent successfully:", data?.id);
     return true;
   } catch (error: any) {
-    console.error('Failed to send KYC submitted email:', error?.message || error);
+    console.error(
+      "Failed to send KYC submitted email:",
+      error?.message || error,
+    );
     return false;
   }
 }
 
-export async function sendKycApprovedEmail(email: string, firstName: string, propertyName?: string): Promise<boolean> {
+export async function sendKycApprovedEmail(
+  email: string,
+  firstName: string,
+  propertyName?: string,
+): Promise<boolean> {
   try {
-    console.log('Sending KYC approved notification to:', email);
+    console.log("Sending KYC approved notification to:", email);
     const { client, fromEmail } = await getResendClient();
-    
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
-      subject: 'Congratulations! Your KYC is Approved - ZECOHO',
+      subject: "Congratulations! Your KYC is Approved - ZECOHO",
       html: `
         <!DOCTYPE html>
         <html>
@@ -197,10 +284,10 @@ export async function sendKycApprovedEmail(email: string, firstName: string, pro
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">You're Approved!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${firstName || 'Property Owner'},
+                Hi ${firstName || "Property Owner"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
-                Great news! Your KYC verification has been approved${propertyName ? ` and your property "${propertyName}" is now live on ZECOHO` : ' and you can now list your properties on ZECOHO'}.
+                Great news! Your KYC verification has been approved${propertyName ? ` and your property "${propertyName}" is now live on ZECOHO` : " and you can now list your properties on ZECOHO"}.
               </p>
               
               <div style="background: #ecfdf5; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #10b981;">
@@ -233,31 +320,39 @@ export async function sendKycApprovedEmail(email: string, firstName: string, pro
     });
 
     if (error) {
-      console.error('Failed to send KYC approved email:', error);
+      console.error("Failed to send KYC approved email:", error);
       return false;
     }
 
-    console.log('KYC approved email sent successfully:', data?.id);
+    console.log("KYC approved email sent successfully:", data?.id);
     return true;
   } catch (error: any) {
-    console.error('Failed to send KYC approved email:', error?.message || error);
+    console.error(
+      "Failed to send KYC approved email:",
+      error?.message || error,
+    );
     return false;
   }
 }
 
-export async function sendKycRejectedEmail(email: string, firstName: string, rejectionReasons?: string[]): Promise<boolean> {
+export async function sendKycRejectedEmail(
+  email: string,
+  firstName: string,
+  rejectionReasons?: string[],
+): Promise<boolean> {
   try {
-    console.log('Sending KYC rejected notification to:', email);
+    console.log("Sending KYC rejected notification to:", email);
     const { client, fromEmail } = await getResendClient();
-    
-    const reasonsList = rejectionReasons && rejectionReasons.length > 0 
-      ? `<ul style="color: #dc2626; margin: 12px 0 0 0; padding-left: 20px; line-height: 1.6;">${rejectionReasons.map(r => `<li>${r}</li>`).join('')}</ul>`
-      : '<p style="color: #dc2626; margin: 12px 0 0 0;">Please check your dashboard for details.</p>';
-    
+
+    const reasonsList =
+      rejectionReasons && rejectionReasons.length > 0
+        ? `<ul style="color: #dc2626; margin: 12px 0 0 0; padding-left: 20px; line-height: 1.6;">${rejectionReasons.map((r) => `<li>${r}</li>`).join("")}</ul>`
+        : '<p style="color: #dc2626; margin: 12px 0 0 0;">Please check your dashboard for details.</p>';
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
-      subject: 'Action Required: KYC Application Update - ZECOHO',
+      subject: "Action Required: KYC Application Update - ZECOHO",
       html: `
         <!DOCTYPE html>
         <html>
@@ -272,7 +367,7 @@ export async function sendKycRejectedEmail(email: string, firstName: string, rej
             <div style="padding: 32px;">
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Action Required</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${firstName || 'Property Owner'},
+                Hi ${firstName || "Property Owner"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 We've reviewed your KYC application and unfortunately, we need some additional information or corrections before we can approve it.
@@ -307,29 +402,35 @@ export async function sendKycRejectedEmail(email: string, firstName: string, rej
     });
 
     if (error) {
-      console.error('Failed to send KYC rejected email:', error);
+      console.error("Failed to send KYC rejected email:", error);
       return false;
     }
 
-    console.log('KYC rejected email sent successfully:', data?.id);
+    console.log("KYC rejected email sent successfully:", data?.id);
     return true;
   } catch (error: any) {
-    console.error('Failed to send KYC rejected email:', error?.message || error);
+    console.error(
+      "Failed to send KYC rejected email:",
+      error?.message || error,
+    );
     return false;
   }
 }
 
 // Account Change Notifications
 
-export async function sendPasswordChangedEmail(email: string, firstName: string): Promise<boolean> {
+export async function sendPasswordChangedEmail(
+  email: string,
+  firstName: string,
+): Promise<boolean> {
   try {
-    console.log('Sending password changed notification to:', email);
+    console.log("Sending password changed notification to:", email);
     const { client, fromEmail } = await getResendClient();
-    
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
-      subject: 'Password Changed - ZECOHO Account',
+      subject: "Password Changed - ZECOHO Account",
       html: `
         <!DOCTYPE html>
         <html>
@@ -344,7 +445,7 @@ export async function sendPasswordChangedEmail(email: string, firstName: string)
             <div style="padding: 32px;">
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px;">Password Changed</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${firstName || 'there'},
+                Hi ${firstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 Your ZECOHO account password was successfully changed. If you made this change, no further action is needed.
@@ -371,75 +472,78 @@ export async function sendPasswordChangedEmail(email: string, firstName: string)
     });
 
     if (error) {
-      console.error('Failed to send password changed email:', error);
+      console.error("Failed to send password changed email:", error);
       return false;
     }
 
-    console.log('Password changed email sent successfully:', data?.id);
+    console.log("Password changed email sent successfully:", data?.id);
     return true;
   } catch (error: any) {
-    console.error('Failed to send password changed email:', error?.message || error);
+    console.error(
+      "Failed to send password changed email:",
+      error?.message || error,
+    );
     return false;
   }
 }
 
 export async function sendPropertyStatusEmail(
-  email: string, 
-  firstName: string, 
-  propertyName: string, 
-  status: 'paused' | 'resumed' | 'deactivated' | 'deleted' | 'reactivated'
+  email: string,
+  firstName: string,
+  propertyName: string,
+  status: "paused" | "resumed" | "deactivated" | "deleted" | "reactivated",
 ): Promise<boolean> {
   try {
     console.log(`Sending property ${status} notification to:`, email);
     const { client, fromEmail } = await getResendClient();
-    
+
     const statusConfig = {
       paused: {
         subject: `Property Paused - ${propertyName}`,
-        heading: 'Property Temporarily Paused',
+        heading: "Property Temporarily Paused",
         message: `Your property "${propertyName}" has been paused and is no longer visible to travelers. You can resume it anytime from your owner dashboard.`,
-        color: '#f59e0b',
-        bgColor: '#fffbeb',
-        icon: '&#9208;'
+        color: "#f59e0b",
+        bgColor: "#fffbeb",
+        icon: "&#9208;",
       },
       resumed: {
         subject: `Property Resumed - ${propertyName}`,
-        heading: 'Property is Back Online!',
+        heading: "Property is Back Online!",
         message: `Great news! Your property "${propertyName}" is now live again and visible to travelers searching for accommodations.`,
-        color: '#10b981',
-        bgColor: '#ecfdf5',
-        icon: '&#10003;'
+        color: "#10b981",
+        bgColor: "#ecfdf5",
+        icon: "&#10003;",
       },
       deactivated: {
         subject: `Property Deactivated - ${propertyName}`,
-        heading: 'Property Deactivated',
+        heading: "Property Deactivated",
         message: `Your property "${propertyName}" has been deactivated. All existing bookings will be honored, but no new bookings can be made. Contact support if you wish to reactivate.`,
-        color: '#dc2626',
-        bgColor: '#fef2f2',
-        icon: '&#10060;'
+        color: "#dc2626",
+        bgColor: "#fef2f2",
+        icon: "&#10060;",
       },
       deleted: {
         subject: `Property Deleted - ${propertyName}`,
-        heading: 'Property Permanently Deleted',
+        heading: "Property Permanently Deleted",
         message: `Your property "${propertyName}" has been permanently deleted from ZECOHO per your request. All property data has been removed. If this was done in error, please contact support immediately.`,
-        color: '#dc2626',
-        bgColor: '#fef2f2',
-        icon: '&#128465;'
+        color: "#dc2626",
+        bgColor: "#fef2f2",
+        icon: "&#128465;",
       },
       reactivated: {
         subject: `Property Reactivated - ${propertyName}`,
-        heading: 'Property Reactivated Successfully!',
+        heading: "Property Reactivated Successfully!",
         message: `Great news! Your property "${propertyName}" has been reactivated and is now live on ZECOHO. Travelers can find and book your property again.`,
-        color: '#10b981',
-        bgColor: '#ecfdf5',
-        icon: '&#10003;'
-      }
+        color: "#10b981",
+        bgColor: "#ecfdf5",
+        icon: "&#10003;",
+      },
     };
-    
+
     const config = statusConfig[status];
-    
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
       subject: config.subject,
       html: `
@@ -462,7 +566,7 @@ export async function sendPropertyStatusEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">${config.heading}</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${firstName || 'Property Owner'},
+                Hi ${firstName || "Property Owner"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 ${config.message}
@@ -495,7 +599,10 @@ export async function sendPropertyStatusEmail(
     console.log(`Property ${status} email sent successfully:`, data?.id);
     return true;
   } catch (error: any) {
-    console.error(`Failed to send property ${status} email:`, error?.message || error);
+    console.error(
+      `Failed to send property ${status} email:`,
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -504,23 +611,28 @@ export async function sendAdminDeactivationRequestEmail(
   adminEmails: string[],
   ownerName: string,
   propertyName: string,
-  requestType: 'deactivate' | 'delete',
-  reason: string
+  requestType: "deactivate" | "delete",
+  reason: string,
 ): Promise<boolean> {
   try {
     if (adminEmails.length === 0) {
-      console.log('No admin emails provided for deactivation request notification');
+      console.log(
+        "No admin emails provided for deactivation request notification",
+      );
       return false;
     }
-    
-    console.log(`Sending deactivation request notification to admins:`, adminEmails);
+
+    console.log(
+      `Sending deactivation request notification to admins:`,
+      adminEmails,
+    );
     const { client, fromEmail } = await getResendClient();
-    
-    const isDelete = requestType === 'delete';
-    const actionType = isDelete ? 'Deletion' : 'Deactivation';
-    
+
+    const isDelete = requestType === "delete";
+    const actionType = isDelete ? "Deletion" : "Deactivation";
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: adminEmails,
       subject: `Action Required: Property ${actionType} Request - ${propertyName}`,
       html: `
@@ -539,8 +651,8 @@ export async function sendAdminDeactivationRequestEmail(
             
             <div style="padding: 32px;">
               <div style="text-align: center; margin-bottom: 24px;">
-                <div style="width: 64px; height: 64px; background: ${isDelete ? '#fef2f2' : '#fffbeb'}; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
-                  <span style="font-size: 32px; color: ${isDelete ? '#dc2626' : '#f59e0b'};">${isDelete ? '&#128465;' : '&#9888;'}</span>
+                <div style="width: 64px; height: 64px; background: ${isDelete ? "#fef2f2" : "#fffbeb"}; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px; color: ${isDelete ? "#dc2626" : "#f59e0b"};">${isDelete ? "&#128465;" : "&#9888;"}</span>
                 </div>
               </div>
               
@@ -554,7 +666,7 @@ export async function sendAdminDeactivationRequestEmail(
                   <strong>Owner:</strong> ${ownerName}
                 </p>
                 <p style="color: #6b7280; margin: 0 0 8px 0; font-size: 14px;">
-                  <strong>Request Type:</strong> <span style="color: ${isDelete ? '#dc2626' : '#f59e0b'}; font-weight: 600;">${actionType}</span>
+                  <strong>Request Type:</strong> <span style="color: ${isDelete ? "#dc2626" : "#f59e0b"}; font-weight: 600;">${actionType}</span>
                 </p>
                 <p style="color: #6b7280; margin: 0; font-size: 14px;">
                   <strong>Reason:</strong> ${reason}
@@ -585,41 +697,47 @@ export async function sendAdminDeactivationRequestEmail(
     });
 
     if (error) {
-      console.error('Failed to send admin deactivation request email:', error);
+      console.error("Failed to send admin deactivation request email:", error);
       return false;
     }
 
-    console.log('Admin deactivation request email sent successfully:', data?.id);
+    console.log(
+      "Admin deactivation request email sent successfully:",
+      data?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error('Failed to send admin deactivation request email:', error?.message || error);
+    console.error(
+      "Failed to send admin deactivation request email:",
+      error?.message || error,
+    );
     return false;
   }
 }
 
 export async function sendBookingConfirmationEmail(
-  email: string, 
-  firstName: string, 
+  email: string,
+  firstName: string,
   propertyName: string,
   checkIn: string,
   checkOut: string,
   totalPrice: string,
-  isOwner: boolean = false
+  isOwner: boolean = false,
 ): Promise<boolean> {
   try {
-    console.log('Sending booking confirmation to:', email);
+    console.log("Sending booking confirmation to:", email);
     const { client, fromEmail } = await getResendClient();
-    
-    const subject = isOwner 
-      ? `New Booking Received - ${propertyName}` 
+
+    const subject = isOwner
+      ? `New Booking Received - ${propertyName}`
       : `Booking Confirmed - ${propertyName}`;
-    const heading = isOwner ? 'New Booking!' : 'Booking Confirmed!';
+    const heading = isOwner ? "New Booking!" : "Booking Confirmed!";
     const message = isOwner
       ? `You have received a new booking for "${propertyName}". Please review the details below.`
       : `Your booking at "${propertyName}" has been confirmed. Get ready for your stay!`;
-    
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
       subject: subject,
       html: `
@@ -642,7 +760,7 @@ export async function sendBookingConfirmationEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">${heading}</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${firstName || 'there'},
+                Hi ${firstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 ${message}
@@ -657,8 +775,8 @@ export async function sendBookingConfirmationEmail(
               </div>
               
               <div style="text-align: center;">
-                <a href="${getAppBaseUrl()}/${isOwner ? 'owner/bookings' : 'my-bookings'}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
-                  ${isOwner ? 'View Booking Requests' : 'View Booking'}
+                <a href="${getAppBaseUrl()}/${isOwner ? "owner/bookings" : "my-bookings"}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                  ${isOwner ? "View Booking Requests" : "View Booking"}
                 </a>
               </div>
             </div>
@@ -676,25 +794,32 @@ export async function sendBookingConfirmationEmail(
     });
 
     if (error) {
-      console.error('Failed to send booking confirmation email:', error);
+      console.error("Failed to send booking confirmation email:", error);
       return false;
     }
 
-    console.log('Booking confirmation email sent successfully:', data?.id);
+    console.log("Booking confirmation email sent successfully:", data?.id);
     return true;
   } catch (error: any) {
-    console.error('Failed to send booking confirmation email:', error?.message || error);
+    console.error(
+      "Failed to send booking confirmation email:",
+      error?.message || error,
+    );
     return false;
   }
 }
 
-export async function sendPropertyLiveEmail(email: string, firstName: string, propertyName: string): Promise<boolean> {
+export async function sendPropertyLiveEmail(
+  email: string,
+  firstName: string,
+  propertyName: string,
+): Promise<boolean> {
   try {
-    console.log('Sending property live notification to:', email);
+    console.log("Sending property live notification to:", email);
     const { client, fromEmail } = await getResendClient();
-    
+
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [email],
       subject: `Your Property is Now Live! - ${propertyName}`,
       html: `
@@ -717,7 +842,7 @@ export async function sendPropertyLiveEmail(email: string, firstName: string, pr
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Your Property is Live!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${firstName || 'Property Owner'},
+                Hi ${firstName || "Property Owner"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 Great news! <strong>"${propertyName}"</strong> is now live on ZECOHO and visible to travelers searching for accommodations.
@@ -752,14 +877,17 @@ export async function sendPropertyLiveEmail(email: string, firstName: string, pr
     });
 
     if (error) {
-      console.error('Failed to send property live email:', error);
+      console.error("Failed to send property live email:", error);
       return false;
     }
 
-    console.log('Property live email sent successfully:', data?.id);
+    console.log("Property live email sent successfully:", data?.id);
     return true;
   } catch (error: any) {
-    console.error('Failed to send property live email:', error?.message || error);
+    console.error(
+      "Failed to send property live email:",
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -786,15 +914,15 @@ export async function sendBookingRequestToOwnerEmail(
     mealOptionName?: string;
     mealOptionPrice?: string;
     paymentType?: string;
-  }
+  },
 ): Promise<boolean> {
   try {
-    console.log('Sending booking request notification to owner:', ownerEmail);
+    console.log("Sending booking request notification to owner:", ownerEmail);
     const { client, fromEmail } = await getResendClient();
-    
+
     // Build property details section
-    let propertyDetailsHtml = '';
-    
+    let propertyDetailsHtml = "";
+
     // Room type with pricing and max occupancy
     if (data.roomTypeName) {
       let roomLine = `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Room Type:</strong> ${data.roomTypeName}`;
@@ -802,46 +930,59 @@ export async function sendBookingRequestToOwnerEmail(
         roomLine += ` (Max ${data.maxOccupancy} guests)`;
       }
       if (data.roomBasePrice) {
-        const basePrice = Number(data.roomBasePrice).toLocaleString('en-IN');
-        const hasDiscount = data.roomOriginalPrice && parseFloat(data.roomOriginalPrice) > parseFloat(data.roomBasePrice);
+        const basePrice = Number(data.roomBasePrice).toLocaleString("en-IN");
+        const hasDiscount =
+          data.roomOriginalPrice &&
+          parseFloat(data.roomOriginalPrice) > parseFloat(data.roomBasePrice);
         if (hasDiscount) {
-          const originalPrice = Number(data.roomOriginalPrice).toLocaleString('en-IN');
-          const discountPercent = Math.round((1 - parseFloat(data.roomBasePrice) / parseFloat(data.roomOriginalPrice!)) * 100);
+          const originalPrice = Number(data.roomOriginalPrice).toLocaleString(
+            "en-IN",
+          );
+          const discountPercent = Math.round(
+            (1 -
+              parseFloat(data.roomBasePrice) /
+                parseFloat(data.roomOriginalPrice!)) *
+              100,
+          );
           roomLine += ` — <span style="text-decoration: line-through; color: #9ca3af;">₹${originalPrice}</span> <strong style="color: #10b981;">₹${basePrice}/night</strong> <span style="background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 12px;">${discountPercent}% OFF</span>`;
         } else {
           roomLine += ` — ₹${basePrice}/night`;
         }
       }
-      roomLine += '</p>';
+      roomLine += "</p>";
       propertyDetailsHtml += roomLine;
     }
-    
+
     // Meal option
     if (data.mealOptionName) {
       if (data.mealOptionPrice && parseFloat(data.mealOptionPrice) > 0) {
-        const mealPrice = Number(data.mealOptionPrice).toLocaleString('en-IN');
+        const mealPrice = Number(data.mealOptionPrice).toLocaleString("en-IN");
         propertyDetailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Meal Plan:</strong> ${data.mealOptionName} — ₹${mealPrice}/person/night</p>`;
       } else {
         propertyDetailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Meal Plan:</strong> ${data.mealOptionName}</p>`;
       }
     }
-    
+
     // Rooms booked
     if (data.rooms) {
       propertyDetailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Rooms Booked:</strong> ${data.rooms}</p>`;
     }
-    
+
     // Payment type
     if (data.paymentType) {
-      const paymentLabel = data.paymentType === 'pay_at_hotel' ? 'Pay at Hotel' 
-        : data.paymentType === 'advance' ? 'Advance Payment' 
-        : data.paymentType === 'token' ? 'Token Payment' 
-        : data.paymentType;
+      const paymentLabel =
+        data.paymentType === "pay_at_hotel"
+          ? "Pay at Hotel"
+          : data.paymentType === "advance"
+            ? "Advance Payment"
+            : data.paymentType === "token"
+              ? "Token Payment"
+              : data.paymentType;
       propertyDetailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Payment Mode:</strong> ${paymentLabel}</p>`;
     }
-    
+
     const { data: responseData, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [ownerEmail],
       subject: `New Booking Request - ${data.propertyName} (${data.bookingCode})`,
       html: `
@@ -867,7 +1008,7 @@ export async function sendBookingRequestToOwnerEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">New Booking Request!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${ownerFirstName || 'Property Owner'},
+                Hi ${ownerFirstName || "Property Owner"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 You have received a new booking request for <strong>"${data.propertyName}"</strong>. Please review the details below.
@@ -889,16 +1030,20 @@ export async function sendBookingRequestToOwnerEmail(
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in:</strong> ${data.checkIn}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out:</strong> ${data.checkOut}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guests:</strong> ${data.guests}</p>
-                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ''}
+                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ""}
                 <p style="color: #1f2937; margin: 0; font-weight: 600; font-size: 18px;">Total: Rs. ${data.totalPrice}</p>
               </div>
               
-              ${propertyDetailsHtml ? `
+              ${
+                propertyDetailsHtml
+                  ? `
               <div style="background: #ecfdf5; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
                 <p style="color: #065f46; margin: 0 0 12px 0; font-weight: 600;">Room & Booking Details:</p>
                 ${propertyDetailsHtml}
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
               
               <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #f59e0b;">
                 <p style="color: #92400e; margin: 0; font-weight: 500;">Action Required</p>
@@ -927,14 +1072,20 @@ export async function sendBookingRequestToOwnerEmail(
     });
 
     if (error) {
-      console.error('Failed to send booking request email to owner:', error);
+      console.error("Failed to send booking request email to owner:", error);
       return false;
     }
 
-    console.log('Booking request email sent to owner successfully:', responseData?.id);
+    console.log(
+      "Booking request email sent to owner successfully:",
+      responseData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error('Failed to send booking request email to owner:', error?.message || error);
+    console.error(
+      "Failed to send booking request email to owner:",
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -980,96 +1131,115 @@ interface BookingEmailData {
 }
 
 // Helper function to generate property details section for emails
-function generatePropertyDetailsSection(data: BookingEmailData, options?: { showStatus?: boolean }): string {
-  let detailsHtml = '';
-  
+function generatePropertyDetailsSection(
+  data: BookingEmailData,
+  options?: { showStatus?: boolean },
+): string {
+  let detailsHtml = "";
+
   // Room type with pricing and max occupancy
   if (data.roomTypeName) {
     let roomLine = `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Room Type:</strong> ${data.roomTypeName}`;
-    
+
     // Add max occupancy if available
     if (data.maxOccupancy) {
       roomLine += ` (Max ${data.maxOccupancy} guests)`;
     }
-    
+
     // Add pricing info if available
     if (data.roomBasePrice) {
-      const basePrice = Number(data.roomBasePrice).toLocaleString('en-IN');
-      const hasDiscount = data.roomOriginalPrice && parseFloat(data.roomOriginalPrice) > parseFloat(data.roomBasePrice);
-      
+      const basePrice = Number(data.roomBasePrice).toLocaleString("en-IN");
+      const hasDiscount =
+        data.roomOriginalPrice &&
+        parseFloat(data.roomOriginalPrice) > parseFloat(data.roomBasePrice);
+
       if (hasDiscount) {
-        const originalPrice = Number(data.roomOriginalPrice).toLocaleString('en-IN');
-        const discountPercent = Math.round((1 - parseFloat(data.roomBasePrice) / parseFloat(data.roomOriginalPrice!)) * 100);
+        const originalPrice = Number(data.roomOriginalPrice).toLocaleString(
+          "en-IN",
+        );
+        const discountPercent = Math.round(
+          (1 -
+            parseFloat(data.roomBasePrice) /
+              parseFloat(data.roomOriginalPrice!)) *
+            100,
+        );
         roomLine += ` — <span style="text-decoration: line-through; color: #9ca3af;">₹${originalPrice}</span> <strong style="color: #10b981;">₹${basePrice}/night</strong> <span style="background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-size: 12px;">${discountPercent}% OFF</span>`;
       } else {
         roomLine += ` — ₹${basePrice}/night`;
       }
     }
-    roomLine += '</p>';
+    roomLine += "</p>";
     detailsHtml += roomLine;
   }
-  
+
   // Meal option with per-person pricing
   if (data.mealOptionName) {
     if (data.mealOptionPrice && parseFloat(data.mealOptionPrice) > 0) {
-      const mealPrice = Number(data.mealOptionPrice).toLocaleString('en-IN');
+      const mealPrice = Number(data.mealOptionPrice).toLocaleString("en-IN");
       detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Meal Plan:</strong> ${data.mealOptionName} — ₹${mealPrice}/person/night</p>`;
     } else {
       detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Meal Plan:</strong> ${data.mealOptionName}</p>`;
     }
   }
-  
+
   // Number of rooms
   if (data.rooms) {
     detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Rooms Booked:</strong> ${data.rooms}</p>`;
   }
-  
+
   // Full address with city, state, pincode
   const addressParts = [];
   if (data.propertyAddress) addressParts.push(data.propertyAddress);
   if (data.propertyCity) addressParts.push(data.propertyCity);
   if (data.propertyState) addressParts.push(data.propertyState);
   if (data.propertyPincode) addressParts.push(data.propertyPincode);
-  
+
   if (addressParts.length > 0) {
-    detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Address:</strong> ${addressParts.join(', ')}</p>`;
+    detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Address:</strong> ${addressParts.join(", ")}</p>`;
   }
-  
+
   // Property contact number
   if (data.propertyContactNumber) {
     detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Contact:</strong> <a href="tel:${data.propertyContactNumber}" style="color: #10b981; text-decoration: none;">${data.propertyContactNumber}</a></p>`;
   }
-  
+
   // Map link if coordinates available
   if (data.latitude && data.longitude) {
     const mapUrl = `https://www.google.com/maps?q=${data.latitude},${data.longitude}`;
     detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Directions:</strong> <a href="${mapUrl}" style="color: #10b981; text-decoration: underline;">View on Google Maps</a></p>`;
   }
-  
+
   // Payment type
   if (data.paymentType) {
-    const paymentLabel = data.paymentType === 'pay_at_hotel' ? 'Pay at Hotel' 
-      : data.paymentType === 'advance' ? 'Advance Payment' 
-      : data.paymentType === 'token' ? 'Token Payment' 
-      : data.paymentType;
+    const paymentLabel =
+      data.paymentType === "pay_at_hotel"
+        ? "Pay at Hotel"
+        : data.paymentType === "advance"
+          ? "Advance Payment"
+          : data.paymentType === "token"
+            ? "Token Payment"
+            : data.paymentType;
     detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Payment Mode:</strong> ${paymentLabel}</p>`;
   }
-  
+
   // Booking status if requested
   if (options?.showStatus && data.bookingStatus) {
     const statusLabels: Record<string, { label: string; color: string }> = {
-      'pending': { label: 'Pending', color: '#f59e0b' },
-      'owner_accepted': { label: 'Awaiting Confirmation', color: '#3b82f6' },
-      'confirmed': { label: 'Confirmed', color: '#10b981' },
-      'cancelled': { label: 'Cancelled', color: '#dc2626' },
-      'rejected': { label: 'Rejected', color: '#dc2626' },
-      'no_show': { label: 'No Show', color: '#6b7280' },
-      'completed': { label: 'Completed', color: '#10b981' }
+      pending: { label: "Pending", color: "#f59e0b" },
+      owner_accepted: { label: "Awaiting Confirmation", color: "#3b82f6" },
+      confirmed: { label: "Confirmed", color: "#10b981" },
+      cancelled: { label: "Cancelled", color: "#dc2626" },
+      rejected: { label: "Rejected", color: "#dc2626" },
+      no_show: { label: "No Show", color: "#6b7280" },
+      completed: { label: "Completed", color: "#10b981" },
     };
-    const status = statusLabels[data.bookingStatus] || { label: data.bookingStatus, color: '#6b7280' };
+    const status = statusLabels[data.bookingStatus] || {
+      label: data.bookingStatus,
+      color: "#6b7280",
+    };
     detailsHtml += `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Status:</strong> <span style="color: ${status.color}; font-weight: 600;">${status.label}</span></p>`;
   }
-  
+
   return detailsHtml;
 }
 
@@ -1077,14 +1247,17 @@ function generatePropertyDetailsSection(data: BookingEmailData, options?: { show
 export async function sendBookingCreatedGuestEmail(
   guestEmail: string,
   guestFirstName: string,
-  data: BookingEmailData
+  data: BookingEmailData,
 ): Promise<boolean> {
   try {
-    console.log('[BOOKING:CREATED] Sending reservation requested email to guest:', guestEmail);
+    console.log(
+      "[BOOKING:CREATED] Sending reservation requested email to guest:",
+      guestEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
+
     const { error, data: emailData } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [guestEmail],
       subject: `Reservation Requested - ${data.propertyName} (${data.bookingCode})`,
       html: `
@@ -1107,7 +1280,7 @@ export async function sendBookingCreatedGuestEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Reservation Requested!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${guestFirstName || 'there'},
+                Hi ${guestFirstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 Your reservation request for <strong>"${data.propertyName}"</strong> has been submitted successfully. The property owner will review your request shortly.
@@ -1124,7 +1297,7 @@ export async function sendBookingCreatedGuestEmail(
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in:</strong> ${data.checkIn}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out:</strong> ${data.checkOut}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guests:</strong> ${data.guests}</p>
-                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ''}
+                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ""}
                 ${generatePropertyDetailsSection(data, { showStatus: false })}
                 <p style="color: #1f2937; margin: 16px 0 0 0; font-weight: 600; font-size: 18px; padding-top: 12px; border-top: 1px solid #e5e7eb;">Total: Rs. ${data.totalPrice}</p>
               </div>
@@ -1159,14 +1332,20 @@ export async function sendBookingCreatedGuestEmail(
     });
 
     if (error) {
-      console.error('[BOOKING:CREATED] Failed to send guest email:', error);
+      console.error("[BOOKING:CREATED] Failed to send guest email:", error);
       return false;
     }
 
-    console.log('[BOOKING:CREATED] Guest email sent successfully:', emailData?.id);
+    console.log(
+      "[BOOKING:CREATED] Guest email sent successfully:",
+      emailData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error('[BOOKING:CREATED] Exception sending guest email:', error?.message || error);
+    console.error(
+      "[BOOKING:CREATED] Exception sending guest email:",
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -1176,21 +1355,24 @@ export async function sendBookingOwnerAcceptedEmail(
   guestEmail: string,
   guestFirstName: string,
   data: BookingEmailData,
-  ownerMessage?: string
+  ownerMessage?: string,
 ): Promise<boolean> {
   try {
-    console.log('[BOOKING:OWNER_ACCEPTED] Sending acceptance email to guest:', guestEmail);
+    console.log(
+      "[BOOKING:OWNER_ACCEPTED] Sending acceptance email to guest:",
+      guestEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
-    const messageSection = ownerMessage 
+
+    const messageSection = ownerMessage
       ? `<div style="background: #ecfdf5; border-radius: 8px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #10b981;">
            <p style="color: #065f46; margin: 0; font-weight: 500;">Message from Property:</p>
            <p style="color: #047857; margin: 8px 0 0 0; font-size: 14px; font-style: italic;">"${ownerMessage}"</p>
          </div>`
-      : '';
-    
+      : "";
+
     const { error, data: emailData } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [guestEmail],
       subject: `Action Required: ${data.propertyName} Accepted Your Request! (${data.bookingCode})`,
       html: `
@@ -1213,7 +1395,7 @@ export async function sendBookingOwnerAcceptedEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Great News! Your Request is Accepted</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${guestFirstName || 'there'},
+                Hi ${guestFirstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 The property <strong>"${data.propertyName}"</strong> has accepted your booking request! Please confirm your reservation to complete the booking.
@@ -1232,7 +1414,7 @@ export async function sendBookingOwnerAcceptedEmail(
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in:</strong> ${data.checkIn}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out:</strong> ${data.checkOut}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guests:</strong> ${data.guests}</p>
-                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ''}
+                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ""}
                 ${generatePropertyDetailsSection(data, { showStatus: false })}
                 <p style="color: #1f2937; margin: 16px 0 0 0; font-weight: 600; font-size: 18px; padding-top: 12px; border-top: 1px solid #e5e7eb;">Total: Rs. ${data.totalPrice}</p>
               </div>
@@ -1264,14 +1446,23 @@ export async function sendBookingOwnerAcceptedEmail(
     });
 
     if (error) {
-      console.error('[BOOKING:OWNER_ACCEPTED] Failed to send guest email:', error);
+      console.error(
+        "[BOOKING:OWNER_ACCEPTED] Failed to send guest email:",
+        error,
+      );
       return false;
     }
 
-    console.log('[BOOKING:OWNER_ACCEPTED] Guest email sent successfully:', emailData?.id);
+    console.log(
+      "[BOOKING:OWNER_ACCEPTED] Guest email sent successfully:",
+      emailData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error('[BOOKING:OWNER_ACCEPTED] Exception sending guest email:', error?.message || error);
+    console.error(
+      "[BOOKING:OWNER_ACCEPTED] Exception sending guest email:",
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -1280,14 +1471,17 @@ export async function sendBookingOwnerAcceptedEmail(
 export async function sendBookingConfirmedGuestEmail(
   guestEmail: string,
   guestFirstName: string,
-  data: BookingEmailData
+  data: BookingEmailData,
 ): Promise<boolean> {
   try {
-    console.log('[BOOKING:CUSTOMER_CONFIRMED] Sending confirmation email to guest:', guestEmail);
+    console.log(
+      "[BOOKING:CUSTOMER_CONFIRMED] Sending confirmation email to guest:",
+      guestEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
+
     const { error, data: emailData } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [guestEmail],
       subject: `Booking Confirmed! - ${data.propertyName} (${data.bookingCode})`,
       html: `
@@ -1310,7 +1504,7 @@ export async function sendBookingConfirmedGuestEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Booking Confirmed!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${guestFirstName || 'there'},
+                Hi ${guestFirstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 Your booking at <strong>"${data.propertyName}"</strong> is now confirmed. We're excited for your upcoming stay!
@@ -1327,7 +1521,7 @@ export async function sendBookingConfirmedGuestEmail(
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in:</strong> ${data.checkIn}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out:</strong> ${data.checkOut}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guests:</strong> ${data.guests}</p>
-                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ''}
+                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ""}
                 ${generatePropertyDetailsSection(data, { showStatus: false })}
                 <p style="color: #1f2937; margin: 16px 0 0 0; font-weight: 600; font-size: 18px; padding-top: 12px; border-top: 1px solid #e5e7eb;">Total: Rs. ${data.totalPrice}</p>
               </div>
@@ -1361,14 +1555,23 @@ export async function sendBookingConfirmedGuestEmail(
     });
 
     if (error) {
-      console.error('[BOOKING:CUSTOMER_CONFIRMED] Failed to send guest email:', error);
+      console.error(
+        "[BOOKING:CUSTOMER_CONFIRMED] Failed to send guest email:",
+        error,
+      );
       return false;
     }
 
-    console.log('[BOOKING:CUSTOMER_CONFIRMED] Guest email sent successfully:', emailData?.id);
+    console.log(
+      "[BOOKING:CUSTOMER_CONFIRMED] Guest email sent successfully:",
+      emailData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error('[BOOKING:CUSTOMER_CONFIRMED] Exception sending guest email:', error?.message || error);
+    console.error(
+      "[BOOKING:CUSTOMER_CONFIRMED] Exception sending guest email:",
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -1377,14 +1580,17 @@ export async function sendBookingConfirmedGuestEmail(
 export async function sendBookingConfirmedOwnerEmail(
   ownerEmail: string,
   ownerFirstName: string,
-  data: BookingEmailData
+  data: BookingEmailData,
 ): Promise<boolean> {
   try {
-    console.log('[BOOKING:CUSTOMER_CONFIRMED] Sending confirmation email to owner:', ownerEmail);
+    console.log(
+      "[BOOKING:CUSTOMER_CONFIRMED] Sending confirmation email to owner:",
+      ownerEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
+
     const { error, data: emailData } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [ownerEmail],
       subject: `Guest Confirmed! - ${data.propertyName} (${data.bookingCode})`,
       html: `
@@ -1407,7 +1613,7 @@ export async function sendBookingConfirmedOwnerEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Booking Confirmed by Guest!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${ownerFirstName || 'Property Owner'},
+                Hi ${ownerFirstName || "Property Owner"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 Great news! The guest has confirmed their booking at <strong>"${data.propertyName}"</strong>. The reservation is now complete.
@@ -1420,8 +1626,8 @@ export async function sendBookingConfirmedOwnerEmail(
               
               <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
                 <p style="color: #1f2937; margin: 0 0 12px 0; font-weight: 600;">Guest Information:</p>
-                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Name:</strong> ${data.guestName || 'Guest'}</p>
-                <p style="color: #6b7280; margin: 0;"><strong>Email:</strong> ${data.guestEmail || 'N/A'}</p>
+                <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Name:</strong> ${data.guestName || "Guest"}</p>
+                <p style="color: #6b7280; margin: 0;"><strong>Email:</strong> ${data.guestEmail || "N/A"}</p>
               </div>
               
               <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
@@ -1429,7 +1635,7 @@ export async function sendBookingConfirmedOwnerEmail(
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in:</strong> ${data.checkIn}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out:</strong> ${data.checkOut}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guests:</strong> ${data.guests}</p>
-                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ''}
+                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ""}
                 <p style="color: #1f2937; margin: 0; font-weight: 600; font-size: 18px;">Total: Rs. ${data.totalPrice}</p>
               </div>
               
@@ -1458,14 +1664,23 @@ export async function sendBookingConfirmedOwnerEmail(
     });
 
     if (error) {
-      console.error('[BOOKING:CUSTOMER_CONFIRMED] Failed to send owner email:', error);
+      console.error(
+        "[BOOKING:CUSTOMER_CONFIRMED] Failed to send owner email:",
+        error,
+      );
       return false;
     }
 
-    console.log('[BOOKING:CUSTOMER_CONFIRMED] Owner email sent successfully:', emailData?.id);
+    console.log(
+      "[BOOKING:CUSTOMER_CONFIRMED] Owner email sent successfully:",
+      emailData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error('[BOOKING:CUSTOMER_CONFIRMED] Exception sending owner email:', error?.message || error);
+    console.error(
+      "[BOOKING:CUSTOMER_CONFIRMED] Exception sending owner email:",
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -1475,51 +1690,56 @@ export async function sendBookingDeclinedEmail(
   guestEmail: string,
   guestFirstName: string,
   data: BookingEmailData,
-  reason: 'rejected' | 'expired' | 'cancelled',
-  ownerMessage?: string
+  reason: "rejected" | "expired" | "cancelled",
+  ownerMessage?: string,
 ): Promise<boolean> {
   try {
-    console.log(`[BOOKING:${reason.toUpperCase()}] Sending declined email to guest:`, guestEmail);
+    console.log(
+      `[BOOKING:${reason.toUpperCase()}] Sending declined email to guest:`,
+      guestEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
+
     const reasonConfig = {
       rejected: {
         subject: `Booking Request Declined - ${data.propertyName}`,
-        heading: 'Booking Request Declined',
-        message: 'Unfortunately, the property owner was unable to accept your booking request.',
-        icon: '&#10060;',
-        bgColor: '#fef2f2',
-        iconColor: '#dc2626'
+        heading: "Booking Request Declined",
+        message:
+          "Unfortunately, the property owner was unable to accept your booking request.",
+        icon: "&#10060;",
+        bgColor: "#fef2f2",
+        iconColor: "#dc2626",
       },
       expired: {
         subject: `Booking Request Expired - ${data.propertyName}`,
-        heading: 'Booking Request Expired',
-        message: 'Your booking request expired because the property did not respond in time.',
-        icon: '&#9203;',
-        bgColor: '#fef3c7',
-        iconColor: '#f59e0b'
+        heading: "Booking Request Expired",
+        message:
+          "Your booking request expired because the property did not respond in time.",
+        icon: "&#9203;",
+        bgColor: "#fef3c7",
+        iconColor: "#f59e0b",
       },
       cancelled: {
         subject: `Booking Cancelled - ${data.propertyName}`,
-        heading: 'Booking Cancelled',
-        message: 'Your booking has been cancelled as requested.',
-        icon: '&#10060;',
-        bgColor: '#f3f4f6',
-        iconColor: '#6b7280'
-      }
+        heading: "Booking Cancelled",
+        message: "Your booking has been cancelled as requested.",
+        icon: "&#10060;",
+        bgColor: "#f3f4f6",
+        iconColor: "#6b7280",
+      },
     };
-    
+
     const config = reasonConfig[reason];
-    
-    const messageSection = ownerMessage 
+
+    const messageSection = ownerMessage
       ? `<div style="background: #fef2f2; border-radius: 8px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #dc2626;">
            <p style="color: #991b1b; margin: 0; font-weight: 500;">Message from Property:</p>
            <p style="color: #dc2626; margin: 8px 0 0 0; font-size: 14px; font-style: italic;">"${ownerMessage}"</p>
          </div>`
-      : '';
-    
+      : "";
+
     const { error, data: emailData } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [guestEmail],
       subject: config.subject,
       html: `
@@ -1542,7 +1762,7 @@ export async function sendBookingDeclinedEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">${config.heading}</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${guestFirstName || 'there'},
+                Hi ${guestFirstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 ${config.message}
@@ -1591,14 +1811,23 @@ export async function sendBookingDeclinedEmail(
     });
 
     if (error) {
-      console.error(`[BOOKING:${reason.toUpperCase()}] Failed to send guest email:`, error);
+      console.error(
+        `[BOOKING:${reason.toUpperCase()}] Failed to send guest email:`,
+        error,
+      );
       return false;
     }
 
-    console.log(`[BOOKING:${reason.toUpperCase()}] Guest email sent successfully:`, emailData?.id);
+    console.log(
+      `[BOOKING:${reason.toUpperCase()}] Guest email sent successfully:`,
+      emailData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error(`[BOOKING:${reason.toUpperCase()}] Exception sending guest email:`, error?.message || error);
+    console.error(
+      `[BOOKING:${reason.toUpperCase()}] Exception sending guest email:`,
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -1608,27 +1837,32 @@ export async function sendBookingNoShowEmail(
   recipientEmail: string,
   recipientFirstName: string,
   data: BookingEmailData & { guestName?: string },
-  recipientType: 'guest' | 'owner'
+  recipientType: "guest" | "owner",
 ): Promise<boolean> {
   try {
-    console.log(`[BOOKING:NO_SHOW] Sending no-show email to ${recipientType}:`, recipientEmail);
+    console.log(
+      `[BOOKING:NO_SHOW] Sending no-show email to ${recipientType}:`,
+      recipientEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
-    const isGuest = recipientType === 'guest';
-    const subject = isGuest 
+
+    const isGuest = recipientType === "guest";
+    const subject = isGuest
       ? `Booking Marked as No-Show - ${data.propertyName}`
       : `Guest No-Show Recorded - ${data.propertyName}`;
-    
-    const heading = isGuest ? 'Booking Closed - No Show' : 'Guest No-Show Recorded';
+
+    const heading = isGuest
+      ? "Booking Closed - No Show"
+      : "Guest No-Show Recorded";
     const mainMessage = isGuest
-      ? 'Your booking has been marked as a no-show because you did not check in on the scheduled date.'
-      : `The guest (${data.guestName || 'Guest'}) did not check in for their booking. The booking has been marked as a no-show.`;
-    
+      ? "Your booking has been marked as a no-show because you did not check in on the scheduled date."
+      : `The guest (${data.guestName || "Guest"}) did not check in for their booking. The booking has been marked as a no-show.`;
+
     // Set booking status for the helper function
-    const emailData = { ...data, bookingStatus: 'no_show' };
-    
+    const emailData = { ...data, bookingStatus: "no_show" };
+
     const { error, data: responseData } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [recipientEmail],
       subject: subject,
       html: `
@@ -1651,7 +1885,7 @@ export async function sendBookingNoShowEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">${heading}</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${recipientFirstName || 'there'},
+                Hi ${recipientFirstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 ${mainMessage}
@@ -1669,10 +1903,10 @@ export async function sendBookingNoShowEmail(
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Reference:</strong> ${data.bookingCode}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Property:</strong> ${data.propertyName}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-in Date:</strong> ${data.checkIn}</p>
-                ${data.checkOut ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out Date:</strong> ${data.checkOut}</p>` : ''}
+                ${data.checkOut ? `<p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Check-out Date:</strong> ${data.checkOut}</p>` : ""}
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guests:</strong> ${data.guests}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Total Amount:</strong> Rs. ${data.totalPrice}</p>
-                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ''}
+                ${data.bookingCreatedAt ? `<p style="color: #6b7280; margin: 0;"><strong>Booked On:</strong> ${data.bookingCreatedAt}</p>` : ""}
               </div>
               
               <div style="background: #ecfdf5; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
@@ -1680,24 +1914,28 @@ export async function sendBookingNoShowEmail(
                 ${generatePropertyDetailsSection(emailData, { showStatus: true })}
               </div>
               
-              ${isGuest ? `
+              ${
+                isGuest
+                  ? `
               <div style="background: #fffbeb; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #f59e0b;">
                 <p style="color: #92400e; margin: 0; font-weight: 500;">About Refunds</p>
                 <p style="color: #b45309; margin: 8px 0 0 0; font-size: 14px;">
                   Refund policies vary by property. Please contact the property directly to discuss any refund options.
                 </p>
               </div>
-              ` : `
+              `
+                  : `
               <div style="background: #f0fdf4; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #10b981;">
                 <p style="color: #166534; margin: 0; font-weight: 500;">Next Steps</p>
                 <p style="color: #15803d; margin: 8px 0 0 0; font-size: 14px;">
                   The room inventory remains as consumed. If the guest contacts you regarding refunds, please handle according to your cancellation policy.
                 </p>
               </div>
-              `}
+              `
+              }
               
               <div style="text-align: center;">
-                <a href="${getAppBaseUrl()}/${isGuest ? 'my-bookings' : 'owner/bookings'}?bookingRef=${data.bookingCode}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
+                <a href="${getAppBaseUrl()}/${isGuest ? "my-bookings" : "owner/bookings"}?bookingRef=${data.bookingCode}" style="display: inline-block; background: #10b981; color: white; text-decoration: none; padding: 12px 32px; border-radius: 8px; font-weight: 600;">
                   View Booking Details
                 </a>
               </div>
@@ -1716,14 +1954,23 @@ export async function sendBookingNoShowEmail(
     });
 
     if (error) {
-      console.error(`[BOOKING:NO_SHOW] Failed to send ${recipientType} email:`, error);
+      console.error(
+        `[BOOKING:NO_SHOW] Failed to send ${recipientType} email:`,
+        error,
+      );
       return false;
     }
 
-    console.log(`[BOOKING:NO_SHOW] ${recipientType} email sent successfully:`, responseData?.id);
+    console.log(
+      `[BOOKING:NO_SHOW] ${recipientType} email sent successfully:`,
+      responseData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error(`[BOOKING:NO_SHOW] Exception sending ${recipientType} email:`, error?.message || error);
+    console.error(
+      `[BOOKING:NO_SHOW] Exception sending ${recipientType} email:`,
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -1732,17 +1979,20 @@ export async function sendBookingNoShowEmail(
 export async function sendBookingCancelledOwnerEmail(
   ownerEmail: string,
   ownerFirstName: string,
-  data: BookingEmailData & { guestName: string; cancellationReason: string }
+  data: BookingEmailData & { guestName: string; cancellationReason: string },
 ): Promise<boolean> {
   try {
-    console.log('[BOOKING:CANCELLED] Sending cancellation email to owner:', ownerEmail);
+    console.log(
+      "[BOOKING:CANCELLED] Sending cancellation email to owner:",
+      ownerEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
+
     // Set booking status for the helper function
-    const emailData = { ...data, bookingStatus: 'cancelled' };
-    
+    const emailData = { ...data, bookingStatus: "cancelled" };
+
     const { error, data: responseData } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [ownerEmail],
       subject: `Booking Cancelled by Guest - ${data.propertyName}`,
       html: `
@@ -1768,7 +2018,7 @@ export async function sendBookingCancelledOwnerEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Booking Cancelled</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${ownerFirstName || 'there'},
+                Hi ${ownerFirstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 A guest has cancelled their booking at your property. The room inventory has been automatically released.
@@ -1781,7 +2031,7 @@ export async function sendBookingCancelledOwnerEmail(
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guest:</strong> ${data.guestName}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Dates:</strong> ${data.checkIn} - ${data.checkOut}</p>
                 <p style="color: #6b7280; margin: 0 0 8px 0;"><strong>Guests:</strong> ${data.guests}</p>
-                <p style="color: #6b7280; margin: 0;"><strong>Amount:</strong> ₹${Number(data.totalPrice).toLocaleString('en-IN')}</p>
+                <p style="color: #6b7280; margin: 0;"><strong>Amount:</strong> ₹${Number(data.totalPrice).toLocaleString("en-IN")}</p>
               </div>
               
               <div style="background: #ecfdf5; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
@@ -1821,14 +2071,20 @@ export async function sendBookingCancelledOwnerEmail(
     });
 
     if (error) {
-      console.error('[BOOKING:CANCELLED] Failed to send owner email:', error);
+      console.error("[BOOKING:CANCELLED] Failed to send owner email:", error);
       return false;
     }
 
-    console.log('[BOOKING:CANCELLED] Owner email sent successfully:', responseData?.id);
+    console.log(
+      "[BOOKING:CANCELLED] Owner email sent successfully:",
+      responseData?.id,
+    );
     return true;
   } catch (error: any) {
-    console.error('[BOOKING:CANCELLED] Exception sending owner email:', error?.message || error);
+    console.error(
+      "[BOOKING:CANCELLED] Exception sending owner email:",
+      error?.message || error,
+    );
     return false;
   }
 }
@@ -1843,16 +2099,19 @@ export async function sendReviewRequestEmail(
     bookingCode: string;
     checkIn: string;
     checkOut: string;
-  }
+  },
 ): Promise<boolean> {
   try {
-    console.log('[REVIEW:REQUEST] Sending review request email to:', guestEmail);
+    console.log(
+      "[REVIEW:REQUEST] Sending review request email to:",
+      guestEmail,
+    );
     const { client, fromEmail } = await getResendClient();
-    
+
     const reviewUrl = `${getAppBaseUrl()}/property/${data.propertyId}/review?bookingId=${data.bookingId}`;
-    
+
     const { data: emailData, error } = await client.emails.send({
-      from: fromEmail || 'ZECOHO <noreply@zecoho.com>',
+      from: fromEmail || "ZECOHO <noreply@zecoho.com>",
       to: [guestEmail],
       subject: `How was your stay at ${data.propertyName}? Leave a review`,
       html: `
@@ -1875,7 +2134,7 @@ export async function sendReviewRequestEmail(
               
               <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 20px; text-align: center;">Thank You for Staying!</h2>
               <p style="color: #6b7280; margin: 0 0 16px 0; line-height: 1.5;">
-                Hi ${guestFirstName || 'there'},
+                Hi ${guestFirstName || "there"},
               </p>
               <p style="color: #6b7280; margin: 0 0 24px 0; line-height: 1.5;">
                 We hope you had a wonderful stay at <strong>"${data.propertyName}"</strong>. Your feedback helps other travelers and supports our property partners.
@@ -1920,14 +2179,17 @@ export async function sendReviewRequestEmail(
     });
 
     if (error) {
-      console.error('[REVIEW:REQUEST] Failed to send email:', error);
+      console.error("[REVIEW:REQUEST] Failed to send email:", error);
       return false;
     }
 
-    console.log('[REVIEW:REQUEST] Email sent successfully:', emailData?.id);
+    console.log("[REVIEW:REQUEST] Email sent successfully:", emailData?.id);
     return true;
   } catch (error: any) {
-    console.error('[REVIEW:REQUEST] Exception sending email:', error?.message || error);
+    console.error(
+      "[REVIEW:REQUEST] Exception sending email:",
+      error?.message || error,
+    );
     return false;
   }
 }
