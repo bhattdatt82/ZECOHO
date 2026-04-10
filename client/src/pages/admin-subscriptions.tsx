@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   CheckCircle2,
+  CalendarPlus,
   XCircle,
   FileText,
   Download,
@@ -467,6 +468,9 @@ export default function AdminSubscriptions() {
   const [note, setNote] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [extendDays, setExtendDays] = useState("30");
+  const [selectedSubForExtend, setSelectedSubForExtend] = useState<any>(null);
 
   // ── Queries ──
   const {
@@ -571,7 +575,31 @@ export default function AdminSubscriptions() {
         variant: "destructive",
       }),
   });
-
+  const extendMutation = useMutation({
+    mutationFn: async ({ subId, days }: { subId: string; days: number }) =>
+      apiRequest("POST", `/api/admin/owner-subscriptions/${subId}/extend`, {
+        days,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/owner-subscriptions"],
+      });
+      toast({
+        title: "Extended",
+        description: `Subscription extended by ${extendDays} days.`,
+      });
+      setExtendDialogOpen(false);
+      setExtendDays("30");
+      setSelectedSubForExtend(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   // ── Helpers ──
   const closeDialog = () => {
     setSelectedSub(null);
@@ -882,7 +910,7 @@ export default function AdminSubscriptions() {
             New Plan
           </Button>
         )}
-        {mainTab === "payment_accounts" && (
+        {mainTab === "payment-accounts" && (
           <Button size="sm" onClick={openNewPaymentAccount}>
             <Plus className="h-4 w-4 mr-1" />
             Add Account
@@ -894,7 +922,7 @@ export default function AdminSubscriptions() {
           onClick={() =>
             mainTab === "plans"
               ? refetchPlans()
-              : mainTab === "payment_accounts"
+              : mainTab === "payment-accounts"
                 ? refetchPaymentAccounts()
                 : refetch()
           }
@@ -912,7 +940,7 @@ export default function AdminSubscriptions() {
           <TabsTrigger value="subscriptions">Owner Subscriptions</TabsTrigger>
         </TabsList>
         {/* PAYMENT ACCOUNTS TAB */}
-        <TabsContent value="payment_accounts" className="space-y-4">
+        <TabsContent value="payment-accounts" className="space-y-4">
           {paymentAccountsList.length === 0 && (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
@@ -1289,6 +1317,23 @@ export default function AdminSubscriptions() {
                                           <Button
                                             size="sm"
                                             variant="outline"
+                                            className="h-7 px-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                            onClick={() => {
+                                              setSelectedSubForExtend(sub);
+                                              setExtendDays("30");
+                                              setExtendDialogOpen(true);
+                                            }}
+                                          >
+                                            <CalendarPlus className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Extend</TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
                                             className="h-7 px-2 text-purple-600 border-purple-200 hover:bg-purple-50"
                                             onClick={() =>
                                               openAction(sub, "waive")
@@ -1319,23 +1364,42 @@ export default function AdminSubscriptions() {
                                     </>
                                   )}
                                   {sub.status === "active" && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
-                                          onClick={() =>
-                                            openAction(sub, "cancel")
-                                          }
-                                        >
-                                          <Ban className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        Cancel Subscription
-                                      </TooltipContent>
-                                    </Tooltip>
+                                    <>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 px-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                            onClick={() => {
+                                              setSelectedSubForExtend(sub);
+                                              setExtendDays("30");
+                                              setExtendDialogOpen(true);
+                                            }}
+                                          >
+                                            <CalendarPlus className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Extend</TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                            onClick={() =>
+                                              openAction(sub, "cancel")
+                                            }
+                                          >
+                                            <Ban className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          Cancel Subscription
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </>
                                   )}
                                   {(sub.status === "expired" ||
                                     sub.status === "cancelled") && (
@@ -1991,6 +2055,85 @@ export default function AdminSubscriptions() {
               {savePaymentAccountMutation.isPending
                 ? "Saving..."
                 : "Save Account"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={extendDialogOpen} onOpenChange={setExtendDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Extend Subscription</DialogTitle>
+            <DialogDescription>
+              Extend validity for{" "}
+              <strong>{selectedSubForExtend?.ownerName}</strong>. Current
+              expiry:{" "}
+              <strong>
+                {selectedSubForExtend?.endDate
+                  ? new Date(selectedSubForExtend.endDate).toLocaleDateString(
+                      "en-IN",
+                    )
+                  : "—"}
+              </strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Number of days to extend</Label>
+              <Input
+                type="number"
+                min="1"
+                max="365"
+                value={extendDays}
+                onChange={(e) => setExtendDays(e.target.value)}
+                placeholder="e.g. 30"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {[7, 15, 30, 60, 90].map((d) => (
+                <Button
+                  key={d}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setExtendDays(String(d))}
+                  className={
+                    extendDays === String(d)
+                      ? "border-primary text-primary"
+                      : ""
+                  }
+                >
+                  +{d}d
+                </Button>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setExtendDialogOpen(false);
+                setSelectedSubForExtend(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                selectedSubForExtend &&
+                extendMutation.mutate({
+                  subId: selectedSubForExtend.id,
+                  days: Number(extendDays),
+                })
+              }
+              disabled={
+                extendMutation.isPending ||
+                !extendDays ||
+                Number(extendDays) < 1
+              }
+            >
+              {extendMutation.isPending
+                ? "Extending..."
+                : `Extend by ${extendDays} days`}
             </Button>
           </DialogFooter>
         </DialogContent>

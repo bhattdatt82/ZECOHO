@@ -302,7 +302,7 @@ export default function ListPropertyWizard() {
 
   const { data: ownerAgreement } = useQuery<any>({
     queryKey: ["/api/owner-agreement"],
-    enabled: showAgreementDialog,
+    enabled: !!user, // Always fetch when user is logged in
   });
 
   const acceptAgreementMutation = useMutation({

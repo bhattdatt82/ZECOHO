@@ -222,6 +222,7 @@ function buildPDF(inv: any): Promise<Buffer> {
       size: "A4",
       autoFirstPage: true,
       bufferPages: false,
+      layout: "portrait",
     });
     const buffers: Buffer[] = [];
     doc.on("data", (c: Buffer) => buffers.push(c));
@@ -237,6 +238,7 @@ function buildPDF(inv: any): Promise<Buffer> {
     const gray = "#555555";
     const lightGray = "#888888";
     const tableBg = "#f7f7f7";
+    const Rs = "Rs.";
 
     // ── HEADER ────────────────────────────────────────────
     doc.rect(L, 45, W, 80).fillColor(orange).fill();
@@ -325,12 +327,12 @@ function buildPDF(inv: any): Promise<Buffer> {
       .font("Helvetica-Bold")
       .fontSize(10)
       .text(inv.ownerName, L + 8, btRow);
-    btRow += 14;
-    btLine("Email", inv.ownerEmail || "");
-    btLine("Phone", inv.ownerPhone || "");
-    btLine("Address", inv.ownerAddress || "");
-    btLine("GSTIN", inv.ownerGstin || "");
-    btLine("State", inv.ownerState || "");
+    btRow += 12;
+    if (inv.ownerEmail) btLine("Email", inv.ownerEmail);
+    if (inv.ownerPhone) btLine("Phone", inv.ownerPhone);
+    if (inv.ownerAddress) btLine("Address", inv.ownerAddress);
+    if (inv.ownerGstin) btLine("GSTIN", inv.ownerGstin);
+    if (inv.ownerState) btLine("State", inv.ownerState);
 
     // ── ITEMS TABLE ───────────────────────────────────────
     const tY = Math.max(btRow + 16, 315);
@@ -341,7 +343,7 @@ function buildPDF(inv: any): Promise<Buffer> {
     doc.text("Description of Service", cols.desc, tY + 6);
     doc.text("SAC", cols.sac, tY + 6);
     doc.text("Period", cols.period, tY + 6);
-    doc.text("Amount (₹)", cols.amt, tY + 6, { width: 105, align: "right" });
+    doc.text("Amount (Rs.)", cols.amt, tY + 6, { width: 105, align: "right" });
 
     // Item row
     const rY = tY + 20;
@@ -368,7 +370,7 @@ function buildPDF(inv: any): Promise<Buffer> {
     doc
       .font("Helvetica-Bold")
       .text(
-        `₹ ${Number(inv.baseAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `Rs. ${Number(inv.baseAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         cols.amt,
         rY + 15,
         { width: 105, align: "right" },
@@ -406,21 +408,21 @@ function buildPDF(inv: any): Promise<Buffer> {
     sumY += 6;
     sumRow(
       "Taxable Amount:",
-      `₹ ${Number(inv.baseAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      `Rs. ${Number(inv.baseAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
     );
     if (Number(inv.cgstAmount) > 0) {
       sumRow(
         `CGST @ ${inv.cgstRate}%:`,
-        `₹ ${Number(inv.cgstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+        `Rs. ${Number(inv.cgstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
       );
       sumRow(
         `SGST @ ${inv.sgstRate}%:`,
-        `₹ ${Number(inv.sgstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+        `Rs. ${Number(inv.sgstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
       );
     } else {
       sumRow(
         `IGST @ ${inv.igstRate}%:`,
-        `₹ ${Number(inv.igstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+        `Rs. ${Number(inv.igstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
       );
     }
     doc
@@ -430,7 +432,7 @@ function buildPDF(inv: any): Promise<Buffer> {
     sumY += 4;
     sumRow(
       "TOTAL AMOUNT:",
-      `₹ ${Number(inv.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+      `Rs. ${Number(inv.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
       true,
       true,
     );
@@ -453,7 +455,7 @@ function buildPDF(inv: any): Promise<Buffer> {
       });
 
     // ── BANK + UPI + SIGNATURE ────────────────────────────
-    const bankY = wY + 44;
+    const bankY = wY + 36;
     const halfW = W / 2 - 8;
 
     // Bank details (left)
@@ -520,7 +522,7 @@ function buildPDF(inv: any): Promise<Buffer> {
 
     // Signature (far right)
     const sigX = L + W - 160;
-    const sigY = bankY + 90;
+    const sigY = bankY + 85;
     doc
       .rect(sigX, sigY, 160, 55)
       .strokeColor("#dddddd")
@@ -547,7 +549,14 @@ function buildPDF(inv: any): Promise<Buffer> {
       });
 
     // ── FOOTER ────────────────────────────────────────────
-    const fY = doc.page.height - 50;
+    // Fixed footer position — keeps invoice on single page
+    const contentBottom = sigY + 60;
+    const fY = Math.max(contentBottom + 10, doc.page.height - 50);
+
+    // Safety check — if content would overflow, compress spacing
+    if (fY > doc.page.height - 20) {
+      console.warn("[INVOICE] Content may overflow single page");
+    }
     doc
       .rect(L, fY - 6, W, 0.5)
       .fillColor("#cccccc")
