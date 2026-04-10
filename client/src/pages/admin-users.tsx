@@ -30,7 +30,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Ban, RefreshCw, Users, UserCheck, UserX, Search, User, Home } from "lucide-react";
+import {
+  Ban,
+  RefreshCw,
+  Users,
+  UserCheck,
+  UserX,
+  Search,
+  User,
+  Home,
+} from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -54,9 +63,13 @@ export default function AdminUsers() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "deactivated">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "deactivated"
+  >("all");
   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [newRole, setNewRole] = useState<"guest" | "owner">("guest");
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [deactivationReason, setDeactivationReason] = useState("");
   const [reasonCategory, setReasonCategory] = useState("");
@@ -91,30 +104,43 @@ export default function AdminUsers() {
     enabled: !!user,
   });
 
-  const { data: auditLogs, isLoading: logsLoading } = useQuery<Array<{
-    id: string;
-    adminId: string;
-    action: string;
-    ownerId?: string;
-    bookingId?: string;
-    propertyId?: string;
-    reason?: string;
-    metadata?: Record<string, any>;
-    createdAt: string;
-  }>>({
+  const { data: auditLogs, isLoading: logsLoading } = useQuery<
+    Array<{
+      id: string;
+      adminId: string;
+      action: string;
+      ownerId?: string;
+      bookingId?: string;
+      propertyId?: string;
+      reason?: string;
+      metadata?: Record<string, any>;
+      createdAt: string;
+    }>
+  >({
     queryKey: ["/api/admin/audit-logs"],
     enabled: !!user,
   });
 
   const deactivateUserMutation = useMutation({
-    mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
-      return apiRequest("POST", `/api/admin/users/${userId}/deactivate`, { reason });
+    mutationFn: async ({
+      userId,
+      reason,
+    }: {
+      userId: string;
+      reason: string;
+    }) => {
+      return apiRequest("POST", `/api/admin/users/${userId}/deactivate`, {
+        reason,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/audit-logs"] });
-      toast({ title: "User deactivated", description: "The user account has been deactivated." });
+      toast({
+        title: "User deactivated",
+        description: "The user account has been deactivated.",
+      });
       setDeactivateDialogOpen(false);
       setSelectedUser(null);
       setDeactivationReason("");
@@ -122,7 +148,11 @@ export default function AdminUsers() {
       setAdditionalNotes("");
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -134,15 +164,42 @@ export default function AdminUsers() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/audit-logs"] });
-      toast({ title: "User restored", description: "The user account has been reactivated." });
+      toast({
+        title: "User restored",
+        description: "The user account has been reactivated.",
+      });
       setRestoreDialogOpen(false);
       setSelectedUser(null);
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
-
+  const changeRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) =>
+      apiRequest("PATCH", `/api/admin/users/${userId}/role`, { role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/users"] });
+      toast({
+        title: "Role updated",
+        description: `User role changed to ${newRole}.`,
+      });
+      setRoleDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   const formatDate = (date: Date | string | null) => {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString("en-IN", {
@@ -170,11 +227,16 @@ export default function AdminUsers() {
   };
 
   const getActionBadgeColor = (action: string) => {
-    if (action.includes("deactivate")) return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-    if (action.includes("restore")) return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-    if (action.includes("suspend")) return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-    if (action.includes("reinstate")) return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-    if (action.includes("cancel")) return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
+    if (action.includes("deactivate"))
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    if (action.includes("restore"))
+      return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    if (action.includes("suspend"))
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    if (action.includes("reinstate"))
+      return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    if (action.includes("cancel"))
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
     return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
   };
 
@@ -191,28 +253,41 @@ export default function AdminUsers() {
 
   const handleDeactivate = () => {
     if (!selectedUser) return;
-    
-    const selectedReason = DEACTIVATION_REASONS.find(r => r.value === reasonCategory);
+
+    const selectedReason = DEACTIVATION_REASONS.find(
+      (r) => r.value === reasonCategory,
+    );
     const fullReason = additionalNotes
       ? `${selectedReason?.label || reasonCategory}: ${additionalNotes}`
       : selectedReason?.label || reasonCategory;
-    
+
     if (fullReason.length < 10) {
-      toast({ title: "Error", description: "Please provide a complete reason (at least 10 characters)", variant: "destructive" });
+      toast({
+        title: "Error",
+        description:
+          "Please provide a complete reason (at least 10 characters)",
+        variant: "destructive",
+      });
       return;
     }
-    
-    deactivateUserMutation.mutate({ userId: selectedUser.id, reason: fullReason });
+
+    deactivateUserMutation.mutate({
+      userId: selectedUser.id,
+      reason: fullReason,
+    });
   };
 
   const filteredUsers = allUsers?.filter((u) => {
     if (searchQuery === "") return true;
     const fullName = `${u.firstName} ${u.lastName}`.toLowerCase();
-    return fullName.includes(searchQuery.toLowerCase()) || u.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    return (
+      fullName.includes(searchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
 
-  const userLogs = auditLogs?.filter(log => 
-    log.action === "deactivate_user" || log.action === "restore_user"
+  const userLogs = auditLogs?.filter(
+    (log) => log.action === "deactivate_user" || log.action === "restore_user",
   );
 
   return (
@@ -225,7 +300,7 @@ export default function AdminUsers() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-5 mb-8">
-        <Card 
+        <Card
           className="cursor-pointer hover-elevate transition-all"
           onClick={() => setStatusFilter("all")}
           data-testid="card-total-users"
@@ -243,7 +318,7 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className={`cursor-pointer hover-elevate transition-all ${statusFilter === "active" ? "ring-2 ring-green-500" : ""}`}
           onClick={() => setStatusFilter("active")}
           data-testid="card-active-users"
@@ -256,12 +331,14 @@ export default function AdminUsers() {
             {statsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-green-600">{stats?.activeUsers || 0}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {stats?.activeUsers || 0}
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className={`cursor-pointer hover-elevate transition-all ${statusFilter === "deactivated" ? "ring-2 ring-red-500" : ""}`}
           onClick={() => setStatusFilter("deactivated")}
           data-testid="card-deactivated-users"
@@ -274,7 +351,9 @@ export default function AdminUsers() {
             {statsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-red-600">{stats?.deactivatedUsers || 0}</div>
+              <div className="text-2xl font-bold text-red-600">
+                {stats?.deactivatedUsers || 0}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -288,7 +367,9 @@ export default function AdminUsers() {
             {statsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-blue-600">{stats?.guests || 0}</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {stats?.guests || 0}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -302,16 +383,26 @@ export default function AdminUsers() {
             {statsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-purple-600">{stats?.owners || 0}</div>
+              <div className="text-2xl font-bold text-purple-600">
+                {stats?.owners || 0}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList>
-          <TabsTrigger value="users" data-testid="tab-users">All Users</TabsTrigger>
-          <TabsTrigger value="logs" data-testid="tab-logs">Activity Logs</TabsTrigger>
+          <TabsTrigger value="users" data-testid="tab-users">
+            All Users
+          </TabsTrigger>
+          <TabsTrigger value="logs" data-testid="tab-logs">
+            Activity Logs
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
@@ -335,14 +426,24 @@ export default function AdminUsers() {
                       data-testid="input-search-users"
                     />
                   </div>
-                  <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "active" | "deactivated")}>
-                    <SelectTrigger className="w-40" data-testid="select-status-filter">
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(v) =>
+                      setStatusFilter(v as "all" | "active" | "deactivated")
+                    }
+                  >
+                    <SelectTrigger
+                      className="w-40"
+                      data-testid="select-status-filter"
+                    >
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Users</SelectItem>
                       <SelectItem value="active">Active Only</SelectItem>
-                      <SelectItem value="deactivated">Deactivated Only</SelectItem>
+                      <SelectItem value="deactivated">
+                        Deactivated Only
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -379,15 +480,22 @@ export default function AdminUsers() {
                           {u.email || "No email"}
                         </TableCell>
                         <TableCell>
-                          <Badge className={getRoleBadgeColor(u.userRole || "guest")}>
-                            {u.userRole === "owner" ? "Property Owner" : "Guest"}
+                          <Badge
+                            className={getRoleBadgeColor(u.userRole || "guest")}
+                          >
+                            {u.userRole === "owner"
+                              ? "Property Owner"
+                              : "Guest"}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           {u.isDeactivated ? (
                             <Badge variant="destructive">Deactivated</Badge>
                           ) : (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            <Badge
+                              variant="secondary"
+                              className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                            >
                               Active
                             </Badge>
                           )}
@@ -396,33 +504,51 @@ export default function AdminUsers() {
                           {formatDate(u.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {u.isDeactivated ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedUser(u);
-                                setRestoreDialogOpen(true);
-                              }}
-                              data-testid={`button-restore-${u.id}`}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Restore
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedUser(u);
-                                setDeactivateDialogOpen(true);
-                              }}
-                              data-testid={`button-deactivate-${u.id}`}
-                            >
-                              <Ban className="h-4 w-4 mr-2" />
-                              Deactivate
-                            </Button>
-                          )}
+                          <div className="flex gap-2 justify-end">
+                            {u.userRole !== "admin" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedUser(u);
+                                  setNewRole(
+                                    u.userRole === "owner" ? "guest" : "owner",
+                                  );
+                                  setRoleDialogOpen(true);
+                                }}
+                                data-testid={`button-role-${u.id}`}
+                              >
+                                {u.userRole === "owner" ? "→ Guest" : "→ Owner"}
+                              </Button>
+                            )}
+                            {u.isDeactivated ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedUser(u);
+                                  setRestoreDialogOpen(true);
+                                }}
+                                data-testid={`button-restore-${u.id}`}
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Restore
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedUser(u);
+                                  setDeactivateDialogOpen(true);
+                                }}
+                                data-testid={`button-deactivate-${u.id}`}
+                              >
+                                <Ban className="h-4 w-4 mr-2" />
+                                Deactivate
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -499,20 +625,27 @@ export default function AdminUsers() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+      <Dialog
+        open={deactivateDialogOpen}
+        onOpenChange={setDeactivateDialogOpen}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Deactivate User Account</DialogTitle>
             <DialogDescription>
-              This will prevent {selectedUser?.firstName} {selectedUser?.lastName} from logging in.
-              Their data will be preserved and can be restored later.
+              This will prevent {selectedUser?.firstName}{" "}
+              {selectedUser?.lastName} from logging in. Their data will be
+              preserved and can be restored later.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="reason-category">Reason Category</Label>
               <Select value={reasonCategory} onValueChange={setReasonCategory}>
-                <SelectTrigger id="reason-category" data-testid="select-reason-category">
+                <SelectTrigger
+                  id="reason-category"
+                  data-testid="select-reason-category"
+                >
                   <SelectValue placeholder="Select a reason" />
                 </SelectTrigger>
                 <SelectContent>
@@ -525,7 +658,9 @@ export default function AdminUsers() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="additional-notes">Additional Notes (Optional)</Label>
+              <Label htmlFor="additional-notes">
+                Additional Notes (Optional)
+              </Label>
               <Textarea
                 id="additional-notes"
                 placeholder="Add any additional context or details..."
@@ -555,7 +690,9 @@ export default function AdminUsers() {
               disabled={!reasonCategory || deactivateUserMutation.isPending}
               data-testid="button-confirm-deactivate"
             >
-              {deactivateUserMutation.isPending ? "Deactivating..." : "Deactivate Account"}
+              {deactivateUserMutation.isPending
+                ? "Deactivating..."
+                : "Deactivate Account"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -566,13 +703,16 @@ export default function AdminUsers() {
           <DialogHeader>
             <DialogTitle>Restore User Account</DialogTitle>
             <DialogDescription>
-              Are you sure you want to restore {selectedUser?.firstName} {selectedUser?.lastName}'s account?
-              They will be able to log in and use the platform again.
+              Are you sure you want to restore {selectedUser?.firstName}{" "}
+              {selectedUser?.lastName}'s account? They will be able to log in
+              and use the platform again.
             </DialogDescription>
           </DialogHeader>
           {selectedUser?.deactivationReason && (
             <div className="py-4">
-              <Label className="text-muted-foreground">Original Deactivation Reason:</Label>
+              <Label className="text-muted-foreground">
+                Original Deactivation Reason:
+              </Label>
               <p className="mt-1 text-sm">{selectedUser.deactivationReason}</p>
             </div>
           )}
@@ -588,11 +728,67 @@ export default function AdminUsers() {
               Cancel
             </Button>
             <Button
-              onClick={() => selectedUser && restoreUserMutation.mutate(selectedUser.id)}
+              onClick={() =>
+                selectedUser && restoreUserMutation.mutate(selectedUser.id)
+              }
               disabled={restoreUserMutation.isPending}
               data-testid="button-confirm-restore"
             >
-              {restoreUserMutation.isPending ? "Restoring..." : "Restore Account"}
+              {restoreUserMutation.isPending
+                ? "Restoring..."
+                : "Restore Account"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Change {selectedUser?.firstName} {selectedUser?.lastName}'s role
+              from <strong>{selectedUser?.userRole}</strong> to{" "}
+              <strong>{newRole}</strong>.
+              {newRole === "guest" && " This will reset their KYC status."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 text-sm text-muted-foreground">
+            {newRole === "guest" ? (
+              <p className="text-amber-600 dark:text-amber-400">
+                ⚠️ Changing to Guest will reset KYC status. Owner will lose
+                access to owner features.
+              </p>
+            ) : (
+              <p className="text-blue-600 dark:text-blue-400">
+                ℹ️ Changing to Owner will give access to property listing
+                features. KYC verification will still be required.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRoleDialogOpen(false);
+                setSelectedUser(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                selectedUser &&
+                changeRoleMutation.mutate({
+                  userId: selectedUser.id,
+                  role: newRole,
+                })
+              }
+              disabled={changeRoleMutation.isPending}
+            >
+              {changeRoleMutation.isPending
+                ? "Updating..."
+                : `Change to ${newRole}`}
             </Button>
           </DialogFooter>
         </DialogContent>

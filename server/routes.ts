@@ -2713,6 +2713,33 @@ export async function registerRoutes(
       }
 
       await storage.deleteProperty(req.params.id);
+
+      // Revert owner role to guest if no properties remain
+      try {
+        const remainingProperties = await storage.getProperties({
+          ownerId: property.ownerId,
+          includeAllStatuses: true,
+        });
+        if (remainingProperties.length === 0) {
+          const ownerUser = await storage.getUser(property.ownerId);
+          if (ownerUser && ownerUser.userRole === "owner") {
+            await storage.upsertUser({
+              ...ownerUser,
+              userRole: "guest",
+              kycStatus: "not_started",
+              kycVerifiedAt: null,
+            });
+            broadcastToUser(property.ownerId, {
+              type: "role_changed",
+              message:
+                "Your property has been removed. Your account has been updated to guest.",
+            });
+          }
+        }
+      } catch (roleError) {
+        console.error("Failed to revert owner role:", roleError);
+      }
+
       res.json({ message: "Property deleted successfully" });
     } catch (error) {
       console.error("Error deleting property:", error);
@@ -8906,6 +8933,54 @@ export async function registerRoutes(
   );
 
   // Admin: Permanently delete a user and all their data (CASCADE)
+  // Admin: Change user role (owner ↔ guest)
+  app.patch(
+    "/api/admin/users/:id/role",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const adminId = req.user.claims.sub;
+        const admin = await storage.getUser(adminId);
+        if (!admin || !userHasRole(admin, "admin")) {
+          return res.status(403).json({ message: "Admin only" });
+        }
+
+        const { role } = req.body;
+        if (!["guest", "owner"].includes(role)) {
+          return res
+            .status(400)
+            .json({ message: "Role must be guest or owner" });
+        }
+
+        const targetUser = await storage.getUser(req.params.id);
+        if (!targetUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        if (targetUser.userRole === "admin") {
+          return res.status(400).json({ message: "Cannot change admin role" });
+        }
+
+        const updated = await storage.upsertUser({
+          ...targetUser,
+          userRole: role,
+          ...(role === "guest" && {
+            kycStatus: "not_started",
+            kycVerifiedAt: null,
+          }),
+        });
+
+        broadcastToUser(req.params.id, {
+          type: "role_changed",
+          message: `Your account role has been updated to ${role}.`,
+        });
+
+        res.json({ message: `Role updated to ${role}`, user: updated });
+      } catch (error) {
+        console.error("Error changing user role:", error);
+        res.status(500).json({ message: "Failed to change role" });
+      }
+    },
+  );
   app.delete("/api/admin/users/:id", isAuthenticated, async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
