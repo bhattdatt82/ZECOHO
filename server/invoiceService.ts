@@ -502,7 +502,7 @@ async function buildPDF(inv: any): Promise<Buffer> {
       .fill();
     // Real UPI QR Code
     try {
-      const upiString = `upi://pay?pa=yespay.mabs0470619ikit5650@yesbankltd&pn=ZECOHO%20TECHNOLOGIES&am=${Number(inv.totalAmount).toFixed(2)}&cu=INR`;
+      const upiString = `upi://pay?pa=yespay.mabs0470619ikit5650@yesbankltd&pn=ZECOHO%20TECHNOLOGIES&cu=INR`;
       const qrDataUrl = await QRCode.toDataURL(upiString, {
         width: 52,
         margin: 1,
@@ -610,15 +610,14 @@ async function buildPDF(inv: any): Promise<Buffer> {
         "This is a computer-generated invoice and does not require a physical signature.",
         L,
         fY,
-        { align: "center", width: W },
+        { align: "center", width: W, lineBreak: false },
       );
     doc.text(
-      `${COMPANY.website}  |  ${COMPANY.email}  |  GSTIN: ${COMPANY.gstin}  |  Subject to ${COMPANY.city} Jurisdiction`,
+      `${COMPANY.website}  |  ${COMPANY.email}  |  GSTIN: ${COMPANY.gstin}  |  ${COMPANY.city} Jurisdiction`,
       L,
-      fY + 11,
-      { align: "center", width: W },
+      fY + 10,
+      { align: "center", width: W, lineBreak: false },
     );
-
     // ── END — single page only ────────────────────────────
     doc.end();
   });

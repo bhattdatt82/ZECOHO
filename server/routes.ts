@@ -1953,15 +1953,29 @@ export async function registerRoutes(
               ? application.lastName.trim()
               : null;
 
+          // Build full address from KYC application fields
+          const addressParts = [
+            application.streetAddress,
+            application.locality,
+            application.city,
+            application.district,
+            application.state,
+            application.pincode,
+          ].filter(Boolean);
+          const fullAddress =
+            addressParts.length > 0
+              ? addressParts.join(", ")
+              : applicantUser.kycAddress || null;
+
           await storage.upsertUser({
             ...applicantUser,
             userRole: "owner",
             kycStatus: "verified",
             kycVerifiedAt: new Date(),
-            // Sync KYC data to user profile (only if KYC data is valid)
             phone: normalizedPhone || applicantUser.phone,
             firstName: normalizedFirstName || applicantUser.firstName,
             lastName: normalizedLastName || applicantUser.lastName,
+            kycAddress: fullAddress,
           });
         } catch (userUpdateError) {
           console.error(
