@@ -244,10 +244,11 @@ function StatCard({
 // ── Main Page ──────────────────────────────────────────────────────────────
 function InvoicesTab() {
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState({ month: "", year: "" });
   const { data: invoices = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/invoices"],
   });
-
   const handleDownload = async (invoiceId: string, invoiceNumber: string) => {
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/download`, {
@@ -269,12 +270,26 @@ function InvoicesTab() {
       });
     }
   };
-
-  const totalRevenue = invoices.reduce(
+  const filteredInvoices = invoices.filter((inv) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      inv.invoiceNumber?.toLowerCase().includes(q) ||
+      inv.ownerName?.toLowerCase().includes(q) ||
+      inv.ownerEmail?.toLowerCase().includes(q);
+    const invDate = new Date(inv.invoiceDate);
+    const matchesMonth =
+      !dateFilter.month ||
+      invDate.getMonth() + 1 === parseInt(dateFilter.month);
+    const matchesYear =
+      !dateFilter.year || invDate.getFullYear() === parseInt(dateFilter.year);
+    return matchesSearch && matchesMonth && matchesYear;
+  });
+  const totalRevenue = filteredInvoices.reduce(
     (sum, inv) => sum + Number(inv.totalAmount || 0),
     0,
   );
-  const totalGST = invoices.reduce(
+  const totalGST = filteredInvoices.reduce(
     (sum, inv) =>
       sum +
       Number(inv.cgstAmount || 0) +
@@ -282,21 +297,35 @@ function InvoicesTab() {
       Number(inv.igstAmount || 0),
     0,
   );
-
+  const years = [
+    ...new Set(invoices.map((inv) => new Date(inv.invoiceDate).getFullYear())),
+  ].sort((a, b) => b - a);
+  const months = [
+    { value: "1", label: "January" },
+    { value: "2", label: "February" },
+    { value: "3", label: "March" },
+    { value: "4", label: "April" },
+    { value: "5", label: "May" },
+    { value: "6", label: "June" },
+    { value: "7", label: "July" },
+    { value: "8", label: "August" },
+    { value: "9", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
+  ];
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Invoices</p>
-            <p className="text-2xl font-semibold">{invoices.length}</p>
+            <p className="text-2xl font-semibold">{filteredInvoices.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">
-              Total Revenue (incl. GST)
-            </p>
+            <p className="text-sm text-muted-foreground">Total Revenue</p>
             <p className="text-2xl font-semibold">
               ₹{totalRevenue.toLocaleString("en-IN")}
             </p>
@@ -304,23 +333,75 @@ function InvoicesTab() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total GST Collected</p>
+            <p className="text-sm text-muted-foreground">Total GST</p>
             <p className="text-2xl font-semibold">
               ₹{totalGST.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
       </div>
-
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by invoice no, owner name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <select
+          className="border rounded-md px-3 py-2 text-sm bg-background"
+          value={dateFilter.month}
+          onChange={(e) =>
+            setDateFilter((p) => ({ ...p, month: e.target.value }))
+          }
+        >
+          <option value="">All Months</option>
+          {months.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className="border rounded-md px-3 py-2 text-sm bg-background"
+          value={dateFilter.year}
+          onChange={(e) =>
+            setDateFilter((p) => ({ ...p, year: e.target.value }))
+          }
+        >
+          <option value="">All Years</option>
+          {years.map((y) => (
+            <option key={y} value={String(y)}>
+              {y}
+            </option>
+          ))}
+        </select>
+        {(searchQuery || dateFilter.month || dateFilter.year) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchQuery("");
+              setDateFilter({ month: "", year: "" });
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </div>
       {isLoading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
-      ) : invoices.length === 0 ? (
+      ) : filteredInvoices.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          No invoices generated yet
+          {searchQuery || dateFilter.month || dateFilter.year
+            ? "No invoices match your search"
+            : "No invoices generated yet"}
         </div>
       ) : (
         <Card>
@@ -339,7 +420,7 @@ function InvoicesTab() {
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((inv) => {
+                {filteredInvoices.map((inv) => {
                   const gst =
                     Number(inv.cgstAmount || 0) +
                     Number(inv.sgstAmount || 0) +
@@ -373,13 +454,13 @@ function InvoicesTab() {
                         {new Date(inv.invoiceDate).toLocaleDateString("en-IN")}
                       </td>
                       <td className="p-3 text-right text-xs">
-                        ₹
+                        Rs.
                         {Number(inv.baseAmount).toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                         })}
                       </td>
                       <td className="p-3 text-right text-xs">
-                        ₹
+                        Rs.
                         {gst.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                         })}
@@ -387,7 +468,7 @@ function InvoicesTab() {
                         <span className="text-muted-foreground">{gstType}</span>
                       </td>
                       <td className="p-3 text-right font-semibold">
-                        ₹
+                        Rs.
                         {Number(inv.totalAmount).toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                         })}

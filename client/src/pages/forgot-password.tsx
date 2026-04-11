@@ -4,17 +4,33 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Mail, Lock, ArrowLeft, Loader2, Shield, Eye, EyeOff, KeyRound, Check } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  ArrowLeft,
+  Loader2,
+  Shield,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Check,
+} from "lucide-react";
 
 type Step = "email" | "otp" | "newPassword" | "success";
 
 export default function ForgotPassword() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
+
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -35,7 +51,9 @@ export default function ForgotPassword() {
 
   const sendResetOtpMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await apiRequest("POST", "/api/auth/forgot-password", { email });
+      const response = await apiRequest("POST", "/api/auth/forgot-password", {
+        email,
+      });
       return response.json();
     },
     onSuccess: (data) => {
@@ -47,17 +65,30 @@ export default function ForgotPassword() {
       });
     },
     onError: (error: any) => {
+      const isOtpAccount = error.message?.includes("different login method");
       toast({
-        title: "Failed to send reset code",
-        description: error.message || "Please try again",
+        title: isOtpAccount
+          ? "Use OTP Login Instead"
+          : "Failed to send reset code",
+        description: isOtpAccount
+          ? "Your account uses OTP login. Please go back and use the OTP option to sign in."
+          : error.message,
         variant: "destructive",
       });
     },
   });
 
   const resetPasswordMutation = useMutation({
-    mutationFn: async (data: { email: string; otp: string; newPassword: string }) => {
-      const response = await apiRequest("POST", "/api/auth/reset-password", data);
+    mutationFn: async (data: {
+      email: string;
+      otp: string;
+      newPassword: string;
+    }) => {
+      const response = await apiRequest(
+        "POST",
+        "/api/auth/reset-password",
+        data,
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -73,7 +104,10 @@ export default function ForgotPassword() {
         description: error.message || "Failed to reset password",
         variant: "destructive",
       });
-      if (error.message?.includes("expired") || error.message?.includes("Invalid")) {
+      if (
+        error.message?.includes("expired") ||
+        error.message?.includes("Invalid")
+      ) {
         setOtp(["", "", "", "", "", ""]);
         setOtpValue("");
         otpRefs.current[0]?.focus();
@@ -89,7 +123,7 @@ export default function ForgotPassword() {
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
-    
+
     const newOtp = [...otp];
     newOtp[index] = value.slice(-1);
     setOtp(newOtp);
@@ -98,7 +132,7 @@ export default function ForgotPassword() {
       otpRefs.current[index + 1]?.focus();
     }
 
-    if (newOtp.every(digit => digit) && newOtp.join("").length === 6) {
+    if (newOtp.every((digit) => digit) && newOtp.join("").length === 6) {
       setOtpValue(newOtp.join(""));
       setStep("newPassword");
     }
@@ -112,7 +146,10 @@ export default function ForgotPassword() {
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pastedData = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     if (pastedData.length === 6) {
       const newOtp = pastedData.split("");
       setOtp(newOtp);
@@ -128,7 +165,7 @@ export default function ForgotPassword() {
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -218,9 +255,9 @@ export default function ForgotPassword() {
                 />
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={sendResetOtpMutation.isPending || !email.trim()}
                 data-testid="button-send-reset-code"
               >
@@ -240,14 +277,27 @@ export default function ForgotPassword() {
               <div className="mt-6 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
                   Remember your password?{" "}
-                  <Link href="/login" className="text-primary hover:underline font-medium" data-testid="link-login">
+                  <Link
+                    href="/login"
+                    className="text-primary hover:underline font-medium"
+                    data-testid="link-login"
+                  >
                     Back to Login
                   </Link>
                 </p>
+                <p className="text-sm text-muted-foreground">
+                  Signed up with OTP?{" "}
+                  <Link
+                    href="/login?method=otp"
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Login with OTP instead
+                  </Link>
+                </p>
 
-                <Button 
+                <Button
                   type="button"
-                  variant="ghost" 
+                  variant="ghost"
                   onClick={() => setLocation("/")}
                   data-testid="button-back-home"
                 >
@@ -260,7 +310,10 @@ export default function ForgotPassword() {
 
           {step === "otp" && (
             <div className="space-y-6">
-              <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
+              <div
+                className="flex justify-center gap-2"
+                onPaste={handleOtpPaste}
+              >
                 {otp.map((digit, index) => (
                   <Input
                     key={index}
@@ -295,8 +348,8 @@ export default function ForgotPassword() {
                   )}
                 </p>
 
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setStep("email");
                     setOtp(["", "", "", "", "", ""]);
@@ -332,7 +385,11 @@ export default function ForgotPassword() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     data-testid="button-toggle-password"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -356,15 +413,23 @@ export default function ForgotPassword() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     data-testid="button-toggle-confirm-password"
                   >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={resetPasswordMutation.isPending || !newPassword || !confirmPassword}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={
+                  resetPasswordMutation.isPending ||
+                  !newPassword ||
+                  !confirmPassword
+                }
                 data-testid="button-reset-password"
               >
                 {resetPasswordMutation.isPending ? (
@@ -380,9 +445,9 @@ export default function ForgotPassword() {
                 )}
               </Button>
 
-              <Button 
+              <Button
                 type="button"
-                variant="ghost" 
+                variant="ghost"
                 className="w-full"
                 onClick={() => {
                   setStep("otp");
@@ -405,8 +470,8 @@ export default function ForgotPassword() {
                 </div>
               </div>
 
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 onClick={() => setLocation("/login")}
                 data-testid="button-go-to-login"
               >
@@ -414,8 +479,8 @@ export default function ForgotPassword() {
                 Go to Login
               </Button>
 
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="w-full"
                 onClick={() => setLocation("/")}
                 data-testid="button-back-home-success"

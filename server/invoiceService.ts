@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { db } from "./db";
 import { invoices, users } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
@@ -215,8 +216,8 @@ export async function generateInvoicePDF(invoiceId: string): Promise<Buffer> {
   return buildPDF(invoice);
 }
 
-function buildPDF(inv: any): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
+async function buildPDF(inv: any): Promise<Buffer> {
+  return new Promise(async (resolve, reject) => {
     const doc = new PDFDocument({
       margin: 50,
       size: "A4",
@@ -316,11 +317,15 @@ function buildPDF(inv: any): Promise<Buffer> {
       if (!val) return;
       doc
         .fillColor(lightGray)
+        .font("Helvetica-Bold")
+        .fontSize(7)
+        .text(`${label}:`, L + 8, btRow, { width: 70 });
+      doc
+        .fillColor(dark)
         .font("Helvetica")
         .fontSize(8)
-        .text(`${label}: `, L + 8, btRow, { continued: true, width: 80 });
-      doc.fillColor(dark).text(val, { width: W - 90 });
-      btRow += 13;
+        .text(val, L + 80, btRow, { width: W - 90 });
+      btRow += 14;
     };
     doc
       .fillColor(dark)
@@ -495,20 +500,32 @@ function buildPDF(inv: any): Promise<Buffer> {
       .rect(upiX + 8, bankY + 16, halfW - 16, 0.4)
       .fillColor("#eeeeee")
       .fill();
-    // QR placeholder box
-    doc
-      .rect(upiX + 8, bankY + 20, 52, 52)
-      .strokeColor("#cccccc")
-      .lineWidth(0.8)
-      .stroke();
-    doc
-      .fillColor(lightGray)
-      .font("Helvetica")
-      .fontSize(6)
-      .text("SCAN TO PAY", upiX + 10, bankY + 41, {
-        width: 48,
-        align: "center",
+    // Real UPI QR Code
+    try {
+      const upiString = `upi://pay?pa=zecoho@ybl&pn=ZECOHO TECHNOLOGIES&am=${inv.totalAmount}&cu=INR&tn=Invoice ${inv.invoiceNumber}`;
+      const qrDataUrl = await QRCode.toDataURL(upiString, {
+        width: 52,
+        margin: 1,
+        color: { dark: "#000000", light: "#ffffff" },
       });
+      const qrBase64 = qrDataUrl.replace(/^data:image\/png;base64,/, "");
+      const qrBuffer = Buffer.from(qrBase64, "base64");
+      doc.image(qrBuffer, upiX + 8, bankY + 20, { width: 52, height: 52 });
+    } catch (qrError) {
+      doc
+        .rect(upiX + 8, bankY + 20, 52, 52)
+        .strokeColor("#cccccc")
+        .lineWidth(0.8)
+        .stroke();
+      doc
+        .fillColor(lightGray)
+        .font("Helvetica")
+        .fontSize(6)
+        .text("SCAN TO PAY", upiX + 10, bankY + 41, {
+          width: 48,
+          align: "center",
+        });
+    }
     // UPI ID text
     doc
       .fillColor(gray)
@@ -535,15 +552,38 @@ function buildPDF(inv: any): Promise<Buffer> {
       .text("For ZECOHO TECHNOLOGIES PRIVATE LIMITED", sigX + 6, sigY + 6, {
         width: 148,
       });
+    // Signature stamp area
     doc
-      .rect(sigX + 6, sigY + 40, 148, 0.5)
+      .rect(sigX + 6, sigY + 16, 148, 28)
+      .fillColor("#fafafa")
+      .fill();
+    doc
+      .rect(sigX + 6, sigY + 16, 148, 28)
+      .strokeColor("#eeeeee")
+      .lineWidth(0.5)
+      .stroke();
+    doc
+      .fillColor(orange)
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text("ZECOHO", sigX + 6, sigY + 22, { width: 148, align: "center" });
+    doc
+      .fillColor(lightGray)
+      .font("Helvetica")
+      .fontSize(6)
+      .text("Digitally Authorised", sigX + 6, sigY + 33, {
+        width: 148,
+        align: "center",
+      });
+    doc
+      .rect(sigX + 6, sigY + 46, 148, 0.5)
       .fillColor("#cccccc")
       .fill();
     doc
       .fillColor(lightGray)
       .font("Helvetica")
       .fontSize(7)
-      .text("Authorised Signatory", sigX + 6, sigY + 44, {
+      .text("Authorised Signatory", sigX + 6, sigY + 50, {
         width: 148,
         align: "center",
       });

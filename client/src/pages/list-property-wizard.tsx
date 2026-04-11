@@ -332,12 +332,8 @@ export default function ListPropertyWizard() {
   const needsAgreementAcceptance = !!(
     isExistingOwner &&
     ownerAgreementVersion?.version !== null &&
-    ownerAgreementVersion?.version !== undefined &&
-    (!u?.ownerAgreementAccepted ||
-      (u?.ownerAgreementAcceptedVersion || 0) <
-        (ownerAgreementVersion?.version || 0))
+    ownerAgreementVersion?.version !== undefined
   );
-
   useEffect(() => {
     if (needsAgreementAcceptance && !agreementAccepted) {
       setShowAgreementDialog(true);
