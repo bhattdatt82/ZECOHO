@@ -136,7 +136,7 @@ export async function createInvoice(params: CreateInvoiceParams) {
 
   // Determine owner state for CGST+SGST vs IGST
   const kycApp = await storage.getUserKycApplication(params.ownerId);
-  const ownerState = (kycApp as any)?.state || owner.kycAddress || "";
+  const ownerState = (kycApp as any)?.state || "";
   const isUP =
     ownerState.toLowerCase().includes("uttar pradesh") ||
     (params.ownerGstin?.startsWith("09") ?? false);
@@ -182,9 +182,21 @@ export async function createInvoice(params: CreateInvoiceParams) {
       ownerName,
       ownerEmail: owner.email || null,
       ownerPhone: owner.phone || null,
-      ownerAddress: owner.kycAddress || null,
-      ownerGstin: params.ownerGstin || null,
-      ownerState: ownerState || null,
+      ownerAddress:
+        owner.kycAddress ||
+        [
+          (kycApp as any)?.flatNo,
+          (kycApp as any)?.houseNo,
+          (kycApp as any)?.streetAddress,
+          (kycApp as any)?.locality,
+          (kycApp as any)?.city,
+          (kycApp as any)?.district,
+        ]
+          .filter(Boolean)
+          .join(", ") ||
+        null,
+      ownerGstin: params.ownerGstin || (kycApp as any)?.gstNumber || null,
+      ownerState: ownerState || (kycApp as any)?.state || null,
       planName: params.planName,
       planDuration: params.planDuration,
       sacCode: "998599",
@@ -222,7 +234,7 @@ async function buildPDF(inv: any): Promise<Buffer> {
       margin: 50,
       size: "A4",
       autoFirstPage: true,
-      bufferPages: false,
+      bufferPages: true,
       layout: "portrait",
     });
     const buffers: Buffer[] = [];
@@ -502,7 +514,7 @@ async function buildPDF(inv: any): Promise<Buffer> {
       .fill();
     // Real UPI QR Code
     try {
-      const upiString = `upi://pay?pa=zecoho@ybl&pn=ZECOHO TECHNOLOGIES&am=${inv.totalAmount}&cu=INR&tn=Invoice ${inv.invoiceNumber}`;
+      const upiString = `upi://pay?pa=yespay.mabs0470619ikit5650@yesbankltd&pn=ZECOHO TECHNOLOGIES&am=${inv.totalAmount}&cu=INR&tn=Invoice ${inv.invoiceNumber}`;
       const qrDataUrl = await QRCode.toDataURL(upiString, {
         width: 52,
         margin: 1,
@@ -531,9 +543,10 @@ async function buildPDF(inv: any): Promise<Buffer> {
       .fillColor(gray)
       .font("Helvetica")
       .fontSize(8)
-      .text("UPI ID:", upiX + 68, bankY + 28)
-      .text("zecoho@ybl", upiX + 68, bankY + 40)
-      .text("(verify before payment)", upiX + 68, bankY + 52, {
+      .text("UPI ID:", upiX + 68, bankY + 22)
+      .text("yespay.mabs0470619ikit5650", upiX + 68, bankY + 33)
+      .text("@yesbankltd", upiX + 68, bankY + 44)
+      .text("(verify before payment)", upiX + 68, bankY + 55, {
         width: halfW - 80,
       });
 
@@ -591,7 +604,7 @@ async function buildPDF(inv: any): Promise<Buffer> {
     // ── FOOTER ────────────────────────────────────────────
     // Fixed footer position — keeps invoice on single page
     const contentBottom = sigY + 60;
-    const fY = Math.max(contentBottom + 10, doc.page.height - 50);
+    const fY = doc.page.height - 48;
 
     // Safety check — if content would overflow, compress spacing
     if (fY > doc.page.height - 20) {
@@ -620,5 +633,16 @@ async function buildPDF(inv: any): Promise<Buffer> {
 
     // ── END — single page only ────────────────────────────
     doc.end();
+    // Remove any extra blank pages
+    const range = doc.bufferedPageRange();
+    if (range.count > 1) {
+      for (let i = range.count - 1; i > 0; i--) {
+        doc.switchToPage(i);
+        const pageContent = (doc as any).page.content;
+        if (!pageContent || pageContent.toString().trim() === "") {
+          (doc as any)._pageBuffer.splice(i, 1);
+        }
+      }
+    }
   });
 }
