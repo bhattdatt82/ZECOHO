@@ -3987,7 +3987,25 @@ export async function registerRoutes(
           .status(403)
           .json({ message: "You cannot book your own property" });
       }
+      // Check owner's subscription status
+      const ownerActiveSub = await db
+        .select()
+        .from(ownerSubscriptions)
+        .where(
+          and(
+            eq(ownerSubscriptions.ownerId, property.ownerId),
+            eq(ownerSubscriptions.status, "active"),
+          ),
+        )
+        .limit(1);
 
+      if (ownerActiveSub.length === 0) {
+        return res.status(400).json({
+          message:
+            "This property is not currently accepting bookings. Please try again later.",
+          reason: "subscription_inactive",
+        });
+      }
       // Check owner's KYC status - cannot book if owner's KYC is not verified
       const owner = await storage.getUser(property.ownerId);
       if (!owner || owner.kycStatus !== "verified") {
@@ -9971,7 +9989,26 @@ export async function registerRoutes(
     },
   );
   // ─── Invoice Routes ─────────────────────────────────────────────────
-
+  // Admin: Manual trigger for expiry check
+  app.post(
+    "/api/admin/trigger-expiry-check",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+        const { checkSubscriptionExpiry } = await import(
+          "./subscriptionExpiry"
+        );
+        await checkSubscriptionExpiry();
+        res.json({ message: "Expiry check completed successfully" });
+      } catch (error: any) {
+        res.status(500).json({ message: "Failed", error: error.message });
+      }
+    },
+  );
   // Admin: Get all invoices
   app.get("/api/admin/invoices", isAuthenticated, async (req: any, res) => {
     try {
@@ -10041,7 +10078,7 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch invoices" });
     }
   });
-  // ─── Referral Routes ────────────────────────────────────────────────
+  // ─── Referral Routes ───────────────────────────p��────────────────────
   app.get("/api/referral/my-code", isAuthenticated, async (req: any, res) => {
     if (!req.isAuthenticated())
       return res.status(401).json({ message: "Unauthorized" });

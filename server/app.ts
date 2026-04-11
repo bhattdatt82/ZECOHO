@@ -8,6 +8,7 @@ import express, {
 import { registerRoutes } from "./routes";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import { checkSubscriptionExpiry } from "./subscriptionExpiry";
 import { seedAmenities } from "./seed-amenities";
 import { seedDestinations } from "./seed-destinations";
 import { seedOwnerAgreement } from "./seed-owner-agreement";
@@ -62,7 +63,32 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+// ── Subscription Expiry Cron — runs daily at 9 AM IST ─────────────────────
+function scheduleDailyExpiryCheck() {
+  const runCheck = async () => {
+    await checkSubscriptionExpiry();
+    // Schedule next run in 24 hours
+    setTimeout(runCheck, 24 * 60 * 60 * 1000);
+  };
 
+  // Calculate time until 9 AM IST
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffset);
+  const next9AM = new Date(istNow);
+  next9AM.setHours(9, 0, 0, 0);
+  if (istNow.getHours() >= 9) {
+    next9AM.setDate(next9AM.getDate() + 1);
+  }
+  const msUntil9AM = next9AM.getTime() - istNow.getTime();
+
+  console.log(
+    `[EXPIRY] Cron scheduled — next run in ${Math.round(msUntil9AM / 1000 / 60)} minutes`,
+  );
+  setTimeout(runCheck, msUntil9AM);
+}
+
+scheduleDailyExpiryCheck();
 // Add health check endpoints BEFORE any middleware
 // These MUST respond immediately without any processing
 app.get("/health", (_req, res) => {
