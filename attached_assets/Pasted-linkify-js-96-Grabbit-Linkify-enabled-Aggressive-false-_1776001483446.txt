@@ -1,0 +1,45 @@
+linkify.js:96 Grabbit: Linkify enabled (Aggressive: false). Scanning page...
+fetch('/api/admin/cleanup-users', {
+  method: 'POST',
+  headers: { 'X-Cleanup-Token': 'zecoho-cleanup-2026-secure' }
+}).then(r => r.json()).then(data => console.log('RESULT:', JSON.stringify(data, null, 2))).catch(console.error)
+Promise {<pending>}[[Prototype]]: Promise[[PromiseState]]: "fulfilled"[[PromiseResult]]: undefined
+VM387:4 RESULT: {
+  "success": true,
+  "deleted": {
+    "SKIP_support_conversations": "update or delete on table \"support_conversations\" violates foreign key constraint \"support_messages_conversation_id_support_conversations_id_fk\" on table \"support_messages\"",
+    "SKIP_property_images": "relation \"property_images\" does not exist",
+    "SKIP_property_meal_plans": "relation \"property_meal_plans\" does not exist",
+    "SKIP_property_rooms": "relation \"property_rooms\" does not exist",
+    "SKIP_property_availability": "relation \"property_availability\" does not exist",
+    "users_deleted": 20,
+    "users_blocked": "[{\"id\":\"61dea167-5ef8-4000-a729-f7ff9a1e10e4\",\"email\":\"bhatt.datt@gmail.com\",\"reason\":\"Key (id)=(61dea167-5ef8-4000-a729-f7ff9a1e10e4) is still referenced from table \\\"support_conversations\\\".\"},{\"id\":\"6b39cfe7-1029-4bad-92a3-e8eade33640c\",\"email\":\"pushkardatt@gmail.com\",\"reason\":\"Key (id)=(6b39cfe7-1029-4bad-92a3-e8eade33640c) is still referenced from table \\\"support_conversations\\\".\"},{\"id\":\"0fa9e673-fa12-43c1-bc4e-043f5af49174\",\"email\":\"anuj.joshi2011@gmail.com\",\"reason\":\"Key (id)=(0fa9e673-fa12-43c1-bc4e-043f5af49174) is still referenced from table \\\"support_conversations\\\".\"},{\"id\":\"cc46d3ef-c4bf-4051-92a3-90f96a31c828\",\"email\":\"vijayjits@gmail.com\",\"reason\":\"Key (id)=(cc46d3ef-c4bf-4051-92a3-90f96a31c828) is still referenced from table \\\"support_conversations\\\".\"}]"
+  },
+  "remaining": [
+    {
+      "id": "61dea167-5ef8-4000-a729-f7ff9a1e10e4",
+      "email": "bhatt.datt@gmail.com",
+      "user_role": "owner"
+    },
+    {
+      "id": "6b39cfe7-1029-4bad-92a3-e8eade33640c",
+      "email": "pushkardatt@gmail.com",
+      "user_role": "owner"
+    },
+    {
+      "id": "0fa9e673-fa12-43c1-bc4e-043f5af49174",
+      "email": "anuj.joshi2011@gmail.com",
+      "user_role": "owner"
+    },
+    {
+      "id": "cfbd8a1b-cee9-4633-a08f-92db76728de5",
+      "email": "anita@zecoho.com",
+      "user_role": "admin"
+    },
+    {
+      "id": "cc46d3ef-c4bf-4051-92a3-90f96a31c828",
+      "email": "vijayjits@gmail.com",
+      "user_role": "owner"
+    }
+  ]
+}

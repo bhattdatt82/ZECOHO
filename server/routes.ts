@@ -12687,6 +12687,7 @@ export async function registerRoutes(
       await safe("push_subscriptions", `DELETE FROM push_subscriptions WHERE user_id != $1`, [ADMIN_ID]);
       await safe("notifications", `DELETE FROM notifications WHERE user_id != $1`, [ADMIN_ID]);
       await safe("admin_audit_logs", `DELETE FROM admin_audit_logs WHERE admin_id != $1`, [ADMIN_ID]);
+      await safe("support_messages", `DELETE FROM support_messages WHERE conversation_id IN (SELECT id FROM support_conversations WHERE user_id != $1)`, [ADMIN_ID]);
       await safe("support_conversations", `DELETE FROM support_conversations WHERE user_id != $1`, [ADMIN_ID]);
       await safe("support_tickets", `DELETE FROM support_tickets WHERE assigned_to != $1 OR assigned_to IS NULL`, [ADMIN_ID]);
       await safe("contact_interactions", `DELETE FROM contact_interactions WHERE actor_user_id != $1`, [ADMIN_ID]);
