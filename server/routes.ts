@@ -12650,5 +12650,82 @@ export async function registerRoutes(
     }
   });
 
+  // ─── ONE-TIME PRODUCTION CLEANUP ─────────────────────────────────────────
+  // DELETE all non-admin users and their data. Protected by a secret token.
+  // Call: POST /api/admin/cleanup-users with header X-Cleanup-Token: <token>
+  // Remove this endpoint after use.
+  app.post("/api/admin/cleanup-users", async (req, res) => {
+    const token = req.headers["x-cleanup-token"];
+    const expected = process.env.CLEANUP_SECRET_TOKEN;
+    if (!expected || token !== expected) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const ADMIN_ID = "cfbd8a1b-cee9-4633-a08f-92db76728de5";
+    const results: Record<string, number> = {};
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const run = async (label: string, sql: string, params: any[]) => {
+        const sp = `sp_${label.replace(/[^a-z0-9]/gi, "_")}`;
+        try {
+          await client.query(`SAVEPOINT ${sp}`);
+          const r = await client.query(sql, params);
+          await client.query(`RELEASE SAVEPOINT ${sp}`);
+          if (r.rowCount) results[label] = r.rowCount;
+        } catch (_) {
+          await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+        }
+      };
+
+      await run("messages", `DELETE FROM messages WHERE sender_id != $1 OR conversation_id IN (SELECT id FROM conversations WHERE guest_id != $1 OR owner_id != $1)`, [ADMIN_ID]);
+      await run("notification_logs", `DELETE FROM notification_logs WHERE user_id != $1`, [ADMIN_ID]);
+      await run("push_subscriptions", `DELETE FROM push_subscriptions WHERE user_id != $1`, [ADMIN_ID]);
+      await run("notifications", `DELETE FROM notifications WHERE user_id != $1`, [ADMIN_ID]);
+      await run("admin_audit_logs", `DELETE FROM admin_audit_logs WHERE admin_id != $1`, [ADMIN_ID]);
+      await run("support_conversations", `DELETE FROM support_conversations WHERE user_id != $1`, [ADMIN_ID]);
+      await run("support_tickets", `DELETE FROM support_tickets WHERE assigned_to IS NULL OR assigned_to != $1`, [ADMIN_ID]);
+      await run("contact_interactions", `DELETE FROM contact_interactions WHERE actor_user_id != $1`, [ADMIN_ID]);
+      await run("chat_logs", `DELETE FROM chat_logs WHERE owner_id != $1 OR guest_id != $1`, [ADMIN_ID]);
+      await run("call_logs", `DELETE FROM call_logs WHERE owner_id != $1 OR guest_id != $1`, [ADMIN_ID]);
+      await run("search_history", `DELETE FROM search_history WHERE user_id != $1`, [ADMIN_ID]);
+      await run("user_preferences", `DELETE FROM user_preferences WHERE user_id != $1`, [ADMIN_ID]);
+      await run("wishlists", `DELETE FROM wishlists WHERE user_id != $1`, [ADMIN_ID]);
+      await run("reviews", `DELETE FROM reviews WHERE guest_id != $1`, [ADMIN_ID]);
+      await run("availability_overrides", `DELETE FROM availability_overrides WHERE created_by != $1`, [ADMIN_ID]);
+      await run("meal_plan_price_overrides", `DELETE FROM meal_plan_price_overrides WHERE created_by != $1`, [ADMIN_ID]);
+      await run("room_price_overrides", `DELETE FROM room_price_overrides WHERE created_by != $1`, [ADMIN_ID]);
+      await run("bookings", `DELETE FROM bookings WHERE guest_id != $1`, [ADMIN_ID]);
+      await run("kyc_applications", `DELETE FROM kyc_applications WHERE user_id != $1`, [ADMIN_ID]);
+      await run("property_deactivation_requests", `DELETE FROM property_deactivation_requests WHERE owner_id != $1`, [ADMIN_ID]);
+      await run("owner_referrals", `DELETE FROM owner_referrals WHERE referee_id != $1 OR referrer_id != $1`, [ADMIN_ID]);
+      await run("subscription_payments", `DELETE FROM subscription_payments WHERE owner_id != $1`, [ADMIN_ID]);
+      await run("invoices", `DELETE FROM invoices WHERE owner_id != $1`, [ADMIN_ID]);
+      await run("owner_subscriptions", `DELETE FROM owner_subscriptions WHERE owner_id != $1`, [ADMIN_ID]);
+      await run("conversations", `DELETE FROM conversations WHERE guest_id != $1 OR owner_id != $1`, [ADMIN_ID]);
+      await run("property_images", `DELETE FROM property_images WHERE property_id IN (SELECT id FROM properties WHERE owner_id != $1)`, [ADMIN_ID]);
+      await run("property_amenities", `DELETE FROM property_amenities WHERE property_id IN (SELECT id FROM properties WHERE owner_id != $1)`, [ADMIN_ID]);
+      await run("property_meal_plans", `DELETE FROM property_meal_plans WHERE property_id IN (SELECT id FROM properties WHERE owner_id != $1)`, [ADMIN_ID]);
+      await run("property_rooms", `DELETE FROM property_rooms WHERE property_id IN (SELECT id FROM properties WHERE owner_id != $1)`, [ADMIN_ID]);
+      await run("property_availability", `DELETE FROM property_availability WHERE property_id IN (SELECT id FROM properties WHERE owner_id != $1)`, [ADMIN_ID]);
+      await run("properties", `DELETE FROM properties WHERE owner_id != $1`, [ADMIN_ID]);
+      await run("null_verified_by", `UPDATE properties SET verified_by = NULL WHERE verified_by != $1`, [ADMIN_ID]);
+      await run("null_booking_refs", `UPDATE bookings SET checked_in_by = NULL, checked_out_by = NULL, no_show_marked_by_user_id = NULL WHERE guest_id != $1`, [ADMIN_ID]);
+      await run("users", `DELETE FROM users WHERE id != $1`, [ADMIN_ID]);
+
+      await client.query("COMMIT");
+
+      const remaining = await client.query("SELECT id, email, user_role FROM users");
+      return res.json({ success: true, deleted: results, remaining: remaining.rows });
+    } catch (err: any) {
+      await client.query("ROLLBACK");
+      return res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  });
+
   return httpServer;
 }
