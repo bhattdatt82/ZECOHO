@@ -12681,10 +12681,7 @@ export async function registerRoutes(
     try {
       await client.query("BEGIN");
 
-      // Disable FK checks for this session so user deletion isn't blocked
-      await client.query("SET session_replication_role = replica");
-
-      // Child tables first (belt-and-suspenders even with FK disabled)
+      // Clean up all child records first
       await safe("messages", `DELETE FROM messages WHERE sender_id != $1 OR conversation_id IN (SELECT id FROM conversations WHERE guest_id != $1 OR owner_id != $1)`, [ADMIN_ID]);
       await safe("notification_logs", `DELETE FROM notification_logs WHERE user_id != $1`, [ADMIN_ID]);
       await safe("push_subscriptions", `DELETE FROM push_subscriptions WHERE user_id != $1`, [ADMIN_ID]);
@@ -12716,20 +12713,36 @@ export async function registerRoutes(
       await safe("property_rooms", `DELETE FROM property_rooms WHERE property_id IN (SELECT id FROM properties WHERE owner_id != $1)`, [ADMIN_ID]);
       await safe("property_availability", `DELETE FROM property_availability WHERE property_id IN (SELECT id FROM properties WHERE owner_id != $1)`, [ADMIN_ID]);
       await safe("properties", `DELETE FROM properties WHERE owner_id != $1`, [ADMIN_ID]);
+      // NULL out any remaining FK references in case of NOT NULL constraints
+      await safe("null_subscription_plans", `UPDATE subscription_plans SET created_by = NULL WHERE created_by IS NOT NULL AND created_by != $1`, [ADMIN_ID]);
+      await safe("null_users_suspended_by", `UPDATE users SET suspended_by = NULL WHERE suspended_by IS NOT NULL AND suspended_by != $1`, [ADMIN_ID]);
+      await safe("null_users_deactivated_by", `UPDATE users SET deactivated_by = NULL WHERE deactivated_by IS NOT NULL AND deactivated_by != $1`, [ADMIN_ID]);
 
-      // Delete users — FK checks are disabled so nothing can block this
-      const userDel = await client.query(`DELETE FROM users WHERE id != $1`, [ADMIN_ID]);
-      results["users_deleted"] = userDel.rowCount ?? 0;
+      // Try deleting each user individually — capture exact FK error for any that fail
+      const nonAdminUsers = await client.query(`SELECT id, email FROM users WHERE id != $1`, [ADMIN_ID]);
+      let deleted = 0;
+      const failedUsers: { id: string; email: string; reason: string }[] = [];
 
-      // Restore FK enforcement
-      await client.query("SET session_replication_role = DEFAULT");
+      for (const u of nonAdminUsers.rows) {
+        const sp = `sp_user_${Math.random().toString(36).slice(2)}`;
+        try {
+          await client.query(`SAVEPOINT ${sp}`);
+          await client.query(`DELETE FROM users WHERE id = $1`, [u.id]);
+          await client.query(`RELEASE SAVEPOINT ${sp}`);
+          deleted++;
+        } catch (e: any) {
+          await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+          failedUsers.push({ id: u.id, email: u.email, reason: e.detail || e.message });
+        }
+      }
+      results["users_deleted"] = deleted;
+      if (failedUsers.length > 0) results["users_blocked"] = JSON.stringify(failedUsers) as any;
 
       await client.query("COMMIT");
 
       const remaining = await client.query(`SELECT id, email, user_role FROM users`);
       return res.json({ success: true, deleted: results, remaining: remaining.rows });
     } catch (err: any) {
-      try { await client.query("SET session_replication_role = DEFAULT"); } catch (_) {}
       await client.query("ROLLBACK");
       return res.status(500).json({ error: err.message });
     } finally {
