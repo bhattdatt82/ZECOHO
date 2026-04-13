@@ -625,11 +625,9 @@ export async function registerRoutes(
       // Check if user exists with this email
       const user = await storage.getUserByEmail(email);
       if (!user) {
-        // Don't reveal if email exists or not for security
-        return res.json({
-          message:
-            "If an account with this email exists, you will receive a password reset code.",
-          email: email.toLowerCase(),
+        return res.status(404).json({
+          message: "No account found with this email address.",
+          userNotFound: true,
         });
       }
 

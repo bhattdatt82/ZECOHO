@@ -11,6 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -23,6 +31,7 @@ import {
   EyeOff,
   KeyRound,
   Check,
+  UserPlus,
 } from "lucide-react";
 
 type Step = "email" | "otp" | "newPassword" | "success";
@@ -40,6 +49,8 @@ export default function ForgotPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [showNotRegisteredDialog, setShowNotRegisteredDialog] = useState(false);
+  const [unregisteredEmail, setUnregisteredEmail] = useState("");
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -50,11 +61,20 @@ export default function ForgotPassword() {
   }, [countdown]);
 
   const sendResetOtpMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const response = await apiRequest("POST", "/api/auth/forgot-password", {
-        email,
+    mutationFn: async (emailAddr: string) => {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailAddr }),
+        credentials: "include",
       });
-      return response.json();
+      const result = await response.json();
+      if (!response.ok) {
+        const err = new Error(result.message || "Failed to send reset code");
+        (err as any).userNotFound = !!result.userNotFound;
+        throw err;
+      }
+      return result;
     },
     onSuccess: (data) => {
       setStep("otp");
@@ -65,6 +85,11 @@ export default function ForgotPassword() {
       });
     },
     onError: (error: any) => {
+      if (error.userNotFound) {
+        setUnregisteredEmail(email.trim());
+        setShowNotRegisteredDialog(true);
+        return;
+      }
       const isOtpAccount = error.message?.includes("different login method");
       toast({
         title: isOtpAccount
@@ -227,6 +252,45 @@ export default function ForgotPassword() {
   };
 
   return (
+    <>
+    {/* Not-registered email dialog */}
+    <Dialog open={showNotRegisteredDialog} onOpenChange={setShowNotRegisteredDialog}>
+      <DialogContent data-testid="dialog-not-registered-forgot">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-primary" />
+            Email Not Registered
+          </DialogTitle>
+          <DialogDescription className="text-sm leading-relaxed pt-1">
+            <span className="font-medium text-foreground">{unregisteredEmail}</span>{" "}
+            is not linked to any ZECOHO account. There is no password to reset.
+            <br />
+            <br />
+            Create a new account to get started on the platform.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowNotRegisteredDialog(false)}
+            data-testid="button-not-registered-cancel-forgot"
+          >
+            Try another email
+          </Button>
+          <Button
+            onClick={() => {
+              setShowNotRegisteredDialog(false);
+              setLocation("/register");
+            }}
+            data-testid="button-not-registered-create-forgot"
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Create Account
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 px-4 py-12">
       <Card className="w-full max-w-md" data-testid="card-forgot-password">
         <CardHeader className="text-center pb-4">
@@ -493,5 +557,6 @@ export default function ForgotPassword() {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }
