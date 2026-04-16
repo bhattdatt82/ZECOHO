@@ -1699,18 +1699,8 @@ export default function ListPropertyWizard() {
       // Full mode validation
       if (step === 1) {
         fieldsToValidate = ["firstName", "lastName", "email", "phone"];
-      } else if (step === 2) {
-        fieldsToValidate = [
-          "businessName",
-          "kycStreetAddress",
-          "kycLocality",
-          "kycCity",
-          "kycDistrict",
-          "kycState",
-          "kycPincode",
-          "panNumber",
-          "alternativePhone",
-        ];
+        } else if (step === 2) {
+          fieldsToValidate = [];
         // Validate mandatory documents before proceeding
         const missingDocs: string[] = [];
         if (
@@ -1839,17 +1829,8 @@ export default function ListPropertyWizard() {
 
       if (s === 1) {
         fieldsToValidate = ["firstName", "lastName", "email", "phone"];
-      } else if (s === 2) {
-        fieldsToValidate = [
-          "businessName",
-          "kycStreetAddress",
-          "kycLocality",
-          "kycCity",
-          "kycDistrict",
-          "kycState",
-          "kycPincode",
-          "panNumber",
-        ];
+        } else if (s === 2) {
+          fieldsToValidate = [];
       } else if (s === 3) {
         fieldsToValidate = [
           "propertyTitle",
@@ -1911,7 +1892,7 @@ export default function ListPropertyWizard() {
   // Step titles for full mode (9 steps)
   const fullModeStepTitles = [
     { title: "Personal Information", icon: User },
-    { title: "Business & KYC Documents", icon: FileText },
+    { title: "KYC Documents", icon: FileText },
     { title: "Property Details & Room Types", icon: Home },
     { title: "Day-wise Pricing", icon: CalendarDays },
     { title: "Cancellation & Amenities", icon: XCircle },
@@ -3104,347 +3085,16 @@ export default function ListPropertyWizard() {
                 </div>
               )}
 
-              {/* Step 2: Business & KYC Documents (Full Mode Only) */}
+              {/* Step 2: KYC Documents (Full Mode Only) */}
               {!isQuickMode && step === 2 && (
                 <div className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Building2 className="h-5 w-5" />
-                        Business Information
-                      </CardTitle>
-                      <CardDescription>
-                        {isCompleteMode && existingKycApplication
-                          ? "Your business details are pre-filled. You can edit any information or add more documents below."
-                          : "Your business details for verification"}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="businessName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Business Name *</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Your Hotel or Business Name"
-                                {...field}
-                                data-testid="input-business-name"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      {/* Detailed Address Fields */}
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="kycFlatNo"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Flat / Apartment No.</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="e.g., A-101"
-                                  {...field}
-                                  data-testid="input-kyc-flat"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="kycHouseNo"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>House / Building No.</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="e.g., 123"
-                                  {...field}
-                                  data-testid="input-kyc-house"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="kycStreetAddress"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Street Address *</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Street name / Road name"
-                                {...field}
-                                data-testid="input-kyc-street"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="kycLandmark"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Landmark (Optional)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Near Metro Station"
-                                  {...field}
-                                  data-testid="input-kyc-landmark"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="kycLocality"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Locality / Area *</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="e.g., Connaught Place"
-                                  {...field}
-                                  data-testid="input-kyc-locality"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="kycPincode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>PIN Code *</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Input
-                                  placeholder="Enter 6-digit PIN code"
-                                  {...field}
-                                  onChange={(e) =>
-                                    handleKycPincodeChange(e.target.value)
-                                  }
-                                  maxLength={6}
-                                  data-testid="input-kyc-pincode"
-                                />
-                                {isPincodeLookup && (
-                                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
-                                )}
-                              </div>
-                            </FormControl>
-                            <p className="text-xs text-muted-foreground">
-                              Enter PIN code to auto-fill location details
-                            </p>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="kycCity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>City *</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="City"
-                                  list="kyc-cities"
-                                  {...field}
-                                  data-testid="input-kyc-city"
-                                />
-                              </FormControl>
-                              <datalist id="kyc-cities">
-                                {INDIAN_CITIES.map((city) => (
-                                  <option key={city} value={city} />
-                                ))}
-                              </datalist>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="kycDistrict"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>District *</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="District"
-                                  {...field}
-                                  data-testid="input-kyc-district"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="kycState"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>State *</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="State"
-                                list="kyc-states"
-                                {...field}
-                                data-testid="input-kyc-state"
-                              />
-                            </FormControl>
-                            <datalist id="kyc-states">
-                              {INDIAN_STATES.map((state) => (
-                                <option key={state} value={state} />
-                              ))}
-                            </datalist>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="panNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>PAN Number *</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="ABCDE1234F"
-                                  maxLength={10}
-                                  {...field}
-                                  data-testid="input-pan"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="gstNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>GST Number (Optional)</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <Input
-                                    placeholder="22AAAAA0000A1Z5"
-                                    {...field}
-                                    maxLength={15}
-                                    onChange={async (e) => {
-                                      const val = e.target.value.toUpperCase();
-                                      field.onChange(val);
-                                      if (val.length === 15) {
-                                        try {
-                                          toast({
-                                            title: "Looking up GST...",
-                                            description:
-                                              "Fetching business details",
-                                          });
-                                          const res = await fetch(
-                                            `https://sheet.gstincheck.co.in/check/${import.meta.env.VITE_GST_API_KEY}/${val}`,
-                                          );
-                                          const data = await res.json();
-                                          if (data?.flag && data.data) {
-                                            const d = data.data;
-                                            const addr = d.pradr?.addr;
-                                            if (addr) {
-                                              form.setValue(
-                                                "kycStreetAddress",
-                                                [addr.bnm, addr.st]
-                                                  .filter(Boolean)
-                                                  .join(", ") ||
-                                                  form.getValues(
-                                                    "kycStreetAddress",
-                                                  ),
-                                              );
-                                              form.setValue(
-                                                "kycLocality",
-                                                addr.loc ||
-                                                  form.getValues("kycLocality"),
-                                              );
-                                              form.setValue(
-                                                "kycCity",
-                                                addr.dst ||
-                                                  form.getValues("kycCity"),
-                                              );
-                                              form.setValue(
-                                                "kycDistrict",
-                                                addr.dst ||
-                                                  form.getValues("kycDistrict"),
-                                              );
-                                              form.setValue(
-                                                "kycState",
-                                                addr.stcd ||
-                                                  form.getValues("kycState"),
-                                              );
-                                              form.setValue(
-                                                "kycPincode",
-                                                addr.pncd ||
-                                                  form.getValues("kycPincode"),
-                                              );
-                                              toast({
-                                                title: "GST Details Found!",
-                                                description: `Business: ${d.tradeNam || d.lgnm}`,
-                                              });
-                                            }
-                                          }
-                                        } catch (err) {
-                                          console.log("GST lookup failed", err);
-                                        }
-                                      }
-                                    }}
-                                    data-testid="input-gst-number"
-                                  />
-                                </div>
-                              </FormControl>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Enter 15-digit GSTIN to auto-fill address
-                                details
-                              </p>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   <KycDocumentUploader
                     value={kycDocuments}
                     onChange={setKycDocuments}
                   />
                 </div>
               )}
-
-              {/* Step 3: Property Details */}
+                            {/* Step 3: Property Details */}
               {step === 3 && (
                 <div className="space-y-6">
                   <Card>
@@ -5112,6 +4762,6 @@ export default function ListPropertyWizard() {
           </Form>
         </div>
       </div>
-    </>
+  </>
   );
 }
