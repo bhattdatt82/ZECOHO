@@ -48,6 +48,7 @@ export const otpCodes = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     email: varchar("email", { length: 255 }),
+  
     phone: varchar("phone", { length: 20 }),
     code: varchar("code", { length: 6 }).notNull(),
     purpose: otpPurposeEnum("purpose").notNull().default("signup"),
@@ -397,7 +398,8 @@ export const users = pgTable("users", {
     .array()
     .default(sql`ARRAY[]::text[]`),
   phone: varchar("phone", { length: 20 }),
-  passwordHash: varchar("password_hash", { length: 255 }),
+    alternativePhone: varchar("alternative_phone", { length: 20 }),
+    passwordHash: varchar("password_hash", { length: 255 }),
   registrationMethod: registrationMethodEnum("registration_method")
     .notNull()
     .default("replit"),
@@ -1082,7 +1084,8 @@ export const kycApplications = pgTable(
     lastName: varchar("last_name", { length: 100 }).notNull(),
     email: varchar("email", { length: 255 }).notNull(),
     phone: varchar("phone", { length: 20 }).notNull(),
-    businessName: varchar("business_name", { length: 255 }).notNull(),
+      alternativePhone: varchar("alternative_phone", { length: 20 }),
+      businessName: varchar("business_name", { length: 255 }).notNull(),
     flatNo: varchar("flat_no", { length: 50 }),
     houseNo: varchar("house_no", { length: 50 }),
     streetAddress: varchar("street_address", { length: 255 }).notNull(),

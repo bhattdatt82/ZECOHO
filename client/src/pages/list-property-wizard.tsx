@@ -186,6 +186,11 @@ const combinedSchema = z.object({
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  alternativePhone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number")
+    .optional()
+    .or(z.literal("")),
 
   // KYC Business Information - Detailed Address
   businessName: z.string().min(3, "Business name is required"),
@@ -272,6 +277,11 @@ const quickListingSchema = z.object({
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  alternativePhone: z
+    .string()
+    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number")
+    .optional()
+    .or(z.literal("")),
   propertyTitle: z
     .string()
     .min(5, "Property title must be at least 5 characters"),
@@ -493,21 +503,27 @@ export default function ListPropertyWizard() {
 
   // Auto-draft: property ID created between step 3→4 to enable pricing/availability steps
   // In complete mode, initialize from the URL propertyId so step 4 renders immediately
-  const [autoDraftPropertyId, setAutoDraftPropertyId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("mode") === "complete") return params.get("propertyId");
-    }
-    return null;
-  });
+  const [autoDraftPropertyId, setAutoDraftPropertyId] = useState<string | null>(
+    () => {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("mode") === "complete") return params.get("propertyId");
+      }
+      return null;
+    },
+  );
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   // Availability blocking state (for step 6)
   const [blockStartDate, setBlockStartDate] = useState("");
   const [blockEndDate, setBlockEndDate] = useState("");
-  const [blockType, setBlockType] = useState<"temporary_hold" | "sold_out" | "maintenance">("maintenance");
+  const [blockType, setBlockType] = useState<
+    "temporary_hold" | "sold_out" | "maintenance"
+  >("maintenance");
   const [isBlockingDates, setIsBlockingDates] = useState(false);
-  const [blockedRanges, setBlockedRanges] = useState<Array<{id: string; startDate: string; endDate: string; blockType: string}>>([]);
+  const [blockedRanges, setBlockedRanges] = useState<
+    Array<{ id: string; startDate: string; endDate: string; blockType: string }>
+  >([]);
   const [isFetchingBlocks, setIsFetchingBlocks] = useState(false);
 
   const form = useForm<CombinedFormData>({
@@ -517,6 +533,7 @@ export default function ListPropertyWizard() {
       lastName: user?.lastName || "",
       email: user?.email || "",
       phone: "",
+      alternativePhone: "",
       businessName: "",
       kycFlatNo: "",
       kycHouseNo: "",
@@ -621,6 +638,8 @@ export default function ListPropertyWizard() {
         lastName: existingKycApplication.lastName || "",
         email: existingKycApplication.email || "",
         phone: existingKycApplication.phone || "",
+        alternativePhone:
+          (existingKycApplication as any).alternativePhone || "",
         businessName: existingKycApplication.businessName || "",
         kycFlatNo: existingKycApplication.flatNo || "",
         kycHouseNo: existingKycApplication.houseNo || "",
@@ -757,7 +776,7 @@ export default function ListPropertyWizard() {
                   maxGuests: r.maxGuests || 2,
                   totalRooms: r.totalRooms || 1,
                   mealOptions: [],
-                }))
+                })),
               );
             }
           })
@@ -814,6 +833,11 @@ export default function ListPropertyWizard() {
       form.setValue("panNumber", existingKycApplication.panNumber);
     if (existingKycApplication.phone)
       form.setValue("phone", existingKycApplication.phone);
+    if ((existingKycApplication as any).alternativePhone)
+      form.setValue(
+        "alternativePhone",
+        (existingKycApplication as any).alternativePhone,
+      );
 
     // Pre-fill documents from existing KYC application
     const existingDocs = {
@@ -1240,6 +1264,7 @@ export default function ListPropertyWizard() {
         lastName: data.lastName,
         email: data.email,
         phone: data.phone,
+        alternativePhone: data.alternativePhone || null,
         businessName: data.businessName,
         flatNo: data.kycFlatNo,
         houseNo: data.kycHouseNo,
@@ -1341,6 +1366,7 @@ export default function ListPropertyWizard() {
             lastName: data.lastName,
             email: data.email,
             phone: data.phone,
+            alternativePhone: data.alternativePhone || null,
             businessName: data.businessName,
             flatNo: data.kycFlatNo,
             houseNo: data.kycHouseNo,
@@ -1632,15 +1658,20 @@ export default function ListPropertyWizard() {
   const fetchBlockedDates = async (propertyId: string) => {
     setIsFetchingBlocks(true);
     try {
-      const resp = await apiRequest("GET", `/api/properties/${propertyId}/availability-overrides`);
+      const resp = await apiRequest(
+        "GET",
+        `/api/properties/${propertyId}/availability-overrides`,
+      );
       const data = await resp.json();
       if (Array.isArray(data)) {
-        setBlockedRanges(data.map((d: any) => ({
-          id: d.id,
-          startDate: d.startDate,
-          endDate: d.endDate,
-          blockType: d.blockType || "maintenance",
-        })));
+        setBlockedRanges(
+          data.map((d: any) => ({
+            id: d.id,
+            startDate: d.startDate,
+            endDate: d.endDate,
+            blockType: d.blockType || "maintenance",
+          })),
+        );
       }
     } catch (e) {
       console.warn("Failed to fetch blocked dates:", e);
@@ -1655,7 +1686,13 @@ export default function ListPropertyWizard() {
     // Quick mode validation
     if (isQuickMode) {
       if (step === 1) {
-        fieldsToValidate = ["firstName", "lastName", "email", "phone"];
+        fieldsToValidate = [
+          "firstName",
+          "lastName",
+          "email",
+          "phone",
+          "alternativePhone",
+        ];
       }
       // Step 2 in quick mode validates property + photos (handled in submit)
     } else {
@@ -1672,6 +1709,7 @@ export default function ListPropertyWizard() {
           "kycState",
           "kycPincode",
           "panNumber",
+          "alternativePhone",
         ];
         // Validate mandatory documents before proceeding
         const missingDocs: string[] = [];
@@ -2177,6 +2215,39 @@ export default function ListPropertyWizard() {
                               data-testid="input-phone"
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="alternativePhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            Alternative Number
+                            <span className="text-xs text-muted-foreground font-normal">
+                              (Optional)
+                            </span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Manager / Front Desk number"
+                              inputMode="numeric"
+                              maxLength={10}
+                              {...field}
+                              data-testid="input-alternative-phone-resubmit"
+                              onChange={(e) => {
+                                const val = e.target.value
+                                  .replace(/\D/g, "")
+                                  .slice(0, 10);
+                                field.onChange(val);
+                              }}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Add a manager or front-desk number for guest contact
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -2785,6 +2856,39 @@ export default function ListPropertyWizard() {
                               data-testid="input-phone"
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="alternativePhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            Alternative Number
+                            <span className="text-xs text-muted-foreground font-normal">
+                              (Optional)
+                            </span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Manager / Front Desk number"
+                              inputMode="numeric"
+                              maxLength={10}
+                              {...field}
+                              data-testid="input-alternative-phone"
+                              onChange={(e) => {
+                                const val = e.target.value
+                                  .replace(/\D/g, "")
+                                  .slice(0, 10);
+                                field.onChange(val);
+                              }}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Add a manager or front-desk number for guest contact
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -3769,9 +3873,20 @@ export default function ListPropertyWizard() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"].map((t) => (
+                                  {[
+                                    "10:00",
+                                    "11:00",
+                                    "12:00",
+                                    "13:00",
+                                    "14:00",
+                                    "15:00",
+                                    "16:00",
+                                    "17:00",
+                                    "18:00",
+                                  ].map((t) => (
                                     <SelectItem key={t} value={t}>
-                                      {t.replace(":00", ":00")} {parseInt(t) < 12 ? "AM" : "PM"}
+                                      {t.replace(":00", ":00")}{" "}
+                                      {parseInt(t) < 12 ? "AM" : "PM"}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -3796,9 +3911,19 @@ export default function ListPropertyWizard() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00"].map((t) => (
+                                  {[
+                                    "06:00",
+                                    "07:00",
+                                    "08:00",
+                                    "09:00",
+                                    "10:00",
+                                    "11:00",
+                                    "12:00",
+                                    "13:00",
+                                  ].map((t) => (
                                     <SelectItem key={t} value={t}>
-                                      {t.replace(":00", ":00")} {parseInt(t) < 12 ? "AM" : "PM"}
+                                      {t.replace(":00", ":00")}{" "}
+                                      {parseInt(t) < 12 ? "AM" : "PM"}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -3944,7 +4069,9 @@ export default function ListPropertyWizard() {
                             Day-wise Calendar Pricing
                           </CardTitle>
                           <CardDescription>
-                            Set specific prices for dates and date ranges. Drag to select multiple dates and apply pricing in bulk. You can also set meal plan prices.
+                            Set specific prices for dates and date ranges. Drag
+                            to select multiple dates and apply pricing in bulk.
+                            You can also set meal plan prices.
                           </CardDescription>
                         </CardHeader>
                       </Card>
@@ -3957,7 +4084,10 @@ export default function ListPropertyWizard() {
                     <Card>
                       <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="text-muted-foreground">Saving your property details to enable pricing setup...</p>
+                        <p className="text-muted-foreground">
+                          Saving your property details to enable pricing
+                          setup...
+                        </p>
                       </CardContent>
                     </Card>
                   )}
@@ -4045,9 +4175,21 @@ export default function ListPropertyWizard() {
                             <FormLabel>Policy Type *</FormLabel>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               {[
-                                { value: "flexible", label: "Flexible", desc: "Full refund if cancelled before the free cancellation window" },
-                                { value: "moderate", label: "Moderate", desc: "Partial refund if cancelled within the window" },
-                                { value: "strict", label: "Strict", desc: "No refund if cancelled" },
+                                {
+                                  value: "flexible",
+                                  label: "Flexible",
+                                  desc: "Full refund if cancelled before the free cancellation window",
+                                },
+                                {
+                                  value: "moderate",
+                                  label: "Moderate",
+                                  desc: "Partial refund if cancelled within the window",
+                                },
+                                {
+                                  value: "strict",
+                                  label: "Strict",
+                                  desc: "No refund if cancelled",
+                                },
                               ].map((policy) => (
                                 <div
                                   key={policy.value}
@@ -4055,8 +4197,12 @@ export default function ListPropertyWizard() {
                                   onClick={() => field.onChange(policy.value)}
                                   data-testid={`cancellation-policy-${policy.value}`}
                                 >
-                                  <p className="font-medium text-sm">{policy.label}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">{policy.desc}</p>
+                                  <p className="font-medium text-sm">
+                                    {policy.label}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {policy.desc}
+                                  </p>
                                 </div>
                               ))}
                             </div>
@@ -4072,23 +4218,34 @@ export default function ListPropertyWizard() {
                             name="freeCancellationHours"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Free Cancellation Window (hours before check-in)</FormLabel>
+                                <FormLabel>
+                                  Free Cancellation Window (hours before
+                                  check-in)
+                                </FormLabel>
                                 <FormControl>
                                   <Input
                                     type="number"
                                     min="1"
                                     step="1"
                                     {...field}
-                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 24)}
+                                    onChange={(e) =>
+                                      field.onChange(
+                                        parseInt(e.target.value) || 24,
+                                      )
+                                    }
                                     data-testid="input-free-cancellation-hours"
                                   />
                                 </FormControl>
-                                <p className="text-xs text-muted-foreground">Guests can cancel for free this many hours before check-in</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Guests can cancel for free this many hours
+                                  before check-in
+                                </p>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                          {form.watch("cancellationPolicyType") === "moderate" && (
+                          {form.watch("cancellationPolicyType") ===
+                            "moderate" && (
                             <FormField
                               control={form.control}
                               name="partialRefundPercent"
@@ -4102,11 +4259,18 @@ export default function ListPropertyWizard() {
                                       max="100"
                                       step="5"
                                       {...field}
-                                      onChange={(e) => field.onChange(parseInt(e.target.value) || 50)}
+                                      onChange={(e) =>
+                                        field.onChange(
+                                          parseInt(e.target.value) || 50,
+                                        )
+                                      }
                                       data-testid="input-partial-refund-percent"
                                     />
                                   </FormControl>
-                                  <p className="text-xs text-muted-foreground">Refund % when cancelled outside the free window</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Refund % when cancelled outside the free
+                                    window
+                                  </p>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -4392,14 +4556,19 @@ export default function ListPropertyWizard() {
                         Block Unavailable Dates
                       </CardTitle>
                       <CardDescription>
-                        Mark dates when your property won't be available — for maintenance, personal use, or if already sold out elsewhere. This step is optional and can be done later.
+                        Mark dates when your property won't be available — for
+                        maintenance, personal use, or if already sold out
+                        elsewhere. This step is optional and can be done later.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {!autoDraftPropertyId ? (
                         <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
                           <AlertTriangle className="h-8 w-8 text-amber-500" />
-                          <p className="text-muted-foreground text-sm">Property details must be saved first. Please go back to step 3 and complete your property details.</p>
+                          <p className="text-muted-foreground text-sm">
+                            Property details must be saved first. Please go back
+                            to step 3 and complete your property details.
+                          </p>
                         </div>
                       ) : (
                         <>
@@ -4410,7 +4579,9 @@ export default function ListPropertyWizard() {
                                 id="block-start"
                                 type="date"
                                 value={blockStartDate}
-                                onChange={e => setBlockStartDate(e.target.value)}
+                                onChange={(e) =>
+                                  setBlockStartDate(e.target.value)
+                                }
                                 min={new Date().toISOString().split("T")[0]}
                                 data-testid="input-block-start-date"
                               />
@@ -4421,50 +4592,84 @@ export default function ListPropertyWizard() {
                                 id="block-end"
                                 type="date"
                                 value={blockEndDate}
-                                onChange={e => setBlockEndDate(e.target.value)}
-                                min={blockStartDate || new Date().toISOString().split("T")[0]}
+                                onChange={(e) =>
+                                  setBlockEndDate(e.target.value)
+                                }
+                                min={
+                                  blockStartDate ||
+                                  new Date().toISOString().split("T")[0]
+                                }
                                 data-testid="input-block-end-date"
                               />
                             </div>
                             <div className="space-y-1">
                               <Label>Block Type</Label>
-                              <Select value={blockType} onValueChange={(v: any) => setBlockType(v)}>
+                              <Select
+                                value={blockType}
+                                onValueChange={(v: any) => setBlockType(v)}
+                              >
                                 <SelectTrigger data-testid="select-block-type">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                                  <SelectItem value="sold_out">Sold Out Elsewhere</SelectItem>
-                                  <SelectItem value="temporary_hold">Temporary Hold</SelectItem>
+                                  <SelectItem value="maintenance">
+                                    Maintenance
+                                  </SelectItem>
+                                  <SelectItem value="sold_out">
+                                    Sold Out Elsewhere
+                                  </SelectItem>
+                                  <SelectItem value="temporary_hold">
+                                    Temporary Hold
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                           </div>
                           <Button
                             type="button"
-                            disabled={!blockStartDate || !blockEndDate || isBlockingDates}
+                            disabled={
+                              !blockStartDate ||
+                              !blockEndDate ||
+                              isBlockingDates
+                            }
                             onClick={async () => {
-                              if (!blockStartDate || !blockEndDate || !autoDraftPropertyId) return;
+                              if (
+                                !blockStartDate ||
+                                !blockEndDate ||
+                                !autoDraftPropertyId
+                              )
+                                return;
                               setIsBlockingDates(true);
                               try {
-                                await apiRequest("POST", `/api/properties/${autoDraftPropertyId}/availability-overrides`, {
-                                  startDate: blockStartDate,
-                                  endDate: blockEndDate,
-                                  blockType,
-                                });
+                                await apiRequest(
+                                  "POST",
+                                  `/api/properties/${autoDraftPropertyId}/availability-overrides`,
+                                  {
+                                    startDate: blockStartDate,
+                                    endDate: blockEndDate,
+                                    blockType,
+                                  },
+                                );
                                 toast({ title: "Dates blocked successfully" });
                                 setBlockStartDate("");
                                 setBlockEndDate("");
                                 fetchBlockedDates(autoDraftPropertyId);
                               } catch (e) {
-                                toast({ title: "Failed to block dates", variant: "destructive" });
+                                toast({
+                                  title: "Failed to block dates",
+                                  variant: "destructive",
+                                });
                               } finally {
                                 setIsBlockingDates(false);
                               }
                             }}
                             data-testid="button-block-dates"
                           >
-                            {isBlockingDates ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                            {isBlockingDates ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4 mr-2" />
+                            )}
                             Block Dates
                           </Button>
 
@@ -4475,12 +4680,21 @@ export default function ListPropertyWizard() {
                             </div>
                           ) : blockedRanges.length > 0 ? (
                             <div className="space-y-2">
-                              <p className="text-sm font-medium">Currently Blocked Dates</p>
+                              <p className="text-sm font-medium">
+                                Currently Blocked Dates
+                              </p>
                               {blockedRanges.map((range) => (
-                                <div key={range.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                <div
+                                  key={range.id}
+                                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                                >
                                   <div>
-                                    <p className="text-sm font-medium">{range.startDate} → {range.endDate}</p>
-                                    <p className="text-xs text-muted-foreground capitalize">{range.blockType.replace(/_/g, " ")}</p>
+                                    <p className="text-sm font-medium">
+                                      {range.startDate} → {range.endDate}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground capitalize">
+                                      {range.blockType.replace(/_/g, " ")}
+                                    </p>
                                   </div>
                                   <Button
                                     type="button"
@@ -4488,11 +4702,19 @@ export default function ListPropertyWizard() {
                                     variant="ghost"
                                     onClick={async () => {
                                       try {
-                                        await apiRequest("DELETE", `/api/properties/${autoDraftPropertyId}/availability-overrides/${range.id}`);
-                                        setBlockedRanges(prev => prev.filter(r => r.id !== range.id));
+                                        await apiRequest(
+                                          "DELETE",
+                                          `/api/properties/${autoDraftPropertyId}/availability-overrides/${range.id}`,
+                                        );
+                                        setBlockedRanges((prev) =>
+                                          prev.filter((r) => r.id !== range.id),
+                                        );
                                         toast({ title: "Date block removed" });
                                       } catch (e) {
-                                        toast({ title: "Failed to remove block", variant: "destructive" });
+                                        toast({
+                                          title: "Failed to remove block",
+                                          variant: "destructive",
+                                        });
                                       }
                                     }}
                                     data-testid={`button-remove-block-${range.id}`}
@@ -4503,7 +4725,10 @@ export default function ListPropertyWizard() {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground">No dates blocked yet. Add blocks above or skip this step.</p>
+                            <p className="text-sm text-muted-foreground">
+                              No dates blocked yet. Add blocks above or skip
+                              this step.
+                            </p>
                           )}
                         </>
                       )}
@@ -4522,24 +4747,68 @@ export default function ListPropertyWizard() {
                         Almost Done! Your Property Setup Summary
                       </CardTitle>
                       <CardDescription>
-                        Review what you've set up. Next you'll pin your property location and upload photos before submitting for review.
+                        Review what you've set up. Next you'll pin your property
+                        location and upload photos before submitting for review.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {[
-                        { label: "Property Name", value: form.watch("propertyTitle"), done: !!form.watch("propertyTitle") },
-                        { label: "Property Type", value: form.watch("propertyType"), done: !!form.watch("propertyType") },
-                        { label: "Room Types", value: `${wizardRoomTypes.length} room type(s) configured`, done: wizardRoomTypes.length > 0 },
-                        { label: "Check-in Time", value: form.watch("checkInTime") || "Not set", done: !!form.watch("checkInTime") },
-                        { label: "Check-out Time", value: form.watch("checkOutTime") || "Not set", done: !!form.watch("checkOutTime") },
-                        { label: "Cancellation Policy", value: form.watch("cancellationPolicyType") || "flexible", done: true },
-                        { label: "Day-wise Pricing", value: autoDraftPropertyId ? "Configured in pricing step" : "Will be available after submission", done: !!autoDraftPropertyId },
-                        { label: "Blocked Dates", value: blockedRanges.length > 0 ? `${blockedRanges.length} period(s) blocked` : "None", done: true },
+                        {
+                          label: "Property Name",
+                          value: form.watch("propertyTitle"),
+                          done: !!form.watch("propertyTitle"),
+                        },
+                        {
+                          label: "Property Type",
+                          value: form.watch("propertyType"),
+                          done: !!form.watch("propertyType"),
+                        },
+                        {
+                          label: "Room Types",
+                          value: `${wizardRoomTypes.length} room type(s) configured`,
+                          done: wizardRoomTypes.length > 0,
+                        },
+                        {
+                          label: "Check-in Time",
+                          value: form.watch("checkInTime") || "Not set",
+                          done: !!form.watch("checkInTime"),
+                        },
+                        {
+                          label: "Check-out Time",
+                          value: form.watch("checkOutTime") || "Not set",
+                          done: !!form.watch("checkOutTime"),
+                        },
+                        {
+                          label: "Cancellation Policy",
+                          value:
+                            form.watch("cancellationPolicyType") || "flexible",
+                          done: true,
+                        },
+                        {
+                          label: "Day-wise Pricing",
+                          value: autoDraftPropertyId
+                            ? "Configured in pricing step"
+                            : "Will be available after submission",
+                          done: !!autoDraftPropertyId,
+                        },
+                        {
+                          label: "Blocked Dates",
+                          value:
+                            blockedRanges.length > 0
+                              ? `${blockedRanges.length} period(s) blocked`
+                              : "None",
+                          done: true,
+                        },
                       ].map((item) => (
-                        <div key={item.label} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div
+                          key={item.label}
+                          className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                        >
                           <div>
                             <p className="text-sm font-medium">{item.label}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{String(item.value)}</p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {String(item.value)}
+                            </p>
                           </div>
                           {item.done ? (
                             <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -4560,10 +4829,22 @@ export default function ListPropertyWizard() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {[
-                        { step: "Step 8", desc: "Pin your property on the map for accurate location" },
-                        { step: "Step 9", desc: "Upload photos by category (Exterior, Rooms, Amenities, etc.)" },
-                        { step: "Review", desc: "Our team reviews your listing within 24 hours" },
-                        { step: "Go Live", desc: "Once approved, your property is visible to guests" },
+                        {
+                          step: "Step 8",
+                          desc: "Pin your property on the map for accurate location",
+                        },
+                        {
+                          step: "Step 9",
+                          desc: "Upload photos by category (Exterior, Rooms, Amenities, etc.)",
+                        },
+                        {
+                          step: "Review",
+                          desc: "Our team reviews your listing within 24 hours",
+                        },
+                        {
+                          step: "Go Live",
+                          desc: "Once approved, your property is visible to guests",
+                        },
                       ].map((item, i) => (
                         <div key={i} className="flex items-start gap-3">
                           <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
@@ -4571,7 +4852,9 @@ export default function ListPropertyWizard() {
                           </div>
                           <div>
                             <p className="text-sm font-medium">{item.step}</p>
-                            <p className="text-xs text-muted-foreground">{item.desc}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.desc}
+                            </p>
                           </div>
                         </div>
                       ))}
