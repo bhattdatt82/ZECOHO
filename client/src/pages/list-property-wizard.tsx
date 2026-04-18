@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -537,15 +538,15 @@ export default function ListPropertyWizard() {
   const [wizardLiquorAllowed, setWizardLiquorAllowed] = useState(false);
   const [wizardVisitorsAllowed, setWizardVisitorsAllowed] = useState(false);
 
-  // Availability blocking state (for step 8)
+  // Availability blocking state (step 7)
   const [blockStartDate, setBlockStartDate] = useState("");
   const [blockEndDate, setBlockEndDate] = useState("");
-  const [blockType, setBlockType] = useState<
-    "temporary_hold" | "sold_out" | "maintenance"
-  >("maintenance");
+  const [overrideType, setOverrideType] = useState<"hold" | "sold_out" | "maintenance">("hold");
+  const [blockReason, setBlockReason] = useState("");
+  const [blockRoomTypeId, setBlockRoomTypeId] = useState("");
   const [isBlockingDates, setIsBlockingDates] = useState(false);
   const [blockedRanges, setBlockedRanges] = useState<
-    Array<{ id: string; startDate: string; endDate: string; blockType: string }>
+    Array<{ id: string; startDate: string; endDate: string; overrideType: string; reason?: string; roomTypeId?: string }>
   >([]);
   const [isFetchingBlocks, setIsFetchingBlocks] = useState(false);
 
@@ -1718,7 +1719,9 @@ export default function ListPropertyWizard() {
             id: d.id,
             startDate: d.startDate,
             endDate: d.endDate,
-            blockType: d.blockType || "maintenance",
+            overrideType: d.overrideType || "hold",
+            reason: d.reason,
+            roomTypeId: d.roomTypeId,
           })),
         );
       }
@@ -4132,16 +4135,14 @@ export default function ListPropertyWizard() {
                         </div>
                       ) : (
                         <>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
                               <Label htmlFor="block-start">Start Date</Label>
                               <Input
                                 id="block-start"
                                 type="date"
                                 value={blockStartDate}
-                                onChange={(e) =>
-                                  setBlockStartDate(e.target.value)
-                                }
+                                onChange={(e) => setBlockStartDate(e.target.value)}
                                 min={new Date().toISOString().split("T")[0]}
                                 data-testid="input-block-start-date"
                               />
@@ -4152,73 +4153,90 @@ export default function ListPropertyWizard() {
                                 id="block-end"
                                 type="date"
                                 value={blockEndDate}
-                                onChange={(e) =>
-                                  setBlockEndDate(e.target.value)
-                                }
-                                min={
-                                  blockStartDate ||
-                                  new Date().toISOString().split("T")[0]
-                                }
+                                onChange={(e) => setBlockEndDate(e.target.value)}
+                                min={blockStartDate || new Date().toISOString().split("T")[0]}
                                 data-testid="input-block-end-date"
                               />
                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
                               <Label>Block Type</Label>
                               <Select
-                                value={blockType}
-                                onValueChange={(v: any) => setBlockType(v)}
+                                value={overrideType}
+                                onValueChange={(v: any) => setOverrideType(v)}
                               >
                                 <SelectTrigger data-testid="select-block-type">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="maintenance">
-                                    Maintenance
-                                  </SelectItem>
-                                  <SelectItem value="sold_out">
-                                    Sold Out Elsewhere
-                                  </SelectItem>
-                                  <SelectItem value="temporary_hold">
-                                    Temporary Hold
-                                  </SelectItem>
+                                  <SelectItem value="hold">Temporary Hold</SelectItem>
+                                  <SelectItem value="sold_out">Sold Out</SelectItem>
+                                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label>Room Type (optional)</Label>
+                              <Select
+                                value={blockRoomTypeId || "all"}
+                                onValueChange={(v) => setBlockRoomTypeId(v === "all" ? "" : v)}
+                              >
+                                <SelectTrigger data-testid="select-room-type-block">
+                                  <SelectValue placeholder="All rooms" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Rooms</SelectItem>
+                                  {wizardRoomTypes.map((rt) => (
+                                    <SelectItem key={rt.id} value={rt.id}>
+                                      {rt.name}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
                           </div>
+
+                          <div className="space-y-1">
+                            <Label htmlFor="block-reason">Reason (optional)</Label>
+                            <Textarea
+                              id="block-reason"
+                              value={blockReason}
+                              onChange={(e) => setBlockReason(e.target.value)}
+                              placeholder="e.g., Rooms booked through travel agent, Personal use"
+                              rows={2}
+                              data-testid="input-block-reason"
+                            />
+                          </div>
+
                           <Button
                             type="button"
-                            disabled={
-                              !blockStartDate ||
-                              !blockEndDate ||
-                              isBlockingDates
-                            }
+                            disabled={!blockStartDate || !blockEndDate || isBlockingDates}
                             onClick={async () => {
-                              if (
-                                !blockStartDate ||
-                                !blockEndDate ||
-                                !autoDraftPropertyId
-                              )
-                                return;
+                              if (!blockStartDate || !blockEndDate || !autoDraftPropertyId) return;
                               setIsBlockingDates(true);
                               try {
                                 await apiRequest(
                                   "POST",
                                   `/api/properties/${autoDraftPropertyId}/availability-overrides`,
                                   {
+                                    overrideType,
                                     startDate: blockStartDate,
                                     endDate: blockEndDate,
-                                    blockType,
+                                    reason: blockReason || undefined,
+                                    roomTypeId: blockRoomTypeId || undefined,
                                   },
                                 );
                                 toast({ title: "Dates blocked successfully" });
                                 setBlockStartDate("");
                                 setBlockEndDate("");
+                                setBlockReason("");
+                                setBlockRoomTypeId("");
                                 fetchBlockedDates(autoDraftPropertyId);
                               } catch (e) {
-                                toast({
-                                  title: "Failed to block dates",
-                                  variant: "destructive",
-                                });
+                                toast({ title: "Failed to block dates", variant: "destructive" });
                               } finally {
                                 setIsBlockingDates(false);
                               }
@@ -4230,7 +4248,7 @@ export default function ListPropertyWizard() {
                             ) : (
                               <Plus className="h-4 w-4 mr-2" />
                             )}
-                            Block Dates
+                            Add Date Block
                           </Button>
 
                           {isFetchingBlocks ? (
@@ -4240,21 +4258,36 @@ export default function ListPropertyWizard() {
                             </div>
                           ) : blockedRanges.length > 0 ? (
                             <div className="space-y-2">
-                              <p className="text-sm font-medium">
-                                Currently Blocked Dates
-                              </p>
+                              <p className="text-sm font-medium">Current Blocked Dates</p>
                               {blockedRanges.map((range) => (
                                 <div
                                   key={range.id}
-                                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                                  className="flex items-center justify-between p-3 rounded-lg border"
+                                  data-testid={`override-${range.id}`}
                                 >
-                                  <div>
-                                    <p className="text-sm font-medium">
-                                      {range.startDate} → {range.endDate}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground capitalize">
-                                      {range.blockType.replace(/_/g, " ")}
-                                    </p>
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <Badge variant={
+                                      range.overrideType === "sold_out" ? "destructive" :
+                                      range.overrideType === "maintenance" ? "secondary" : "outline"
+                                    }>
+                                      {range.overrideType === "hold" ? "Temporary Hold" :
+                                       range.overrideType === "sold_out" ? "Sold Out" : "Maintenance"}
+                                    </Badge>
+                                    {range.roomTypeId && (
+                                      <Badge variant="outline">
+                                        {wizardRoomTypes.find(rt => rt.id === range.roomTypeId)?.name || "Room"}
+                                      </Badge>
+                                    )}
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        {new Date(range.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                        {" → "}
+                                        {new Date(range.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                      </p>
+                                      {range.reason && (
+                                        <p className="text-xs text-muted-foreground">{range.reason}</p>
+                                      )}
+                                    </div>
                                   </div>
                                   <Button
                                     type="button"
@@ -4266,15 +4299,10 @@ export default function ListPropertyWizard() {
                                           "DELETE",
                                           `/api/properties/${autoDraftPropertyId}/availability-overrides/${range.id}`,
                                         );
-                                        setBlockedRanges((prev) =>
-                                          prev.filter((r) => r.id !== range.id),
-                                        );
+                                        setBlockedRanges((prev) => prev.filter((r) => r.id !== range.id));
                                         toast({ title: "Date block removed" });
                                       } catch (e) {
-                                        toast({
-                                          title: "Failed to remove block",
-                                          variant: "destructive",
-                                        });
+                                        toast({ title: "Failed to remove block", variant: "destructive" });
                                       }
                                     }}
                                     data-testid={`button-remove-block-${range.id}`}
@@ -4286,8 +4314,7 @@ export default function ListPropertyWizard() {
                             </div>
                           ) : (
                             <p className="text-sm text-muted-foreground">
-                              No dates blocked yet. Add blocks above or skip
-                              this step.
+                              No dates blocked yet. Add blocks above or skip this step.
                             </p>
                           )}
                         </>
