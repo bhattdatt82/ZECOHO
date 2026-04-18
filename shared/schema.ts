@@ -384,6 +384,7 @@ export const adminActionTypeEnum = pgEnum("admin_action_type", [
   "reinstate_owner",
   "deactivate_user",
   "restore_user",
+  "delete_user",
 ]);
 
 // User storage table - supports both Replit Auth and local registration
@@ -2080,6 +2081,9 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "kyc_rejected",
   "property_approved",
   "property_rejected",
+  "property_pending",
+  "subscription_expired",
+  "subscription_expiring",
   "system",
 ]);
 

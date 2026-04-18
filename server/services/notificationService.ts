@@ -2,7 +2,7 @@ import { db } from "../db";
 import { notifications } from "@shared/schema";
 import type { InsertNotification } from "@shared/schema";
 
-type NotificationType = 
+type NotificationType =
   | "booking_request"
   | "booking_confirmed"
   | "booking_cancelled"
@@ -13,6 +13,9 @@ type NotificationType =
   | "kyc_rejected"
   | "property_approved"
   | "property_rejected"
+  | "property_pending"
+  | "subscription_expired"
+  | "subscription_expiring"
   | "system";
 
 interface CreateNotificationParams {

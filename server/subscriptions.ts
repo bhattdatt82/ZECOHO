@@ -109,7 +109,7 @@ router.post("/owner/subscribe", async (req, res) => {
       screenshotUrl,
       paymentMethod,
     } = req.body;
-    const ownerId = req.user?.claims?.sub || req.user?.id;
+    const ownerId = (req.user as any)?.id;
 
     // Block submission if no payment proof provided
     if (!transactionId || !transactionId.trim()) {
@@ -201,7 +201,7 @@ router.post("/admin/owner-subscriptions/:id/extend", async (req, res) => {
 router.post("/admin/owner-subscriptions/:id/activate", async (req, res) => {
   try {
     const { note, startDate, endDate } = req.body;
-    const adminId = req.user?.claims?.sub || req.user?.id;
+    const adminId = (req.user as any)?.id;
     await storage.updateOwnerSubscriptionDates(
       req.params.id,
       new Date(startDate),
@@ -212,6 +212,7 @@ router.post("/admin/owner-subscriptions/:id/activate", async (req, res) => {
       adminId,
       note,
     );
+    if (!sub) return res.status(404).json({ error: "Subscription not found" });
 
     // ── Generate GST Invoice ──────────────────────────────────────────
     try {
@@ -367,7 +368,7 @@ router.post("/admin/owner-subscriptions/:id/cancel", async (req, res) => {
 /* ADMIN — waive */
 router.post("/admin/owner-subscriptions/:id/waive", async (req, res) => {
   try {
-    const adminId = req.user?.claims?.sub || req.user?.id;
+    const adminId = (req.user as any)?.id;
     const sub = await storage.waiveOwnerSubscription(
       req.params.id,
       adminId,

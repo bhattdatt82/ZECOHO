@@ -865,7 +865,7 @@ export class DatabaseStorage implements IStorage {
 
     // For public listing: only show properties whose owner has an active subscription
     const now = new Date();
-    const ownerIds = [...new Set(allProps.map((p) => p.ownerId))];
+    const ownerIds = Array.from(new Set(allProps.map((p) => p.ownerId)));
     if (ownerIds.length === 0) return [];
 
     const activeSubs = await db
@@ -3002,7 +3002,7 @@ export class DatabaseStorage implements IStorage {
       .update(bookings)
       .set({
         status: "checked_in",
-        actualCheckIn: new Date(),
+        checkInTime: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(bookings.id, bookingId))
@@ -3026,7 +3026,7 @@ export class DatabaseStorage implements IStorage {
       .update(bookings)
       .set({
         status: "checked_out",
-        actualCheckOut: new Date(),
+        checkOutTime: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(bookings.id, bookingId))
@@ -3117,15 +3117,14 @@ export class DatabaseStorage implements IStorage {
   ): Promise<{ fixed: number; details: string[] }> {
     const details: string[] = [];
     let fixed = 0;
-    let roomTypesQuery = db
+    const roomTypesList = await db
       .select()
       .from(roomTypes)
-      .where(eq(roomTypes.propertyId, propertyId));
-    if (roomTypeId)
-      roomTypesQuery = roomTypesQuery.where(
-        eq(roomTypes.id, roomTypeId),
-      ) as any;
-    const roomTypesList = await roomTypesQuery;
+      .where(
+        roomTypeId
+          ? and(eq(roomTypes.propertyId, propertyId), eq(roomTypes.id, roomTypeId))
+          : eq(roomTypes.propertyId, propertyId),
+      );
     const checkStartDate = startDate || new Date();
     const checkEndDate =
       endDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -3880,24 +3879,6 @@ export class DatabaseStorage implements IStorage {
         startDate,
         endDate,
         updatedAt: new Date(),
-      })
-      .where(eq(ownerSubscriptions.id, id))
-      .returning();
-    return updated;
-  }
-
-  async waiveOwnerSubscription(
-    id: string,
-    adminId: string,
-    note: string,
-  ): Promise<OwnerSubscription | undefined> {
-    const [updated] = await db
-      .update(ownerSubscriptions)
-      .set({
-        status: "waived",
-        waivedBy: adminId,
-        waiverNote: note,
-        waivedAt: new Date(),
       })
       .where(eq(ownerSubscriptions.id, id))
       .returning();

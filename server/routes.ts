@@ -1733,18 +1733,14 @@ export async function registerRoutes(
               bedType: rt.bedType || null,
               viewType: rt.viewType || null,
               bathroomType: rt.bathroomType || null,
-              smokingAllowed: rt.smokingAllowed ?? false,
-              roomSize: rt.roomSize ? parseFloat(rt.roomSize) : null,
+              smokingPolicy: rt.smokingAllowed ? "Smoking" : "Non-smoking",
+              roomSizeSqft: rt.roomSizeSqft ? parseInt(rt.roomSizeSqft) : null,
               hasAC: rt.hasAC ?? false,
               hasTV: rt.hasTV ?? false,
               hasWifi: rt.hasWifi ?? false,
-              hasRefrigerator: rt.hasRefrigerator ?? false,
+              hasFridge: rt.hasRefrigerator ?? rt.hasFridge ?? false,
               hasBalcony: rt.hasBalcony ?? false,
-              hasBathtub: rt.hasBathtub ?? false,
-              hasKitchen: rt.hasKitchen ?? false,
-              hasWashingMachine: rt.hasWashingMachine ?? false,
               hasSafe: rt.hasSafe ?? false,
-              hasHairDryer: rt.hasHairDryer ?? false,
             });
             // Create meal options
             if (rt.mealOptions && Array.isArray(rt.mealOptions)) {
