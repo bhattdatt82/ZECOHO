@@ -296,7 +296,7 @@ async function seedData() {
     const createdProperties = [];
     for (const propData of propertiesData) {
       const { amenityIds, ...propertyData } = propData;
-      const [property] = await db.insert(properties).values(propertyData).returning();
+      const [property] = await db.insert(properties).values(propertyData as any).returning();
       createdProperties.push(property);
 
       // Add amenities to property

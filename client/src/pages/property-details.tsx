@@ -1015,16 +1015,6 @@ export default function PropertyDetails() {
     const mealCost = nights * mealOptionPrice * guests;
     let basePrice = roomCost + mealCost;
 
-    if (
-      property.bulkBookingEnabled &&
-      property.bulkBookingMinRooms &&
-      rooms >= property.bulkBookingMinRooms &&
-      property.bulkBookingDiscountPercent
-    ) {
-      const discountPercent = Number(property.bulkBookingDiscountPercent);
-      basePrice = basePrice * (1 - discountPercent / 100);
-    }
-
     return Math.round(basePrice);
   };
 
@@ -2210,14 +2200,6 @@ export default function PropertyDetails() {
                       </p>
                     </div>
                   )}
-                  {property.bulkBookingEnabled &&
-                    property.bulkBookingMinRooms &&
-                    property.bulkBookingDiscountPercent && (
-                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        {Number(property.bulkBookingDiscountPercent)}% off on{" "}
-                        {property.bulkBookingMinRooms}+ rooms
-                      </div>
-                    )}
                   {property.rating && Number(property.rating) > 0 && (
                     <div className="flex items-center gap-1 text-sm mt-2">
                       <Star className="h-4 w-4 fill-current text-yellow-500" />
@@ -2839,15 +2821,6 @@ export default function PropertyDetails() {
                       }
                     }
 
-                    const hasBulkDiscount =
-                      property.bulkBookingEnabled &&
-                      property.bulkBookingMinRooms &&
-                      rooms >= property.bulkBookingMinRooms &&
-                      property.bulkBookingDiscountPercent;
-                    const discountPercent = hasBulkDiscount
-                      ? Number(property.bulkBookingDiscountPercent)
-                      : 0;
-
                     return (
                       <div className="space-y-4" ref={travellerDetailsRef}>
                         <GuestDetailsForm
@@ -2870,7 +2843,7 @@ export default function PropertyDetails() {
                             adults,
                             children,
                             originalPrice,
-                            bulkDiscountPercent: discountPercent,
+                            bulkDiscountPercent: 0,
                           }}
                         />
                       </div>
@@ -3088,15 +3061,6 @@ export default function PropertyDetails() {
                   }
                 }
 
-                const hasBulkDiscount =
-                  property.bulkBookingEnabled &&
-                  property.bulkBookingMinRooms &&
-                  rooms >= property.bulkBookingMinRooms &&
-                  property.bulkBookingDiscountPercent;
-                const discountPercent = hasBulkDiscount
-                  ? Number(property.bulkBookingDiscountPercent)
-                  : 0;
-
                 return (
                   <>
                     <GuestDetailsForm
@@ -3119,7 +3083,7 @@ export default function PropertyDetails() {
                         adults,
                         children,
                         originalPrice,
-                        bulkDiscountPercent: discountPercent,
+                        bulkDiscountPercent: 0,
                       }}
                     />
                   </>

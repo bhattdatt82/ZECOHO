@@ -1910,11 +1910,6 @@ export default function ListPropertyWizard() {
       } else if (s >= 5 && s <= 7) {
         // Steps 5-7 are optional (policy, amenities, availability)
         fieldsToValidate = [];
-      } else if (false) {
-        // placeholder to satisfy linter structure — never reached
-          return;
-        }
-        fieldsToValidate = [];
       }
 
       const isValid = await form.trigger(fieldsToValidate);
@@ -2507,7 +2502,7 @@ export default function ListPropertyWizard() {
                                           description:
                                             "Fetching business details",
                                         });
-                                        gstincheck;
+                                        const res = await apiRequest("GET", `/api/gstin/verify/${val}`);
                                         const data = await res.json();
                                         if (data?.flag && data.data) {
                                           const d = data.data;

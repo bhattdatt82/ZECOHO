@@ -83,9 +83,8 @@ import { PropertyMap } from "@/components/PropertyMap";
 import {
   PropertyImageUploader,
   defaultCategorizedImages,
-  type CategorizedPropertyImages,
 } from "@/components/PropertyImageUploader";
-import type { Property, AvailabilityOverride, RoomType } from "@shared/schema";
+import type { Property, AvailabilityOverride, RoomType, CategorizedPropertyImages } from "@shared/schema";
 import { PriceCalendar } from "@/components/PriceCalendar";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
