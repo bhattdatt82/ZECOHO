@@ -8,7 +8,8 @@ const amenitiesData = [
   { name: "Air conditioning", icon: "Wind", category: "essential" },
   { name: "Heating", icon: "Flame", category: "essential" },
   { name: "TV", icon: "Tv", category: "essential" },
-  
+  { name: "Laundry", icon: "WashingMachine", category: "essential" },
+
   // Bathroom Amenities
   { name: "Washer", icon: "WashingMachine", category: "bathroom" },
   { name: "Dryer", icon: "Wind", category: "bathroom" },

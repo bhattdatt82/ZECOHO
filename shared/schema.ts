@@ -2475,6 +2475,7 @@ export const subscriptionTierEnum = pgEnum("subscription_tier", [
   "basic",
   "standard",
   "premium",
+  "custom",
 ]);
 
 // Subscription status enum
@@ -2520,6 +2521,11 @@ export const subscriptionPlans = pgTable(
       .default(true),
     priorityPlacement: boolean("priority_placement").notNull().default(false), // Premium only
     analyticsEnabled: boolean("analytics_enabled").notNull().default(false), // Standard + Premium
+
+    // Custom tier label (used when tier = "custom")
+    customTierLabel: varchar("custom_tier_label", { length: 100 }),
+    // Admin-defined extra feature strings shown to owners
+    additionalFeatures: jsonb("additional_features").$type<string[]>(),
 
     // Admin control
     isActive: boolean("is_active").notNull().default(true), // Admin can hide a plan from owners
@@ -2643,6 +2649,8 @@ export const ownerReferrals = pgTable("owner_referrals", {
   refereeId: text("referee_id").references(() => users.id),
   status: text("status").notNull().default("pending"),
   rewardMonths: integer("reward_months").notNull().default(1),
+  rewardCode: text("reward_code").unique(), // code given to referrer to redeem 1 free month
+  rewardRedeemedAt: timestamp("reward_redeemed_at"), // when referrer used the reward code
   createdAt: timestamp("created_at").defaultNow(),
   rewardedAt: timestamp("rewarded_at"),
 });

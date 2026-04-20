@@ -107,6 +107,7 @@ interface OwnerSubscription {
 interface SubscriptionPlan {
   id: string;
   tier: string;
+  customTierLabel?: string;
   name: string;
   description?: string;
   duration: string;
@@ -117,6 +118,7 @@ interface SubscriptionPlan {
   bookingManagementEnabled: boolean;
   priorityPlacement: boolean;
   analyticsEnabled: boolean;
+  additionalFeatures?: string[];
   isActive: boolean;
   sortOrder: number;
 }
@@ -591,6 +593,134 @@ function InvoicesTab() {
     </>
   );
 }
+function ReferralsTab() {
+  const { toast } = useToast();
+  const { data: referrals = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/admin/referrals"],
+    queryFn: () =>
+      apiRequest("GET", "/api/admin/referrals").then((r) => r.json()),
+  });
+
+  const handleExport = async () => {
+    try {
+      const res = await apiRequest("GET", "/api/admin/referrals/export");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zecoho-referrals-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Export failed", variant: "destructive" });
+    }
+  };
+
+  const statusBadgeClass = (status: string) => {
+    if (status === "rewarded") return "bg-green-100 text-green-700";
+    if (status === "signed_up") return "bg-blue-100 text-blue-700";
+    return "bg-muted text-muted-foreground";
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Referral Tracking</h2>
+          <p className="text-xs text-muted-foreground">
+            {referrals.length} referral{referrals.length !== 1 ? "s" : ""} total
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" />
+          Export CSV
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : referrals.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No referrals yet.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Referral Code</TableHead>
+                <TableHead>Referrer</TableHead>
+                <TableHead>Referee</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Reward Code</TableHead>
+                <TableHead>Redeemed</TableHead>
+                <TableHead>Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {referrals.map((r: any) => (
+                <TableRow key={r.id}>
+                  <TableCell>
+                    <span className="font-mono font-bold text-sm">{r.referralCode}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">{r.referrer?.name || "—"}</div>
+                    <div className="text-xs text-muted-foreground">{r.referrer?.email || ""}</div>
+                    <div className="text-xs text-muted-foreground">{r.referrer?.phone || ""}</div>
+                  </TableCell>
+                  <TableCell>
+                    {r.referee ? (
+                      <>
+                        <div className="text-sm font-medium">{r.referee.name}</div>
+                        <div className="text-xs text-muted-foreground">{r.referee.email}</div>
+                        <div className="text-xs text-muted-foreground">{r.referee.phone}</div>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Not signed up yet</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusBadgeClass(r.status)}`}>
+                      {r.status.replace("_", " ")}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {r.rewardCode ? (
+                      <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{r.rewardCode}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {r.rewardRedeemedAt ? (
+                      <span className="text-xs text-green-600 font-medium">
+                        {formatDate(r.rewardRedeemedAt)}
+                      </span>
+                    ) : r.rewardCode ? (
+                      <span className="text-xs text-amber-600">Pending</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs">{formatDate(r.createdAt)}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminSubscriptions() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -620,8 +750,10 @@ export default function AdminSubscriptions() {
   const [proofLoading, setProofLoading] = useState(false);
   const [showPlanDialog, setShowPlanDialog] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [newFeatureInput, setNewFeatureInput] = useState("");
   const [planForm, setPlanForm] = useState<any>({
     tier: "basic",
+    customTierLabel: "",
     name: "",
     description: "",
     duration: "monthly",
@@ -632,6 +764,7 @@ export default function AdminSubscriptions() {
     bookingManagementEnabled: true,
     priorityPlacement: false,
     analyticsEnabled: false,
+    additionalFeatures: [],
     isActive: true,
     sortOrder: 0,
   });
@@ -987,8 +1120,10 @@ export default function AdminSubscriptions() {
 
   function openNewPlan() {
     setEditingPlan(null);
+    setNewFeatureInput("");
     setPlanForm({
       tier: "basic",
+      customTierLabel: "",
       name: "",
       description: "",
       duration: "monthly",
@@ -999,6 +1134,7 @@ export default function AdminSubscriptions() {
       bookingManagementEnabled: true,
       priorityPlacement: false,
       analyticsEnabled: false,
+      additionalFeatures: [],
       isActive: true,
       sortOrder: 0,
     });
@@ -1007,8 +1143,10 @@ export default function AdminSubscriptions() {
 
   function openEditPlan(plan: SubscriptionPlan) {
     setEditingPlan(plan);
+    setNewFeatureInput("");
     setPlanForm({
       tier: plan.tier,
+      customTierLabel: plan.customTierLabel || "",
       name: plan.name,
       description: plan.description || "",
       duration: plan.duration,
@@ -1019,6 +1157,7 @@ export default function AdminSubscriptions() {
       bookingManagementEnabled: plan.bookingManagementEnabled,
       priorityPlacement: plan.priorityPlacement,
       analyticsEnabled: plan.analyticsEnabled,
+      additionalFeatures: plan.additionalFeatures || [],
       isActive: plan.isActive,
       sortOrder: plan.sortOrder,
     });
@@ -1114,6 +1253,7 @@ export default function AdminSubscriptions() {
           <TabsTrigger value="payment-accounts" className="flex-shrink-0">Payment Accounts</TabsTrigger>
           <TabsTrigger value="invoices" className="flex-shrink-0">Invoices</TabsTrigger>
           <TabsTrigger value="subscriptions" className="flex-shrink-0">Owner Subscriptions</TabsTrigger>
+          <TabsTrigger value="referrals" className="flex-shrink-0">Referrals</TabsTrigger>
         </TabsList>
         {/* PAYMENT ACCOUNTS TAB */}
         <TabsContent value="payment-accounts" className="space-y-4">
@@ -1246,7 +1386,9 @@ export default function AdminSubscriptions() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">
-                            {plan.tier}
+                            {plan.tier === "custom" && plan.customTierLabel
+                              ? plan.customTierLabel
+                              : plan.tier}
                           </span>
                           <span className="font-semibold">{plan.name}</span>
                           <span className="text-xs text-muted-foreground capitalize">
@@ -1287,6 +1429,19 @@ export default function AdminSubscriptions() {
                               Priority
                             </span>
                           )}
+                          {plan.bookingManagementEnabled && (
+                            <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
+                              Booking management
+                            </span>
+                          )}
+                          {(plan.additionalFeatures ?? []).map((feat) => (
+                            <span
+                              key={feat}
+                              className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded"
+                            >
+                              {feat}
+                            </span>
+                          ))}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -1794,6 +1949,11 @@ export default function AdminSubscriptions() {
 
           {/* close subscriptions tab content and main tabs */}
         </TabsContent>
+
+        {/* REFERRALS TAB */}
+        <TabsContent value="referrals">
+          <ReferralsTab />
+        </TabsContent>
       </Tabs>
 
       {/* Plan Create/Edit Dialog */}
@@ -1821,8 +1981,22 @@ export default function AdminSubscriptions() {
                     <SelectItem value="basic">Basic</SelectItem>
                     <SelectItem value="standard">Standard</SelectItem>
                     <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="custom">Custom tier</SelectItem>
                   </SelectContent>
                 </Select>
+                {planForm.tier === "custom" && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Custom tier name (e.g. Enterprise)"
+                    value={planForm.customTierLabel}
+                    onChange={(e: any) =>
+                      setPlanForm((f: any) => ({
+                        ...f,
+                        customTierLabel: e.target.value,
+                      }))
+                    }
+                  />
+                )}
               </div>
               <div>
                 <Label>Duration</Label>
@@ -1944,7 +2118,7 @@ export default function AdminSubscriptions() {
               </div>
             </div>
             <div className="space-y-3 border rounded-lg p-3">
-              <p className="text-sm font-medium">Features</p>
+              <p className="text-sm font-medium">Core Features</p>
               {[
                 { k: "bookingManagementEnabled", l: "Booking management" },
                 { k: "analyticsEnabled", l: "Analytics dashboard" },
@@ -1960,6 +2134,73 @@ export default function AdminSubscriptions() {
                   />
                 </div>
               ))}
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium mb-2">Additional Features</p>
+                <div className="space-y-1.5 mb-2">
+                  {(planForm.additionalFeatures as string[]).map(
+                    (feat: string, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between bg-muted/50 px-2 py-1 rounded text-sm"
+                      >
+                        <span>{feat}</span>
+                        <button
+                          type="button"
+                          className="text-red-500 hover:text-red-700 ml-2"
+                          onClick={() =>
+                            setPlanForm((f: any) => ({
+                              ...f,
+                              additionalFeatures: f.additionalFeatures.filter(
+                                (_: string, i: number) => i !== idx,
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ),
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. Dedicated support"
+                    value={newFeatureInput}
+                    onChange={(e: any) => setNewFeatureInput(e.target.value)}
+                    onKeyDown={(e: any) => {
+                      if (e.key === "Enter" && newFeatureInput.trim()) {
+                        e.preventDefault();
+                        setPlanForm((f: any) => ({
+                          ...f,
+                          additionalFeatures: [
+                            ...f.additionalFeatures,
+                            newFeatureInput.trim(),
+                          ],
+                        }));
+                        setNewFeatureInput("");
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!newFeatureInput.trim()) return;
+                      setPlanForm((f: any) => ({
+                        ...f,
+                        additionalFeatures: [
+                          ...f.additionalFeatures,
+                          newFeatureInput.trim(),
+                        ],
+                      }));
+                      setNewFeatureInput("");
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

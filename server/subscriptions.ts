@@ -38,6 +38,26 @@ router.get("/owner/subscription-status/:ownerId", async (req, res) => {
   }
 });
 
+/* OWNER — get plan features for authenticated owner */
+router.get("/owner/plan-features", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const ownerId = (req.user as any).id;
+    const features = await storage.getOwnerActivePlanFeatures(ownerId);
+    res.json(features ?? {
+      bookingManagementEnabled: false,
+      analyticsEnabled: false,
+      priorityPlacement: false,
+      additionalFeatures: [],
+      maxProperties: 0,
+      maxPhotosPerProperty: 0,
+    });
+  } catch (error) {
+    console.error("Error fetching plan features:", error);
+    res.status(500).json({ error: "Failed to fetch plan features" });
+  }
+});
+
 /* ADMIN — create plan */
 /* ADMIN — create plan */
 router.post("/admin/subscription-plans", async (req, res) => {
@@ -344,6 +364,43 @@ router.post("/admin/owner-subscriptions/:id/activate", async (req, res) => {
         "[AUTO-APPROVE] Error during auto-approval:",
         autoApproveError,
       );
+    }
+
+    // Trigger referral reward for the activated owner (fire-and-forget)
+    try {
+      const { db: refDb } = await import("./db");
+      const { ownerReferrals } = await import("../shared/schema");
+      const { eq: eqRef, and: andRef } = await import("drizzle-orm");
+      const { broadcastToUser } = await import("./routes");
+
+      const [pendingRef] = await refDb
+        .select()
+        .from(ownerReferrals)
+        .where(
+          andRef(
+            eqRef(ownerReferrals.refereeId, sub.ownerId),
+            eqRef(ownerReferrals.status, "signed_up"),
+          ),
+        )
+        .limit(1);
+
+      if (pendingRef) {
+        const rewardCode = "ZREF" + Math.random().toString(36).substring(2, 8).toUpperCase();
+        await refDb
+          .update(ownerReferrals)
+          .set({ status: "rewarded", rewardedAt: new Date(), rewardCode })
+          .where(eqRef(ownerReferrals.id, pendingRef.id));
+
+        broadcastToUser(pendingRef.referrerId, {
+          type: "referral_reward",
+          message: `Your referral has subscribed! Use code ${rewardCode} to claim 1 free month on your next renewal.`,
+          rewardCode,
+        });
+
+        console.log(`[REFERRAL] Reward code ${rewardCode} issued to ${pendingRef.referrerId}`);
+      }
+    } catch (refErr) {
+      console.error("[REFERRAL] Reward trigger failed:", refErr);
     }
 
     res.json(sub);

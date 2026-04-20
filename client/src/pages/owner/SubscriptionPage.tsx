@@ -127,14 +127,27 @@ function formatDate(dateStr: string) {
 // ── Referral Card ──────────────────────────────────────────────────────────
 function ReferralCard() {
   const [copied, setCopied] = useState(false);
+  const [redeemCode, setRedeemCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
   const { toast } = useToast();
-  const { data: referralData } = useQuery({
+
+  const { data: referralData, refetch: refetchReferral } = useQuery({
     queryKey: ["/api/referral/my-code"],
     queryFn: () =>
       fetch("/api/referral/my-code", { credentials: "include" }).then((r) =>
         r.json(),
       ),
   });
+  const { data: rewards = [], refetch: refetchRewards } = useQuery<any[]>({
+    queryKey: ["/api/referral/my-rewards"],
+    queryFn: () =>
+      fetch("/api/referral/my-rewards", { credentials: "include" }).then((r) =>
+        r.json(),
+      ),
+  });
+
+  const pendingRewards = rewards.filter((r: any) => !r.rewardRedeemedAt);
+
   const handleCopyCode = () => {
     navigator.clipboard.writeText(referralData?.referralCode || "");
     setCopied(true);
@@ -153,6 +166,29 @@ function ReferralCard() {
     );
     window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
+  const handleRedeem = async () => {
+    if (!redeemCode.trim()) return;
+    setRedeeming(true);
+    try {
+      const res = await fetch("/api/referral/redeem", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rewardCode: redeemCode.trim().toUpperCase() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to redeem");
+      toast({ title: "Reward redeemed!", description: "1 free month has been activated on your account." });
+      setRedeemCode("");
+      refetchRewards();
+      refetchReferral();
+    } catch (err: any) {
+      toast({ title: "Redemption failed", description: err.message, variant: "destructive" });
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
   return (
     <div className="mt-8 rounded-2xl border bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 p-6">
       <div className="flex items-center gap-2 mb-2">
@@ -163,8 +199,34 @@ function ReferralCard() {
       </div>
       <p className="text-sm text-muted-foreground mb-6">
         Share your referral link with other hoteliers. When they subscribe, you
-        get <strong>1 free month</strong> added to your plan.
+        get a <strong>reward code for 1 free month</strong> on your next renewal.
       </p>
+
+      {/* Pending reward codes alert */}
+      {pendingRewards.length > 0 && (
+        <div className="mb-6 p-4 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <span className="font-semibold text-green-700 dark:text-green-400 text-sm">
+              {pendingRewards.length} Reward Code{pendingRewards.length > 1 ? "s" : ""} Ready to Use!
+            </span>
+          </div>
+          {pendingRewards.map((r: any) => (
+            <div key={r.rewardCode} className="flex items-center gap-2 mt-1">
+              <span className="font-mono font-bold text-green-800 dark:text-green-300 bg-green-100 dark:bg-green-900/50 px-3 py-1 rounded text-sm tracking-widest">
+                {r.rewardCode}
+              </span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(r.rewardCode); toast({ title: "Reward code copied!" }); }}
+                className="p-1.5 text-green-600 hover:text-green-800"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           {
@@ -213,7 +275,7 @@ function ReferralCard() {
           </button>
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <button
           onClick={handleCopyLink}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-amber-400 text-amber-700 dark:text-amber-400 rounded-xl font-semibold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors text-sm"
@@ -227,8 +289,33 @@ function ReferralCard() {
           <Share2 className="h-4 w-4" /> Share on WhatsApp
         </button>
       </div>
+
+      {/* Reward code redemption */}
+      <div className="border-t pt-4">
+        <p className="text-xs font-semibold text-muted-foreground mb-2">REDEEM REWARD CODE</p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="flex-1 border rounded-lg px-3 py-2 text-sm font-mono uppercase tracking-wider bg-white dark:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            placeholder="Enter reward code (e.g. ZREFAB12)"
+            value={redeemCode}
+            onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+          />
+          <button
+            onClick={handleRedeem}
+            disabled={redeeming || !redeemCode.trim()}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors"
+          >
+            {redeeming ? "..." : "Redeem"}
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Enter your reward code to activate 1 free month on the same plan.
+        </p>
+      </div>
+
       <p className="text-xs text-muted-foreground text-center mt-4">
-        Reward credited when your referral activates a subscription
+        Reward code issued when your referral activates a subscription
       </p>
     </div>
   );

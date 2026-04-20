@@ -3476,7 +3476,8 @@ function PolicySection({ property }: { property: Property }) {
   );
 
   // Hotel rules
-  const [coupleFriendly, setCoupleFriendly] = useState(property.coupleFriendly ?? true);
+  const [coupleFriendly, setCoupleFriendly] = useState(property.coupleFriendly ?? false);
+  const [foreignGuestsAllowed, setForeignGuestsAllowed] = useState((property as any).foreignGuestsAllowed ?? false);
   const [petsAllowed, setPetsAllowed] = useState((property as any).petsAllowed ?? false);
   const [smokingAllowed, setSmokingAllowed] = useState((property as any).smokingAllowed ?? false);
   const [liquorAllowed, setLiquorAllowed] = useState((property as any).liquorAllowed ?? false);
@@ -3527,6 +3528,7 @@ function PolicySection({ property }: { property: Property }) {
       acceptedLocalIdTypes: localIdTypes,
       acceptedForeignIdTypes: foreignIdTypes,
       coupleFriendly,
+      foreignGuestsAllowed,
       petsAllowed,
       smokingAllowed,
       liquorAllowed,
@@ -3729,6 +3731,7 @@ function PolicySection({ property }: { property: Property }) {
             {(
               [
                 { label: "Couple-friendly", desc: "Allow unmarried couples to check in", value: coupleFriendly, set: setCoupleFriendly, testId: "switch-couple-friendly" },
+                { label: "Foreign guests allowed", desc: "Accept international guests with passport", value: foreignGuestsAllowed, set: setForeignGuestsAllowed, testId: "switch-foreign-guests-policy" },
                 { label: "Pets allowed", desc: "Guests may bring pets", value: petsAllowed, set: setPetsAllowed, testId: "switch-pets" },
                 { label: "Smoking in room", desc: "Smoking permitted inside rooms", value: smokingAllowed, set: setSmokingAllowed, testId: "switch-smoking" },
                 { label: "Liquor in room", desc: "Guests may consume liquor in room", value: liquorAllowed, set: setLiquorAllowed, testId: "switch-liquor" },

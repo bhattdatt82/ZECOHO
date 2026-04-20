@@ -1176,7 +1176,7 @@ export async function registerRoutes(
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        const { kyc, property, existingPropertyId: wizardDraftPropertyId } = req.body;
+        const { kyc, property, existingPropertyId: wizardDraftPropertyId, referralCode } = req.body;
 
         if (!kyc || !property) {
           return res
@@ -1526,6 +1526,26 @@ export async function registerRoutes(
             user.email,
             user.firstName || "Property Owner",
           ).catch(console.error);
+        }
+
+        // Apply referral code if provided (fire-and-forget, don't fail submission)
+        if (referralCode && typeof referralCode === "string") {
+          try {
+            const { ownerReferrals: ownerReferralsTable } = await import("../shared/schema");
+            const [ref] = await db
+              .select()
+              .from(ownerReferralsTable)
+              .where(eq(ownerReferralsTable.referralCode, referralCode.trim().toUpperCase()))
+              .limit(1);
+            if (ref && !ref.refereeId) {
+              await db
+                .update(ownerReferralsTable)
+                .set({ refereeId: userId, status: "signed_up" })
+                .where(eq(ownerReferralsTable.id, ref.id));
+            }
+          } catch (refErr) {
+            console.error("[REFERRAL] Failed to apply referral code:", refErr);
+          }
         }
 
         res.json({
@@ -10480,31 +10500,186 @@ export async function registerRoutes(
 
       if (!referral) return res.json({ message: "No pending referral found" });
 
+      // Generate a unique reward code for the referrer
+      const rewardCode = "ZREF" + Math.random().toString(36).substring(2, 8).toUpperCase();
+
       await db
         .update(ownerReferrals)
-        .set({ status: "rewarded", rewardedAt: new Date() })
+        .set({ status: "rewarded", rewardedAt: new Date(), rewardCode })
         .where(eq(ownerReferrals.id, referral.id));
 
-      const referrerSubs = await db
-        .select()
-        .from(ownerSubscriptions)
-        .where(eq(ownerSubscriptions.ownerId, referral.referrerId))
-        .orderBy(desc(ownerSubscriptions.endDate))
-        .limit(1);
+      // Notify referrer via WebSocket
+      broadcastToUser(referral.referrerId, {
+        type: "referral_reward",
+        message: `Your referral has subscribed! Use code ${rewardCode} to claim 1 free month on your next subscription renewal.`,
+        rewardCode,
+      });
 
-      if (referrerSubs.length > 0) {
-        const currentEnd = new Date(referrerSubs[0].endDate || new Date());
-        const newEnd = new Date(currentEnd);
-        newEnd.setMonth(newEnd.getMonth() + 1);
-        await db
-          .update(ownerSubscriptions)
-          .set({ endDate: newEnd })
-          .where(eq(ownerSubscriptions.id, referrerSubs[0].id));
-      }
-
-      res.json({ message: "Referral rewarded — 1 free month added" });
+      res.json({ message: "Referral rewarded — reward code issued", rewardCode });
     } catch (error) {
       res.status(500).json({ message: "Failed to process reward" });
+    }
+  });
+
+  // Referrer redeems reward code for 1 free month
+  app.post("/api/referral/redeem", isAuthenticated, async (req: any, res) => {
+    const ownerId = req.user.claims.sub;
+    const { rewardCode } = req.body;
+    if (!rewardCode) return res.status(400).json({ message: "Missing reward code" });
+    try {
+      const [referral] = await db
+        .select()
+        .from(ownerReferrals)
+        .where(
+          and(
+            eq(ownerReferrals.rewardCode, rewardCode.trim().toUpperCase()),
+            eq(ownerReferrals.referrerId, ownerId),
+            eq(ownerReferrals.status, "rewarded"),
+          ),
+        )
+        .limit(1);
+
+      if (!referral) return res.status(404).json({ message: "Invalid or already used reward code" });
+      if (referral.rewardRedeemedAt) return res.status(400).json({ message: "Reward code already redeemed" });
+
+      // Get referrer's last subscription to know which plan to use
+      const [lastSub] = await db
+        .select()
+        .from(ownerSubscriptions)
+        .where(eq(ownerSubscriptions.ownerId, ownerId))
+        .orderBy(desc(ownerSubscriptions.createdAt))
+        .limit(1);
+
+      if (!lastSub) return res.status(400).json({ message: "No previous subscription found. Please subscribe first." });
+
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      // Create a free 1-month subscription on the same plan
+      const freeSub = await storage.createOwnerSubscription({
+        ownerId,
+        planId: lastSub.planId,
+        tier: lastSub.tier,
+        duration: "monthly",
+        pricePaid: "0",
+        status: "active",
+        startDate,
+        endDate,
+        isWaived: true,
+        activationNote: `Referral reward — code ${rewardCode}`,
+      });
+
+      // Mark the reward code as redeemed
+      await db
+        .update(ownerReferrals)
+        .set({ rewardRedeemedAt: new Date() })
+        .where(eq(ownerReferrals.id, referral.id));
+
+      res.json({ message: "Reward redeemed! 1 free month activated.", subscription: freeSub });
+    } catch (error) {
+      console.error("Referral redeem error:", error);
+      res.status(500).json({ message: "Failed to redeem reward code" });
+    }
+  });
+
+  // Validate reward code (owner checks if their code is usable)
+  app.get("/api/referral/my-rewards", isAuthenticated, async (req: any, res) => {
+    const ownerId = req.user.claims.sub;
+    try {
+      const rewards = await db
+        .select()
+        .from(ownerReferrals)
+        .where(
+          and(
+            eq(ownerReferrals.referrerId, ownerId),
+            eq(ownerReferrals.status, "rewarded"),
+          ),
+        );
+      res.json(rewards.map((r) => ({
+        rewardCode: r.rewardCode,
+        rewardedAt: r.rewardedAt,
+        rewardRedeemedAt: r.rewardRedeemedAt,
+        rewardMonths: r.rewardMonths,
+      })));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
+  // Admin — all referrals
+  app.get("/api/admin/referrals", isAuthenticated, async (req: any, res) => {
+    if (req.user.claims.userRole !== "admin")
+      return res.status(403).json({ message: "Forbidden" });
+    try {
+      const referrals = await db.select().from(ownerReferrals).orderBy(desc(ownerReferrals.createdAt));
+      // Enrich with user names
+      const enriched = await Promise.all(
+        referrals.map(async (r) => {
+          const referrer = r.referrerId ? await storage.getUser(r.referrerId) : null;
+          const referee = r.refereeId ? await storage.getUser(r.refereeId) : null;
+          return {
+            id: r.id,
+            referralCode: r.referralCode,
+            status: r.status,
+            rewardCode: r.rewardCode,
+            rewardMonths: r.rewardMonths,
+            rewardedAt: r.rewardedAt,
+            rewardRedeemedAt: r.rewardRedeemedAt,
+            createdAt: r.createdAt,
+            referrer: referrer ? {
+              name: `${referrer.firstName || ""} ${referrer.lastName || ""}`.trim(),
+              email: referrer.email,
+              phone: referrer.phone,
+            } : null,
+            referee: referee ? {
+              name: `${referee.firstName || ""} ${referee.lastName || ""}`.trim(),
+              email: referee.email,
+              phone: referee.phone,
+            } : null,
+          };
+        })
+      );
+      res.json(enriched);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch referrals" });
+    }
+  });
+
+  // Admin — CSV export of referrals
+  app.get("/api/admin/referrals/export", isAuthenticated, async (req: any, res) => {
+    if (req.user.claims.userRole !== "admin")
+      return res.status(403).json({ message: "Forbidden" });
+    try {
+      const referrals = await db.select().from(ownerReferrals).orderBy(desc(ownerReferrals.createdAt));
+      const rows = await Promise.all(
+        referrals.map(async (r) => {
+          const referrer = r.referrerId ? await storage.getUser(r.referrerId) : null;
+          const referee = r.refereeId ? await storage.getUser(r.refereeId) : null;
+          return [
+            r.referralCode,
+            referrer ? `${referrer.firstName || ""} ${referrer.lastName || ""}`.trim() : "",
+            referrer?.email || "",
+            referrer?.phone || "",
+            referee ? `${referee.firstName || ""} ${referee.lastName || ""}`.trim() : "",
+            referee?.email || "",
+            referee?.phone || "",
+            r.status,
+            r.rewardCode || "",
+            r.rewardMonths,
+            r.rewardedAt ? new Date(r.rewardedAt).toLocaleDateString("en-IN") : "",
+            r.rewardRedeemedAt ? new Date(r.rewardRedeemedAt).toLocaleDateString("en-IN") : "",
+            r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-IN") : "",
+          ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+        })
+      );
+      const header = ["Referral Code","Referrer Name","Referrer Email","Referrer Phone","Referee Name","Referee Email","Referee Phone","Status","Reward Code","Reward Months","Rewarded At","Reward Redeemed At","Created At"].join(",");
+      const csv = [header, ...rows].join("\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="zecoho-referrals-${new Date().toISOString().slice(0,10)}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to export referrals" });
     }
   });
 

@@ -689,6 +689,14 @@ export interface IStorage {
     updates: Partial<InsertSubscriptionPlan>,
   ): Promise<SubscriptionPlan | undefined>;
   deleteSubscriptionPlan(id: string): Promise<void>;
+  getOwnerActivePlanFeatures(ownerId: string): Promise<{
+    bookingManagementEnabled: boolean;
+    analyticsEnabled: boolean;
+    priorityPlacement: boolean;
+    additionalFeatures: string[];
+    maxProperties: number;
+    maxPhotosPerProperty: number;
+  } | null>;
 
   // Owner Subscription operations
   getOwnerActiveSubscription(
@@ -3753,6 +3761,28 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSubscriptionPlan(id: string): Promise<void> {
     await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id));
+  }
+
+  async getOwnerActivePlanFeatures(ownerId: string): Promise<{
+    bookingManagementEnabled: boolean;
+    analyticsEnabled: boolean;
+    priorityPlacement: boolean;
+    additionalFeatures: string[];
+    maxProperties: number;
+    maxPhotosPerProperty: number;
+  } | null> {
+    const sub = await this.getOwnerActiveSubscription(ownerId);
+    if (!sub) return null;
+    const plan = await this.getSubscriptionPlan(sub.planId);
+    if (!plan) return null;
+    return {
+      bookingManagementEnabled: plan.bookingManagementEnabled,
+      analyticsEnabled: plan.analyticsEnabled,
+      priorityPlacement: plan.priorityPlacement,
+      additionalFeatures: (plan.additionalFeatures as string[]) || [],
+      maxProperties: plan.maxProperties,
+      maxPhotosPerProperty: plan.maxPhotosPerProperty,
+    };
   }
 
   async getOwnerActiveSubscription(

@@ -419,10 +419,18 @@ export default function ListPropertyWizard() {
     }
     return null;
   };
+  const getReferralCodeFromUrl = (): string => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("ref") || "";
+    }
+    return "";
+  };
   const [listingMode, setListingMode] = useState<ListingMode | null>(
     getInitialMode,
   );
   const [existingPropertyId] = useState<string | null>(getPropertyIdFromUrl);
+  const [referralCode, setReferralCode] = useState<string>(getReferralCodeFromUrl);
 
   // Quick mode has only 2 steps: 1. Basic Info, 2. Property + Photos
   const isQuickMode = listingMode === "quick";
@@ -595,7 +603,7 @@ export default function ListPropertyWizard() {
       localIdAllowed: true,
       hourlyBookingAllowed: false,
       foreignGuestsAllowed: true,
-      coupleFriendly: true,
+      coupleFriendly: false,
       checkInTime: "",
       checkOutTime: "",
       cancellationPolicyType: "flexible" as const,
@@ -1400,6 +1408,7 @@ export default function ListPropertyWizard() {
         {
           // Pass existing draft property ID if we auto-saved a draft during wizard
           existingPropertyId: autoDraftPropertyId || undefined,
+          referralCode: referralCode.trim() || undefined,
           // KYC data
           kyc: {
             firstName: data.firstName,
@@ -2916,6 +2925,27 @@ export default function ListPropertyWizard() {
                         </FormItem>
                       )}
                     />
+
+                    {/* Referral Code */}
+                    <div className="pt-2 border-t">
+                      <label className="text-sm font-medium block mb-1">
+                        Referral Code{" "}
+                        <span className="text-muted-foreground font-normal">
+                          (optional)
+                        </span>
+                      </label>
+                      <Input
+                        placeholder="e.g. ZCAB12"
+                        value={referralCode}
+                        onChange={(e) =>
+                          setReferralCode(e.target.value.toUpperCase().trim())
+                        }
+                        data-testid="input-referral-code"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        If someone referred you to Zecoho, enter their code here.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -3921,7 +3951,7 @@ export default function ListPropertyWizard() {
                     <CardContent>
                       <div className="space-y-4">
                         {([
-                          { label: "Couple-friendly", desc: "Allow unmarried couples to check in", value: form.watch("coupleFriendly") ?? true, onChange: (v: boolean) => form.setValue("coupleFriendly", v), testId: "wizard-switch-couple-friendly" },
+                          { label: "Couple-friendly", desc: "Allow unmarried couples to check in", value: form.watch("coupleFriendly") ?? false, onChange: (v: boolean) => form.setValue("coupleFriendly", v), testId: "wizard-switch-couple-friendly" },
                           { label: "Pets allowed", desc: "Guests may bring pets", value: wizardPetsAllowed, onChange: setWizardPetsAllowed, testId: "wizard-switch-pets" },
                           { label: "Smoking in room", desc: "Smoking permitted inside rooms", value: wizardSmokingAllowed, onChange: setWizardSmokingAllowed, testId: "wizard-switch-smoking" },
                           { label: "Liquor in room", desc: "Guests may consume liquor in room", value: wizardLiquorAllowed, onChange: setWizardLiquorAllowed, testId: "wizard-switch-liquor" },

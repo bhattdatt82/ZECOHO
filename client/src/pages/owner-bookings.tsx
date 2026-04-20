@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useKycGuard } from "@/hooks/useKycGuard";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useBookingUpdates } from "@/hooks/useBookingUpdates";
@@ -293,6 +294,7 @@ export default function OwnerBookings() {
   ];
   const { toast } = useToast();
   const { isKycRejected } = useKycGuard();
+  const { features: planFeatures, isLoading: planLoading } = usePlanFeatures();
 
   if (isKycRejected) {
     return (
@@ -313,6 +315,25 @@ export default function OwnerBookings() {
               <Button variant="destructive" size="sm" data-testid="btn-fix-kyc">
                 Fix KYC & Resubmit
               </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      </OwnerLayout>
+    );
+  }
+
+  if (!planLoading && !planFeatures.bookingManagementEnabled) {
+    return (
+      <OwnerLayout>
+        <Alert className="mb-6">
+          <AlertTitle>Booking Management Not Included</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <span>
+              Your current subscription plan does not include booking management.
+              Upgrade to a Standard or Premium plan to access and manage bookings.
+            </span>
+            <Link href="/owner/subscription">
+              <Button size="sm">Upgrade Plan</Button>
             </Link>
           </AlertDescription>
         </Alert>
