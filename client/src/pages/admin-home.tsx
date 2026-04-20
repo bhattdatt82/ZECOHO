@@ -26,6 +26,7 @@ import {
   Radio,
   CreditCard,
   Download,
+  BarChart2,
 } from "lucide-react";
 
 interface CommunicationAnalytics {
@@ -37,6 +38,22 @@ interface CommunicationAnalytics {
     totalMessages: number;
     totalCallDuration: number;
   };
+}
+
+interface AdminCallLogEntry {
+  id: string;
+  date: string;
+  actionType: "call" | "whatsapp";
+  actorRole: string;
+  callerName: string;
+  callerPhone: string;
+  propertyName: string;
+  propertyId: string | null;
+}
+
+interface AdminCallLog {
+  callLog: AdminCallLogEntry[];
+  total: number;
 }
 
 const adminSections = [
@@ -53,6 +70,13 @@ const adminSections = [
     icon: CalendarCheck,
     href: "/admin/bookings",
     testId: "admin-nav-bookings",
+  },
+  {
+    title: "Reports & Analytics",
+    description: "Views, funnel, cancellations, searches, notifications, calls, audit trail",
+    icon: BarChart2,
+    href: "/admin/reports",
+    testId: "admin-nav-reports",
   },
   {
     title: "Coming Soon Mode",
@@ -153,6 +177,34 @@ export default function AdminHome() {
   const [timeFilter, setTimeFilter] = useState<"daily" | "weekly" | "monthly">(
     "monthly",
   );
+  const [callLogFrom, setCallLogFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  });
+  const [callLogTo, setCallLogTo] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+
+  // Detailed call log for admin
+  const { data: adminCallLog, isLoading: isLoadingCallLog } =
+    useQuery<AdminCallLog>({
+      queryKey: ["/api/communication/admin/call-log", callLogFrom, callLogTo],
+      queryFn: () =>
+        fetch(
+          `/api/communication/admin/call-log?from=${callLogFrom}&to=${callLogTo}`,
+          { credentials: "include" },
+        ).then((r) => r.json()),
+      enabled: (user as any)?.userRole === "admin",
+    });
+
+  const handleCallLogDownload = () => {
+    const url = `/api/communication/admin/call-log?from=${callLogFrom}&to=${callLogTo}&format=csv`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `zecoho-call-log-${callLogFrom}-to-${callLogTo}.csv`;
+    a.click();
+  };
 
   // Communication analytics query for admin
   const { data: commAnalytics, isLoading: isLoadingCommAnalytics } =
@@ -357,6 +409,119 @@ export default function AdminHome() {
                   interact with owners.
                 </p>
               )}
+          </CardContent>
+        </Card>
+
+        {/* Admin Call Log — full detail with date range + CSV download */}
+        <Card data-testid="card-admin-call-log">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Phone className="h-4 w-4" />
+              Call & Contact Log
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap ml-auto">
+              <label className="text-xs text-muted-foreground">From</label>
+              <input
+                type="date"
+                value={callLogFrom}
+                onChange={(e) => setCallLogFrom(e.target.value)}
+                className="border rounded px-2 py-1 text-xs bg-background"
+                data-testid="admin-call-log-from"
+              />
+              <label className="text-xs text-muted-foreground">To</label>
+              <input
+                type="date"
+                value={callLogTo}
+                onChange={(e) => setCallLogTo(e.target.value)}
+                className="border rounded px-2 py-1 text-xs bg-background"
+                data-testid="admin-call-log-to"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCallLogDownload}
+                disabled={!adminCallLog?.callLog?.length}
+                className="flex items-center gap-1.5"
+                data-testid="admin-call-log-download"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download CSV
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingCallLog ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : !adminCallLog?.callLog?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No call or contact interactions in the selected period.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {adminCallLog.total} interaction{adminCallLog.total !== 1 ? "s" : ""} found
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-muted-foreground text-xs">
+                        <th className="text-left py-2 pr-4 font-medium">Date & Time</th>
+                        <th className="text-left py-2 pr-4 font-medium">Type</th>
+                        <th className="text-left py-2 pr-4 font-medium">Caller</th>
+                        <th className="text-left py-2 pr-4 font-medium">Phone</th>
+                        <th className="text-left py-2 pr-4 font-medium">Role</th>
+                        <th className="text-left py-2 font-medium">Property</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminCallLog.callLog.map((entry) => (
+                        <tr key={entry.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="py-2 pr-4 whitespace-nowrap text-xs text-muted-foreground">
+                            {new Date(entry.date).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}{" "}
+                            {new Date(entry.date).toLocaleTimeString("en-IN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="py-2 pr-4">
+                            <span
+                              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                                entry.actionType === "call"
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              }`}
+                            >
+                              {entry.actionType === "call" ? (
+                                <Phone className="h-3 w-3" />
+                              ) : (
+                                <MessageCircle className="h-3 w-3" />
+                              )}
+                              {entry.actionType === "call" ? "Call" : "WhatsApp"}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-4 text-xs">{entry.callerName}</td>
+                          <td className="py-2 pr-4 font-mono text-xs">{entry.callerPhone}</td>
+                          <td className="py-2 pr-4 text-xs capitalize text-muted-foreground">
+                            {entry.actorRole}
+                          </td>
+                          <td className="py-2 text-xs max-w-[160px] truncate">
+                            {entry.propertyName}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

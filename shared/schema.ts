@@ -1087,6 +1087,29 @@ export const searchHistory = pgTable(
   (table) => [index("idx_user_created").on(table.userId, table.createdAt)],
 );
 
+// Property Views — tracks every time a listing page is opened
+export const propertyViews = pgTable(
+  "property_views",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    propertyId: varchar("property_id")
+      .notNull()
+      .references(() => properties.id, { onDelete: "cascade" }),
+    userId: varchar("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    source: varchar("source", { length: 30 }),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_pv_property").on(table.propertyId),
+    index("idx_pv_created").on(table.createdAt),
+  ],
+);
+export type PropertyView = typeof propertyViews.$inferSelect;
+
 // KYC Applications table - stores OWNER IDENTITY VERIFICATION with document uploads
 export const kycApplications = pgTable(
   "kyc_applications",

@@ -127,6 +127,16 @@ interface RoomUtilization {
   }[];
 }
 
+interface CallLogEntry {
+  id: string;
+  date: string;
+  actionType: "call" | "whatsapp";
+  actorRole: string;
+  propertyName: string;
+  propertyId: string | null;
+  maskedPhone: string;
+}
+
 interface CommunicationAnalytics {
   summary: {
     totalChats: number;
@@ -135,6 +145,7 @@ interface CommunicationAnalytics {
     totalMessages: number;
     totalCallDuration: number;
   };
+  callLog: CallLogEntry[];
 }
 
 interface DateUtilization {
@@ -378,6 +389,14 @@ function RoomUtilizationCard({ propertyId }: { propertyId: string }) {
 
 export default function OwnerDashboard() {
   const [timeFilter, setTimeFilter] = useState("monthly");
+  const [callLogFrom, setCallLogFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  });
+  const [callLogTo, setCallLogTo] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -475,11 +494,12 @@ export default function OwnerDashboard() {
   // Communication analytics query
   const { data: commAnalytics, isLoading: isLoadingCommAnalytics } =
     useQuery<CommunicationAnalytics>({
-      queryKey: ["/api/communication/owner", timeFilter],
+      queryKey: ["/api/communication/owner", timeFilter, callLogFrom, callLogTo],
       queryFn: () =>
-        apiRequest("GET", `/api/communication/owner?range=${timeFilter}`).then(
-          (r) => r.json(),
-        ),
+        apiRequest(
+          "GET",
+          `/api/communication/owner?range=${timeFilter}&from=${callLogFrom}&to=${callLogTo}`,
+        ).then((r) => r.json()),
       refetchInterval: 300000,
     });
 
@@ -1166,6 +1186,103 @@ export default function OwnerDashboard() {
                   interact with you.
                 </p>
               )}
+          </CardContent>
+        </Card>
+
+        {/* Call & Contact Log */}
+        <Card data-testid="card-call-log">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Phone className="h-4 w-4" />
+              Call & Contact Log
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap ml-auto">
+              <label className="text-xs text-muted-foreground">From</label>
+              <input
+                type="date"
+                value={callLogFrom}
+                onChange={(e) => setCallLogFrom(e.target.value)}
+                className="border rounded px-2 py-1 text-xs bg-background"
+                data-testid="call-log-from"
+              />
+              <label className="text-xs text-muted-foreground">To</label>
+              <input
+                type="date"
+                value={callLogTo}
+                onChange={(e) => setCallLogTo(e.target.value)}
+                className="border rounded px-2 py-1 text-xs bg-background"
+                data-testid="call-log-to"
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingCommAnalytics ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : !commAnalytics?.callLog?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No calls or contacts recorded in this period.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground text-xs">
+                      <th className="text-left py-2 pr-4 font-medium">Date & Time</th>
+                      <th className="text-left py-2 pr-4 font-medium">Type</th>
+                      <th className="text-left py-2 pr-4 font-medium">Property</th>
+                      <th className="text-left py-2 pr-4 font-medium">Caller</th>
+                      <th className="text-left py-2 font-medium">Phone (masked)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commAnalytics.callLog.map((entry) => (
+                      <tr key={entry.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="py-2 pr-4 whitespace-nowrap text-xs text-muted-foreground">
+                          {new Date(entry.date).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}{" "}
+                          {new Date(entry.date).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <span
+                            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                              entry.actionType === "call"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            }`}
+                          >
+                            {entry.actionType === "call" ? (
+                              <Phone className="h-3 w-3" />
+                            ) : (
+                              <MessageCircle className="h-3 w-3" />
+                            )}
+                            {entry.actionType === "call" ? "Call" : "WhatsApp"}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-4 text-xs max-w-[140px] truncate">
+                          {entry.propertyName}
+                        </td>
+                        <td className="py-2 pr-4 text-xs capitalize text-muted-foreground">
+                          {entry.actorRole}
+                        </td>
+                        <td className="py-2 font-mono text-xs tracking-wider">
+                          {entry.maskedPhone}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 

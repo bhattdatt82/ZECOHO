@@ -202,6 +202,18 @@ export default function PropertyDetails() {
     setGuests(adults + children);
   }, [adults, children]);
 
+  // Track property view impression (fire-and-forget, never blocks page)
+  useEffect(() => {
+    if (!propertyId) return;
+    const source = document.referrer?.includes("/search") ? "search" : "direct";
+    fetch("/api/analytics/property-view", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ propertyId, source }),
+    }).catch(() => {});
+  }, [propertyId]);
+
   // Read URL query params or localStorage to initialize booking form
   useEffect(() => {
     if (typeof window !== "undefined") {

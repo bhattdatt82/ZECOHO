@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db, pool } from "./db";
-import { eq, sql, inArray, desc, and, gte } from "drizzle-orm";
+import { eq, sql, inArray, desc, and, gte, lte } from "drizzle-orm";
 import {
   users,
   contactInteractions,
@@ -17,6 +17,12 @@ import {
   paymentAccounts,
   subscriptionPayments,
   invoices,
+  propertyViews,
+  searchHistory,
+  adminAuditLogs,
+  notificationLogs,
+  bookings,
+  properties as propertiesTable,
 } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import subscriptionRoutes from "./subscriptions.ts";
@@ -108,7 +114,8 @@ function userHasRole(user: any, role: string): boolean {
 // Resolve single/base nightly rate from room type (no occupancy increment).
 // Used as the "base" before adding occupancy increments.
 function resolveBasePrice(roomType: any): number {
-  if (roomType.singleOccupancyPrice) return Number(roomType.singleOccupancyPrice);
+  if (roomType.singleOccupancyPrice)
+    return Number(roomType.singleOccupancyPrice);
   return Number(roomType.basePrice);
 }
 
@@ -118,7 +125,9 @@ function occupancyIncrement(roomType: any, adultsCount: number): number {
   const adults = Math.max(1, adultsCount || 1);
 
   // New model: increment = full tier price − single price
-  const single = roomType.singleOccupancyPrice ? Number(roomType.singleOccupancyPrice) : Number(roomType.basePrice);
+  const single = roomType.singleOccupancyPrice
+    ? Number(roomType.singleOccupancyPrice)
+    : Number(roomType.basePrice);
   if (adults >= 3 && roomType.tripleOccupancyPrice) {
     return Number(roomType.tripleOccupancyPrice) - single;
   }
@@ -141,7 +150,11 @@ function occupancyIncrement(roomType: any, adultsCount: number): number {
 // Resolve nightly price for a given occupancy level, optionally using a
 // day-level override as the base rate (MMT-style: override is single/base
 // rate; occupancy increments are preserved on top).
-function resolveOccupancyPrice(roomType: any, adultsCount: number, overrideBasePrice?: number): number {
+function resolveOccupancyPrice(
+  roomType: any,
+  adultsCount: number,
+  overrideBasePrice?: number,
+): number {
   const adults = Math.max(1, adultsCount || 1);
 
   if (overrideBasePrice !== undefined) {
@@ -150,7 +163,9 @@ function resolveOccupancyPrice(roomType: any, adultsCount: number, overrideBaseP
   }
 
   // No override — use static room type prices
-  const single = roomType.singleOccupancyPrice ? Number(roomType.singleOccupancyPrice) : Number(roomType.basePrice);
+  const single = roomType.singleOccupancyPrice
+    ? Number(roomType.singleOccupancyPrice)
+    : Number(roomType.basePrice);
   return single + occupancyIncrement(roomType, adults);
 }
 
@@ -183,6 +198,80 @@ export async function registerRoutes(
   // Auth middleware
   await setupAuth(app);
   app.use("/api", subscriptionRoutes);
+
+  // Google Sign-in endpoint
+  app.post("/api/auth/google", async (req: any, res) => {
+    try {
+      const { idToken } = req.body;
+      if (!idToken) {
+        return res.status(400).json({ message: "ID token is required" });
+      }
+
+      // Verify token with Firebase Admin would be ideal but requires Admin SDK
+      // Instead decode the JWT to get user info (safe since Firebase signed it)
+      const base64Url = idToken.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const claims = JSON.parse(Buffer.from(base64, "base64").toString());
+
+      const email = claims.email;
+      const firstName = claims.given_name || claims.name?.split(" ")[0] || "";
+      const lastName =
+        claims.family_name || claims.name?.split(" ").slice(1).join(" ") || "";
+      const profileImageUrl = claims.picture || null;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email not found in token" });
+      }
+
+      // Get or create user in PostgreSQL
+      let user = await storage.getUserByEmail(email.toLowerCase());
+      if (!user) {
+        user = await storage.createUserFromEmail(email.toLowerCase());
+        // Update name and photo if available
+        if (firstName || lastName || profileImageUrl) {
+          await db
+            .update(users)
+            .set({
+              firstName,
+              lastName,
+              profileImageUrl,
+              emailVerifiedAt: new Date(),
+            })
+            .where(eq(users.email, email.toLowerCase()));
+          user = await storage.getUserByEmail(email.toLowerCase());
+        }
+      }
+
+      // Create session
+      const sessionUser = {
+        claims: { sub: user!.id, email: user!.email },
+        access_token: `google-session-${user!.id}`,
+        expires_at: Math.floor(Date.now() / 1000) + 86400,
+      };
+
+      await new Promise<void>((resolve, reject) => {
+        req.login(sessionUser, (err: any) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      res.json({
+        message: "Google sign-in successful",
+        user: {
+          id: user!.id,
+          email: user!.email,
+          firstName: user!.firstName,
+          lastName: user!.lastName,
+          userRole: user!.userRole,
+          profileImageUrl: user!.profileImageUrl,
+        },
+      });
+    } catch (error) {
+      console.error("Google auth error:", error);
+      res.status(500).json({ message: "Google sign-in failed" });
+    }
+  });
 
   // Auth routes
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
@@ -259,7 +348,9 @@ export async function registerRoutes(
       }
 
       // Check if user exists — if not, tell the frontend so it can prompt account creation
-      const existingUser = await storage.getUserByEmail(email.toLowerCase().trim());
+      const existingUser = await storage.getUserByEmail(
+        email.toLowerCase().trim(),
+      );
       if (!existingUser) {
         return res.status(404).json({
           message: "No account found with this email address.",
@@ -1176,7 +1267,12 @@ export async function registerRoutes(
     async (req: any, res) => {
       try {
         const userId = req.user.claims.sub;
-        const { kyc, property, existingPropertyId: wizardDraftPropertyId, referralCode } = req.body;
+        const {
+          kyc,
+          property,
+          existingPropertyId: wizardDraftPropertyId,
+          referralCode,
+        } = req.body;
 
         if (!kyc || !property) {
           return res
@@ -1216,17 +1312,27 @@ export async function registerRoutes(
               propertyType: propertyData.propertyType,
               destination: propertyData.destination,
               address: propertyData.address || null,
-              latitude: propertyData.latitude ? String(propertyData.latitude) : null,
-              longitude: propertyData.longitude ? String(propertyData.longitude) : null,
+              latitude: propertyData.latitude
+                ? String(propertyData.latitude)
+                : null,
+              longitude: propertyData.longitude
+                ? String(propertyData.longitude)
+                : null,
               geoVerified: propertyData.geoVerified || false,
               geoSource: propertyData.geoSource || null,
               images: propertyData.images || [],
               categorizedImages: propertyData.categorizedImages || null,
               videos: propertyData.videos || [],
               pricePerNight: String(propertyData.pricePerNight),
-              singleOccupancyPrice: propertyData.singleOccupancyPrice ? String(propertyData.singleOccupancyPrice) : null,
-              doubleOccupancyPrice: propertyData.doubleOccupancyPrice ? String(propertyData.doubleOccupancyPrice) : null,
-              tripleOccupancyPrice: propertyData.tripleOccupancyPrice ? String(propertyData.tripleOccupancyPrice) : null,
+              singleOccupancyPrice: propertyData.singleOccupancyPrice
+                ? String(propertyData.singleOccupancyPrice)
+                : null,
+              doubleOccupancyPrice: propertyData.doubleOccupancyPrice
+                ? String(propertyData.doubleOccupancyPrice)
+                : null,
+              tripleOccupancyPrice: propertyData.tripleOccupancyPrice
+                ? String(propertyData.tripleOccupancyPrice)
+                : null,
               maxGuests: propertyData.maxGuests || 2,
               bedrooms: propertyData.bedrooms || 1,
               beds: propertyData.beds || 1,
@@ -1238,7 +1344,8 @@ export async function registerRoutes(
               foreignGuestsAllowed: propertyData.foreignGuestsAllowed ?? true,
               coupleFriendly: propertyData.coupleFriendly ?? true,
               hourlyBookingAllowed: propertyData.hourlyBookingAllowed ?? false,
-              cancellationPolicyType: propertyData.cancellationPolicyType || "flexible",
+              cancellationPolicyType:
+                propertyData.cancellationPolicyType || "flexible",
               freeCancellationHours: propertyData.freeCancellationHours ?? 24,
               partialRefundPercent: propertyData.partialRefundPercent ?? 50,
               status: "pending" as const,
@@ -1246,11 +1353,17 @@ export async function registerRoutes(
 
             if (wizardDraftPropertyId) {
               // Update existing draft property → promote to pending
-              const updatedProp = await storage.updateProperty(wizardDraftPropertyId, propertyPayload);
+              const updatedProp = await storage.updateProperty(
+                wizardDraftPropertyId,
+                propertyPayload,
+              );
               if (!updatedProp) throw new Error("Draft property not found");
               createdProperty = updatedProp;
             } else {
-              createdProperty = await storage.createProperty({ ...propertyPayload, ownerId: userId });
+              createdProperty = await storage.createProperty({
+                ...propertyPayload,
+                ownerId: userId,
+              });
             }
 
             // Set amenities if provided
@@ -1263,7 +1376,12 @@ export async function registerRoutes(
 
             // Create room types if provided and not already created via auto-save draft
             const { roomTypes } = req.body;
-            if (!wizardDraftPropertyId && roomTypes && Array.isArray(roomTypes) && roomTypes.length > 0) {
+            if (
+              !wizardDraftPropertyId &&
+              roomTypes &&
+              Array.isArray(roomTypes) &&
+              roomTypes.length > 0
+            ) {
               for (const rt of roomTypes) {
                 // Validate required fields
                 const basePrice = parseFloat(rt.basePrice);
@@ -1409,17 +1527,27 @@ export async function registerRoutes(
             propertyType: propertyData.propertyType,
             destination: propertyData.destination,
             address: propertyData.address || null,
-            latitude: propertyData.latitude ? String(propertyData.latitude) : null,
-            longitude: propertyData.longitude ? String(propertyData.longitude) : null,
+            latitude: propertyData.latitude
+              ? String(propertyData.latitude)
+              : null,
+            longitude: propertyData.longitude
+              ? String(propertyData.longitude)
+              : null,
             geoVerified: propertyData.geoVerified || false,
             geoSource: propertyData.geoSource || null,
             images: propertyData.images || [],
             categorizedImages: propertyData.categorizedImages || null,
             videos: propertyData.videos || [],
             pricePerNight: String(propertyData.pricePerNight),
-            singleOccupancyPrice: propertyData.singleOccupancyPrice ? String(propertyData.singleOccupancyPrice) : null,
-            doubleOccupancyPrice: propertyData.doubleOccupancyPrice ? String(propertyData.doubleOccupancyPrice) : null,
-            tripleOccupancyPrice: propertyData.tripleOccupancyPrice ? String(propertyData.tripleOccupancyPrice) : null,
+            singleOccupancyPrice: propertyData.singleOccupancyPrice
+              ? String(propertyData.singleOccupancyPrice)
+              : null,
+            doubleOccupancyPrice: propertyData.doubleOccupancyPrice
+              ? String(propertyData.doubleOccupancyPrice)
+              : null,
+            tripleOccupancyPrice: propertyData.tripleOccupancyPrice
+              ? String(propertyData.tripleOccupancyPrice)
+              : null,
             maxGuests: propertyData.maxGuests || 2,
             bedrooms: propertyData.bedrooms || 1,
             beds: propertyData.beds || 1,
@@ -1431,18 +1559,25 @@ export async function registerRoutes(
             foreignGuestsAllowed: propertyData.foreignGuestsAllowed ?? true,
             coupleFriendly: propertyData.coupleFriendly ?? true,
             hourlyBookingAllowed: propertyData.hourlyBookingAllowed ?? false,
-            cancellationPolicyType: propertyData.cancellationPolicyType || "flexible",
+            cancellationPolicyType:
+              propertyData.cancellationPolicyType || "flexible",
             freeCancellationHours: propertyData.freeCancellationHours ?? 24,
             partialRefundPercent: propertyData.partialRefundPercent ?? 50,
             status: "pending" as const,
           };
 
           if (wizardDraftPropertyId) {
-            const updatedProp2 = await storage.updateProperty(wizardDraftPropertyId, propertyPayload2);
+            const updatedProp2 = await storage.updateProperty(
+              wizardDraftPropertyId,
+              propertyPayload2,
+            );
             if (!updatedProp2) throw new Error("Draft property not found");
             createdProperty = updatedProp2;
           } else {
-            createdProperty = await storage.createProperty({ ...propertyPayload2, ownerId: userId });
+            createdProperty = await storage.createProperty({
+              ...propertyPayload2,
+              ownerId: userId,
+            });
           }
 
           // Step 4: Set amenities if provided
@@ -1452,7 +1587,12 @@ export async function registerRoutes(
 
           // Step 5: Create room types if provided and not already created via auto-save draft
           const { roomTypes } = req.body;
-          if (!wizardDraftPropertyId && roomTypes && Array.isArray(roomTypes) && roomTypes.length > 0) {
+          if (
+            !wizardDraftPropertyId &&
+            roomTypes &&
+            Array.isArray(roomTypes) &&
+            roomTypes.length > 0
+          ) {
             for (const rt of roomTypes) {
               // Validate required fields
               const basePrice = parseFloat(rt.basePrice);
@@ -1531,11 +1671,18 @@ export async function registerRoutes(
         // Apply referral code if provided (fire-and-forget, don't fail submission)
         if (referralCode && typeof referralCode === "string") {
           try {
-            const { ownerReferrals: ownerReferralsTable } = await import("../shared/schema");
+            const { ownerReferrals: ownerReferralsTable } = await import(
+              "../shared/schema"
+            );
             const [ref] = await db
               .select()
               .from(ownerReferralsTable)
-              .where(eq(ownerReferralsTable.referralCode, referralCode.trim().toUpperCase()))
+              .where(
+                eq(
+                  ownerReferralsTable.referralCode,
+                  referralCode.trim().toUpperCase(),
+                ),
+              )
               .limit(1);
             if (ref && !ref.refereeId) {
               await db
@@ -1694,7 +1841,9 @@ export async function registerRoutes(
         const { property, roomTypes, existingPropertyId } = req.body;
 
         if (!property || !property.title) {
-          return res.status(400).json({ message: "Property title is required" });
+          return res
+            .status(400)
+            .json({ message: "Property title is required" });
         }
 
         let savedProperty: any;
@@ -1718,7 +1867,8 @@ export async function registerRoutes(
             localIdAllowed: property.localIdAllowed ?? true,
             foreignGuestsAllowed: property.foreignGuestsAllowed ?? true,
             hourlyBookingAllowed: property.hourlyBookingAllowed ?? false,
-            cancellationPolicyType: property.cancellationPolicyType || "flexible",
+            cancellationPolicyType:
+              property.cancellationPolicyType || "flexible",
             freeCancellationHours: property.freeCancellationHours ?? 24,
             partialRefundPercent: property.partialRefundPercent ?? 50,
             policies: property.policies || null,
@@ -1755,7 +1905,8 @@ export async function registerRoutes(
             localIdAllowed: property.localIdAllowed ?? true,
             foreignGuestsAllowed: property.foreignGuestsAllowed ?? true,
             hourlyBookingAllowed: property.hourlyBookingAllowed ?? false,
-            cancellationPolicyType: property.cancellationPolicyType || "flexible",
+            cancellationPolicyType:
+              property.cancellationPolicyType || "flexible",
             freeCancellationHours: property.freeCancellationHours ?? 24,
             partialRefundPercent: property.partialRefundPercent ?? 50,
           });
@@ -2599,7 +2750,8 @@ export async function registerRoutes(
           const caller = await storage.getUser(requestUserId);
           isAdmin = caller?.userRole === "admin";
           if (!isAdmin) {
-            const guestBookings = await storage.getBookingsByGuest(requestUserId);
+            const guestBookings =
+              await storage.getBookingsByGuest(requestUserId);
             hasConfirmedBooking = guestBookings.some(
               (b) => b.propertyId === property.id && b.status === "confirmed",
             );
@@ -4578,7 +4730,9 @@ export async function registerRoutes(
 
           // Fetch day-level price overrides for the booking date range
           const startKey = checkIn.toISOString().split("T")[0];
-          const endKey = new Date(checkOut.getTime() - 86400000).toISOString().split("T")[0];
+          const endKey = new Date(checkOut.getTime() - 86400000)
+            .toISOString()
+            .split("T")[0];
           const overrideRows = await storage.getRoomPriceOverrides(
             validatedData.roomTypeId,
             startKey,
@@ -4590,13 +4744,23 @@ export async function registerRoutes(
 
           // Sum nightly prices: each night uses override base + occupancy increment
           roomSubtotal = calculateNightlyRoomCost(
-            roomType, adultsPerRoom, roomsCount, checkIn, checkOut, overridesMap,
+            roomType,
+            adultsPerRoom,
+            roomsCount,
+            checkIn,
+            checkOut,
+            overridesMap,
           );
 
           // Meal option price (per person per night, no day overrides yet)
           if (validatedData.roomOptionId) {
-            const mealOption = await storage.getRoomOption(validatedData.roomOptionId);
-            if (mealOption && mealOption.roomTypeId === validatedData.roomTypeId) {
+            const mealOption = await storage.getRoomOption(
+              validatedData.roomOptionId,
+            );
+            if (
+              mealOption &&
+              mealOption.roomTypeId === validatedData.roomTypeId
+            ) {
               mealPrice = Number(mealOption.priceAdjustment);
             }
           }
@@ -6243,9 +6407,13 @@ export async function registerRoutes(
       // Notify property owner of new review
       try {
         const { sendReviewPush } = require("./services/pushService");
-        const reviewProperty = await storage.getProperty(validatedData.propertyId);
+        const reviewProperty = await storage.getProperty(
+          validatedData.propertyId,
+        );
         if (reviewProperty) {
-          const guestName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "A guest";
+          const guestName =
+            `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+            "A guest";
           await sendReviewPush(
             reviewProperty.ownerId,
             guestName,
@@ -8772,7 +8940,8 @@ export async function registerRoutes(
         try {
           const { sendPushNotification } = require("./services/pushService");
           const noShowProperty = await storage.getProperty(booking.propertyId);
-          const bookingCode = booking.bookingCode || booking.id.slice(0, 8).toUpperCase();
+          const bookingCode =
+            booking.bookingCode || booking.id.slice(0, 8).toUpperCase();
           // Notify guest
           await sendPushNotification(booking.guestId, {
             title: "No-Show Recorded",
@@ -8939,7 +9108,8 @@ export async function registerRoutes(
         try {
           const { sendPushNotification } = require("./services/pushService");
           const ciProperty = await storage.getProperty(booking.propertyId);
-          const bookingCode = booking.bookingCode || booking.id.slice(0, 8).toUpperCase();
+          const bookingCode =
+            booking.bookingCode || booking.id.slice(0, 8).toUpperCase();
           await sendPushNotification(booking.guestId, {
             title: "Check-In Confirmed",
             body: `Welcome! Your check-in at ${ciProperty?.title || "the property"} (${bookingCode}) has been recorded.`,
@@ -8990,7 +9160,8 @@ export async function registerRoutes(
         try {
           const { sendPushNotification } = require("./services/pushService");
           const coProperty = await storage.getProperty(booking.propertyId);
-          const bookingCode = booking.bookingCode || booking.id.slice(0, 8).toUpperCase();
+          const bookingCode =
+            booking.bookingCode || booking.id.slice(0, 8).toUpperCase();
           await sendPushNotification(booking.guestId, {
             title: "Check-Out Recorded",
             body: `Your stay at ${coProperty?.title || "the property"} (${bookingCode}) is complete. Thanks for staying with us!`,
@@ -10463,7 +10634,9 @@ export async function registerRoutes(
 
         const { email } = req.body;
         if (!email || typeof email !== "string") {
-          return res.status(400).json({ message: "Recipient email is required" });
+          return res
+            .status(400)
+            .json({ message: "Recipient email is required" });
         }
 
         const [invoice] = await db
@@ -10489,9 +10662,9 @@ export async function registerRoutes(
         );
 
         if (!sent) {
-          return res
-            .status(500)
-            .json({ message: "Failed to send invoice email. Please try again." });
+          return res.status(500).json({
+            message: "Failed to send invoice email. Please try again.",
+          });
         }
 
         res.json({ message: "Invoice sent successfully" });
@@ -10607,7 +10780,8 @@ export async function registerRoutes(
       if (!referral) return res.json({ message: "No pending referral found" });
 
       // Generate a unique reward code for the referrer
-      const rewardCode = "ZREF" + Math.random().toString(36).substring(2, 8).toUpperCase();
+      const rewardCode =
+        "ZREF" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
       await db
         .update(ownerReferrals)
@@ -10621,7 +10795,10 @@ export async function registerRoutes(
         rewardCode,
       });
 
-      res.json({ message: "Referral rewarded — reward code issued", rewardCode });
+      res.json({
+        message: "Referral rewarded — reward code issued",
+        rewardCode,
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to process reward" });
     }
@@ -10631,7 +10808,8 @@ export async function registerRoutes(
   app.post("/api/referral/redeem", isAuthenticated, async (req: any, res) => {
     const ownerId = req.user.claims.sub;
     const { rewardCode } = req.body;
-    if (!rewardCode) return res.status(400).json({ message: "Missing reward code" });
+    if (!rewardCode)
+      return res.status(400).json({ message: "Missing reward code" });
     try {
       const [referral] = await db
         .select()
@@ -10645,8 +10823,14 @@ export async function registerRoutes(
         )
         .limit(1);
 
-      if (!referral) return res.status(404).json({ message: "Invalid or already used reward code" });
-      if (referral.rewardRedeemedAt) return res.status(400).json({ message: "Reward code already redeemed" });
+      if (!referral)
+        return res
+          .status(404)
+          .json({ message: "Invalid or already used reward code" });
+      if (referral.rewardRedeemedAt)
+        return res
+          .status(400)
+          .json({ message: "Reward code already redeemed" });
 
       // Get referrer's last subscription to know which plan to use
       const [lastSub] = await db
@@ -10656,7 +10840,10 @@ export async function registerRoutes(
         .orderBy(desc(ownerSubscriptions.createdAt))
         .limit(1);
 
-      if (!lastSub) return res.status(400).json({ message: "No previous subscription found. Please subscribe first." });
+      if (!lastSub)
+        return res.status(400).json({
+          message: "No previous subscription found. Please subscribe first.",
+        });
 
       const startDate = new Date();
       const endDate = new Date();
@@ -10682,7 +10869,10 @@ export async function registerRoutes(
         .set({ rewardRedeemedAt: new Date() })
         .where(eq(ownerReferrals.id, referral.id));
 
-      res.json({ message: "Reward redeemed! 1 free month activated.", subscription: freeSub });
+      res.json({
+        message: "Reward redeemed! 1 free month activated.",
+        subscription: freeSub,
+      });
     } catch (error) {
       console.error("Referral redeem error:", error);
       res.status(500).json({ message: "Failed to redeem reward code" });
@@ -10690,40 +10880,53 @@ export async function registerRoutes(
   });
 
   // Validate reward code (owner checks if their code is usable)
-  app.get("/api/referral/my-rewards", isAuthenticated, async (req: any, res) => {
-    const ownerId = req.user.claims.sub;
-    try {
-      const rewards = await db
-        .select()
-        .from(ownerReferrals)
-        .where(
-          and(
-            eq(ownerReferrals.referrerId, ownerId),
-            eq(ownerReferrals.status, "rewarded"),
-          ),
+  app.get(
+    "/api/referral/my-rewards",
+    isAuthenticated,
+    async (req: any, res) => {
+      const ownerId = req.user.claims.sub;
+      try {
+        const rewards = await db
+          .select()
+          .from(ownerReferrals)
+          .where(
+            and(
+              eq(ownerReferrals.referrerId, ownerId),
+              eq(ownerReferrals.status, "rewarded"),
+            ),
+          );
+        res.json(
+          rewards.map((r) => ({
+            rewardCode: r.rewardCode,
+            rewardedAt: r.rewardedAt,
+            rewardRedeemedAt: r.rewardRedeemedAt,
+            rewardMonths: r.rewardMonths,
+          })),
         );
-      res.json(rewards.map((r) => ({
-        rewardCode: r.rewardCode,
-        rewardedAt: r.rewardedAt,
-        rewardRedeemedAt: r.rewardRedeemedAt,
-        rewardMonths: r.rewardMonths,
-      })));
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch rewards" });
-    }
-  });
+      } catch (error) {
+        res.status(500).json({ message: "Failed to fetch rewards" });
+      }
+    },
+  );
 
   // Admin — all referrals
   app.get("/api/admin/referrals", isAuthenticated, async (req: any, res) => {
     if (req.user.claims.userRole !== "admin")
       return res.status(403).json({ message: "Forbidden" });
     try {
-      const referrals = await db.select().from(ownerReferrals).orderBy(desc(ownerReferrals.createdAt));
+      const referrals = await db
+        .select()
+        .from(ownerReferrals)
+        .orderBy(desc(ownerReferrals.createdAt));
       // Enrich with user names
       const enriched = await Promise.all(
         referrals.map(async (r) => {
-          const referrer = r.referrerId ? await storage.getUser(r.referrerId) : null;
-          const referee = r.refereeId ? await storage.getUser(r.refereeId) : null;
+          const referrer = r.referrerId
+            ? await storage.getUser(r.referrerId)
+            : null;
+          const referee = r.refereeId
+            ? await storage.getUser(r.refereeId)
+            : null;
           return {
             id: r.id,
             referralCode: r.referralCode,
@@ -10733,18 +10936,22 @@ export async function registerRoutes(
             rewardedAt: r.rewardedAt,
             rewardRedeemedAt: r.rewardRedeemedAt,
             createdAt: r.createdAt,
-            referrer: referrer ? {
-              name: `${referrer.firstName || ""} ${referrer.lastName || ""}`.trim(),
-              email: referrer.email,
-              phone: referrer.phone,
-            } : null,
-            referee: referee ? {
-              name: `${referee.firstName || ""} ${referee.lastName || ""}`.trim(),
-              email: referee.email,
-              phone: referee.phone,
-            } : null,
+            referrer: referrer
+              ? {
+                  name: `${referrer.firstName || ""} ${referrer.lastName || ""}`.trim(),
+                  email: referrer.email,
+                  phone: referrer.phone,
+                }
+              : null,
+            referee: referee
+              ? {
+                  name: `${referee.firstName || ""} ${referee.lastName || ""}`.trim(),
+                  email: referee.email,
+                  phone: referee.phone,
+                }
+              : null,
           };
-        })
+        }),
       );
       res.json(enriched);
     } catch (error) {
@@ -10753,41 +10960,81 @@ export async function registerRoutes(
   });
 
   // Admin — CSV export of referrals
-  app.get("/api/admin/referrals/export", isAuthenticated, async (req: any, res) => {
-    if (req.user.claims.userRole !== "admin")
-      return res.status(403).json({ message: "Forbidden" });
-    try {
-      const referrals = await db.select().from(ownerReferrals).orderBy(desc(ownerReferrals.createdAt));
-      const rows = await Promise.all(
-        referrals.map(async (r) => {
-          const referrer = r.referrerId ? await storage.getUser(r.referrerId) : null;
-          const referee = r.refereeId ? await storage.getUser(r.refereeId) : null;
-          return [
-            r.referralCode,
-            referrer ? `${referrer.firstName || ""} ${referrer.lastName || ""}`.trim() : "",
-            referrer?.email || "",
-            referrer?.phone || "",
-            referee ? `${referee.firstName || ""} ${referee.lastName || ""}`.trim() : "",
-            referee?.email || "",
-            referee?.phone || "",
-            r.status,
-            r.rewardCode || "",
-            r.rewardMonths,
-            r.rewardedAt ? new Date(r.rewardedAt).toLocaleDateString("en-IN") : "",
-            r.rewardRedeemedAt ? new Date(r.rewardRedeemedAt).toLocaleDateString("en-IN") : "",
-            r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-IN") : "",
-          ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
-        })
-      );
-      const header = ["Referral Code","Referrer Name","Referrer Email","Referrer Phone","Referee Name","Referee Email","Referee Phone","Status","Reward Code","Reward Months","Rewarded At","Reward Redeemed At","Created At"].join(",");
-      const csv = [header, ...rows].join("\n");
-      res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename="zecoho-referrals-${new Date().toISOString().slice(0,10)}.csv"`);
-      res.send(csv);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to export referrals" });
-    }
-  });
+  app.get(
+    "/api/admin/referrals/export",
+    isAuthenticated,
+    async (req: any, res) => {
+      if (req.user.claims.userRole !== "admin")
+        return res.status(403).json({ message: "Forbidden" });
+      try {
+        const referrals = await db
+          .select()
+          .from(ownerReferrals)
+          .orderBy(desc(ownerReferrals.createdAt));
+        const rows = await Promise.all(
+          referrals.map(async (r) => {
+            const referrer = r.referrerId
+              ? await storage.getUser(r.referrerId)
+              : null;
+            const referee = r.refereeId
+              ? await storage.getUser(r.refereeId)
+              : null;
+            return [
+              r.referralCode,
+              referrer
+                ? `${referrer.firstName || ""} ${referrer.lastName || ""}`.trim()
+                : "",
+              referrer?.email || "",
+              referrer?.phone || "",
+              referee
+                ? `${referee.firstName || ""} ${referee.lastName || ""}`.trim()
+                : "",
+              referee?.email || "",
+              referee?.phone || "",
+              r.status,
+              r.rewardCode || "",
+              r.rewardMonths,
+              r.rewardedAt
+                ? new Date(r.rewardedAt).toLocaleDateString("en-IN")
+                : "",
+              r.rewardRedeemedAt
+                ? new Date(r.rewardRedeemedAt).toLocaleDateString("en-IN")
+                : "",
+              r.createdAt
+                ? new Date(r.createdAt).toLocaleDateString("en-IN")
+                : "",
+            ]
+              .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+              .join(",");
+          }),
+        );
+        const header = [
+          "Referral Code",
+          "Referrer Name",
+          "Referrer Email",
+          "Referrer Phone",
+          "Referee Name",
+          "Referee Email",
+          "Referee Phone",
+          "Status",
+          "Reward Code",
+          "Reward Months",
+          "Rewarded At",
+          "Reward Redeemed At",
+          "Created At",
+        ].join(",");
+        const csv = [header, ...rows].join("\n");
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="zecoho-referrals-${new Date().toISOString().slice(0, 10)}.csv"`,
+        );
+        res.send(csv);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to export referrals" });
+      }
+    },
+  );
 
   app.get("/api/referral/validate/:code", async (req: any, res) => {
     try {
@@ -12319,7 +12566,9 @@ export async function registerRoutes(
 
             // Fetch day-level overrides for the extension date range
             const startKey = extensionCheckIn.toISOString().split("T")[0];
-            const endKey = new Date(extensionCheckOut.getTime() - 86400000).toISOString().split("T")[0];
+            const endKey = new Date(extensionCheckOut.getTime() - 86400000)
+              .toISOString()
+              .split("T")[0];
             const overrideRows = await storage.getRoomPriceOverrides(
               parentBooking.roomTypeId,
               startKey,
@@ -12330,13 +12579,22 @@ export async function registerRoutes(
             );
 
             roomSubtotal = calculateNightlyRoomCost(
-              roomType, adultsPerRoom, roomsCount,
-              extensionCheckIn, extensionCheckOut, overridesMap,
+              roomType,
+              adultsPerRoom,
+              roomsCount,
+              extensionCheckIn,
+              extensionCheckOut,
+              overridesMap,
             );
 
             if (parentBooking.roomOptionId) {
-              const mealOption = await storage.getRoomOption(parentBooking.roomOptionId);
-              if (mealOption && mealOption.roomTypeId === parentBooking.roomTypeId) {
+              const mealOption = await storage.getRoomOption(
+                parentBooking.roomOptionId,
+              );
+              if (
+                mealOption &&
+                mealOption.roomTypeId === parentBooking.roomTypeId
+              ) {
                 mealPrice = Number(mealOption.priceAdjustment);
               }
             }
@@ -12381,7 +12639,11 @@ export async function registerRoutes(
         // Push notification to guest for stay extension
         try {
           const { sendPushNotification } = require("./services/pushService");
-          const newCheckOutStr = extensionCheckOut.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+          const newCheckOutStr = extensionCheckOut.toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          });
           await sendPushNotification(parentBooking.guestId, {
             title: "Stay Extended",
             body: `Your stay at ${property.title} has been extended until ${newCheckOutStr}. Additional ₹${totalPrice.toLocaleString("en-IN")} payable at hotel.`,
@@ -12598,17 +12860,29 @@ export async function registerRoutes(
         }
         const bookingIds = allBookings.map((b: any) => b.id);
 
+        // Support custom date range (from/to) or legacy range preset
+        const fromParam = req.query.from as string | undefined;
+        const toParam = req.query.to as string | undefined;
+        const fromDate = fromParam ? new Date(fromParam) : since;
+        const toDate = toParam ? new Date(toParam) : new Date();
+        toDate.setHours(23, 59, 59, 999);
+
+        const interactionConditions: any[] = [
+          gte(contactInteractions.createdAt, fromDate),
+          lte(contactInteractions.createdAt, toDate),
+        ];
+        if (bookingIds.length > 0) {
+          interactionConditions.push(
+            inArray(contactInteractions.bookingId, bookingIds),
+          );
+        }
+
         const interactions =
           bookingIds.length > 0
             ? await db
                 .select()
                 .from(contactInteractions)
-                .where(
-                  and(
-                    inArray(contactInteractions.bookingId, bookingIds),
-                    gte(contactInteractions.createdAt, since),
-                  ),
-                )
+                .where(and(...interactionConditions))
                 .orderBy(desc(contactInteractions.createdAt))
             : [];
 
@@ -12619,6 +12893,17 @@ export async function registerRoutes(
           (i) => i.actionType === "whatsapp",
         ).length;
 
+        // Build structured call log for the owner (masked phone: XXXXXX + last4)
+        const callLog = interactions.map((i) => ({
+          id: i.id,
+          date: i.createdAt,
+          actionType: i.actionType,
+          actorRole: i.actorRole,
+          propertyName: (i.metadata as any)?.propertyName || "—",
+          propertyId: (i.metadata as any)?.propertyId || null,
+          maskedPhone: i.targetPhoneLast4 ? `XXXXXX${i.targetPhoneLast4}` : "—",
+        }));
+
         res.json({
           summary: {
             totalChats,
@@ -12627,7 +12912,7 @@ export async function registerRoutes(
             totalWhatsapp,
             totalCallDuration: 0,
           },
-          recentInteractions: interactions.slice(0, 20),
+          callLog,
         });
       } catch (error) {
         console.error("Error fetching owner communication analytics:", error);
@@ -12637,6 +12922,107 @@ export async function registerRoutes(
       }
     },
   );
+
+  // Admin: detailed call log with full phone data + CSV export
+  app.get(
+    "/api/communication/admin/call-log",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        if (!user || !userHasRole(user, "admin")) {
+          return res.status(403).json({ message: "Admin access required" });
+        }
+
+        const fromParam = req.query.from as string | undefined;
+        const toParam = req.query.to as string | undefined;
+        const today = new Date();
+        const defaultFrom = new Date(today);
+        defaultFrom.setDate(today.getDate() - 30);
+        const fromDate = fromParam ? new Date(fromParam) : defaultFrom;
+        const toDate = toParam ? new Date(toParam) : today;
+        toDate.setHours(23, 59, 59, 999);
+
+        // Fetch interactions in range, join actor user for full phone
+        const rows = await db
+          .select({
+            id: contactInteractions.id,
+            createdAt: contactInteractions.createdAt,
+            actionType: contactInteractions.actionType,
+            actorRole: contactInteractions.actorRole,
+            targetRole: contactInteractions.targetRole,
+            targetPhoneLast4: contactInteractions.targetPhoneLast4,
+            metadata: contactInteractions.metadata,
+            actorPhone: users.phone,
+            actorFirstName: users.firstName,
+            actorLastName: users.lastName,
+          })
+          .from(contactInteractions)
+          .leftJoin(users, eq(contactInteractions.actorUserId, users.id))
+          .where(
+            and(
+              gte(contactInteractions.createdAt, fromDate),
+              lte(contactInteractions.createdAt, toDate),
+            ),
+          )
+          .orderBy(desc(contactInteractions.createdAt));
+
+        const callLog = rows.map((r) => ({
+          id: r.id,
+          date: r.createdAt,
+          actionType: r.actionType,
+          actorRole: r.actorRole,
+          callerName:
+            `${r.actorFirstName || ""} ${r.actorLastName || ""}`.trim() || "—",
+          callerPhone: r.actorPhone || "—",
+          propertyName: (r.metadata as any)?.propertyName || "—",
+          propertyId: (r.metadata as any)?.propertyId || null,
+          targetPhoneLast4: r.targetPhoneLast4 || "—",
+        }));
+
+        // CSV export
+        if (req.query.format === "csv") {
+          const headers = [
+            "Date",
+            "Time",
+            "Type",
+            "Caller Role",
+            "Caller Name",
+            "Caller Phone",
+            "Property",
+          ];
+          const csvRows = callLog.map((r) => [
+            new Date(r.date!).toLocaleDateString("en-IN"),
+            new Date(r.date!).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            r.actionType,
+            r.actorRole,
+            `"${r.callerName}"`,
+            r.callerPhone,
+            `"${r.propertyName}"`,
+          ]);
+          const csv = [headers, ...csvRows]
+            .map((row) => row.join(","))
+            .join("\n");
+          res.setHeader("Content-Type", "text/csv");
+          res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="zecoho-call-log-${fromParam || "30d"}.csv"`,
+          );
+          return res.send(csv);
+        }
+
+        res.json({ callLog, total: callLog.length });
+      } catch (error) {
+        console.error("Error fetching admin call log:", error);
+        res.status(500).json({ message: "Failed to fetch call log" });
+      }
+    },
+  );
+
   // Get admin's communication analytics (all owners)
   app.get(
     "/api/communication/admin",
@@ -13268,6 +13654,750 @@ export async function registerRoutes(
       ws.close(1008, "Authentication failed");
     }
   });
+
+  // ─── Analytics Tracking ────────────────────────────────────────────────────
+
+  // Track property view (called from property-details page on load)
+  app.post("/api/analytics/property-view", async (req: any, res) => {
+    try {
+      const { propertyId, source } = req.body;
+      if (!propertyId)
+        return res.status(400).json({ message: "propertyId required" });
+      const userId = req.isAuthenticated() ? req.user?.claims?.sub : null;
+      await db.insert(propertyViews).values({
+        propertyId,
+        userId: userId || null,
+        source: source || "direct",
+      });
+      res.json({ ok: true });
+    } catch {
+      res.json({ ok: true }); // never block page load for analytics
+    }
+  });
+
+  // ─── Admin Reports ──────────────────────────────────────────────────────────
+
+  function reportDateRange(req: any): { from: Date; to: Date; label: string } {
+    const range = (req.query.range as string) || "monthly";
+    const fromParam = req.query.from as string | undefined;
+    const toParam = req.query.to as string | undefined;
+    const to = toParam ? new Date(toParam) : new Date();
+    to.setHours(23, 59, 59, 999);
+    let from: Date;
+    if (fromParam) {
+      from = new Date(fromParam);
+    } else if (range === "daily") {
+      from = new Date(to);
+      from.setDate(from.getDate() - 1);
+    } else if (range === "weekly") {
+      from = new Date(to);
+      from.setDate(from.getDate() - 7);
+    } else {
+      from = new Date(to);
+      from.setDate(from.getDate() - 30);
+    }
+    return { from, to, label: range };
+  }
+
+  function sendCsv(res: any, filename: string, rows: string[][]): void {
+    const csv = rows
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  }
+
+  // ── Property Views report ──────────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/property-views",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const rows = await db
+          .select({
+            propertyId: propertyViews.propertyId,
+            propertyTitle: propertiesTable.title,
+            ownerId: propertiesTable.ownerId,
+            createdAt: propertyViews.createdAt,
+            source: propertyViews.source,
+            userId: propertyViews.userId,
+          })
+          .from(propertyViews)
+          .leftJoin(
+            propertiesTable,
+            eq(propertyViews.propertyId, propertiesTable.id),
+          )
+          .where(
+            and(
+              gte(propertyViews.createdAt, from),
+              lte(propertyViews.createdAt, to),
+            ),
+          )
+          .orderBy(desc(propertyViews.createdAt));
+
+        // Aggregate by property
+        const byProperty: Record<
+          string,
+          { title: string; views: number; uniqueUsers: Set<string> }
+        > = {};
+        for (const r of rows) {
+          const key = r.propertyId;
+          if (!byProperty[key])
+            byProperty[key] = {
+              title: r.propertyTitle || r.propertyId,
+              views: 0,
+              uniqueUsers: new Set(),
+            };
+          byProperty[key].views++;
+          if (r.userId) byProperty[key].uniqueUsers.add(r.userId);
+        }
+
+        const summary = Object.entries(byProperty)
+          .map(([id, d]) => ({
+            propertyId: id,
+            title: d.title,
+            totalViews: d.views,
+            uniqueViewers: d.uniqueUsers.size,
+          }))
+          .sort((a, b) => b.totalViews - a.totalViews);
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `property-views-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              ["Date", "Time", "Property", "Source", "Logged In"],
+              ...rows.map((r) => [
+                new Date(r.createdAt!).toLocaleDateString("en-IN"),
+                new Date(r.createdAt!).toLocaleTimeString("en-IN"),
+                r.propertyTitle || r.propertyId,
+                r.source || "",
+                r.userId ? "Yes" : "No",
+              ]),
+            ],
+          );
+        }
+        res.json({ total: rows.length, summary, rows: rows.slice(0, 200) });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
+
+  // ── Booking Funnel report ──────────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/booking-funnel",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const [searches, views, attempts, confirmed, completed, cancelled] =
+          await Promise.all([
+            db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(searchHistory)
+              .where(
+                and(
+                  gte(searchHistory.createdAt, from),
+                  lte(searchHistory.createdAt, to),
+                ),
+              ),
+            db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(propertyViews)
+              .where(
+                and(
+                  gte(propertyViews.createdAt, from),
+                  lte(propertyViews.createdAt, to),
+                ),
+              ),
+            db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(bookings)
+              .where(
+                and(gte(bookings.createdAt, from), lte(bookings.createdAt, to)),
+              ),
+            db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(bookings)
+              .where(
+                and(
+                  gte(bookings.createdAt, from),
+                  lte(bookings.createdAt, to),
+                  eq(bookings.status, "customer_confirmed"),
+                ),
+              ),
+            db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(bookings)
+              .where(
+                and(
+                  gte(bookings.createdAt, from),
+                  lte(bookings.createdAt, to),
+                  eq(bookings.status, "completed"),
+                ),
+              ),
+            db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(bookings)
+              .where(
+                and(
+                  gte(bookings.createdAt, from),
+                  lte(bookings.createdAt, to),
+                  eq(bookings.status, "cancelled"),
+                ),
+              ),
+          ]);
+
+        const s = searches[0]?.count ?? 0;
+        const v = views[0]?.count ?? 0;
+        const a = attempts[0]?.count ?? 0;
+        const c = confirmed[0]?.count ?? 0;
+        const cm = completed[0]?.count ?? 0;
+        const cn = cancelled[0]?.count ?? 0;
+
+        const funnel = [
+          { step: "Searches", count: s, convRate: null },
+          {
+            step: "Property Views",
+            count: v,
+            convRate: s ? +((v / s) * 100).toFixed(1) : null,
+          },
+          {
+            step: "Booking Attempts",
+            count: a,
+            convRate: v ? +((a / v) * 100).toFixed(1) : null,
+          },
+          {
+            step: "Confirmed",
+            count: c,
+            convRate: a ? +((c / a) * 100).toFixed(1) : null,
+          },
+          {
+            step: "Completed",
+            count: cm,
+            convRate: c ? +((cm / c) * 100).toFixed(1) : null,
+          },
+          {
+            step: "Cancelled",
+            count: cn,
+            convRate: a ? +((cn / a) * 100).toFixed(1) : null,
+          },
+        ];
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `booking-funnel-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              ["Step", "Count", "Conversion Rate (%)"],
+              ...funnel.map((f) => [
+                f.step,
+                String(f.count),
+                f.convRate !== null ? String(f.convRate) : "—",
+              ]),
+            ],
+          );
+        }
+        res.json({ funnel });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
+
+  // ── Cancellation Reasons report ────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/cancellations",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const rows = await db
+          .select({
+            id: bookings.id,
+            createdAt: bookings.createdAt,
+            cancellationReason: bookings.cancellationReason,
+            propertyId: bookings.propertyId,
+            propertyTitle: propertiesTable.title,
+            totalPrice: bookings.totalPrice,
+            checkIn: bookings.checkIn,
+          })
+          .from(bookings)
+          .leftJoin(
+            propertiesTable,
+            eq(bookings.propertyId, propertiesTable.id),
+          )
+          .where(
+            and(
+              eq(bookings.status, "cancelled"),
+              gte(bookings.createdAt, from),
+              lte(bookings.createdAt, to),
+            ),
+          )
+          .orderBy(desc(bookings.createdAt));
+
+        // Aggregate reasons
+        const reasonMap: Record<string, number> = {};
+        for (const r of rows) {
+          const key = r.cancellationReason?.trim() || "No reason provided";
+          reasonMap[key] = (reasonMap[key] || 0) + 1;
+        }
+        const byReason = Object.entries(reasonMap)
+          .map(([reason, count]) => ({ reason, count }))
+          .sort((a, b) => b.count - a.count);
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `cancellations-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              ["Date", "Property", "Check-In", "Amount", "Reason"],
+              ...rows.map((r) => [
+                new Date(r.createdAt!).toLocaleDateString("en-IN"),
+                r.propertyTitle || r.propertyId,
+                r.checkIn
+                  ? new Date(r.checkIn).toLocaleDateString("en-IN")
+                  : "",
+                r.totalPrice || "",
+                r.cancellationReason || "No reason",
+              ]),
+            ],
+          );
+        }
+        res.json({ total: rows.length, byReason, rows: rows.slice(0, 200) });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
+
+  // ── Search History report ──────────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/search-history",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const rows = await db
+          .select({
+            id: searchHistory.id,
+            destination: searchHistory.destination,
+            checkIn: searchHistory.checkIn,
+            checkOut: searchHistory.checkOut,
+            guests: searchHistory.guests,
+            createdAt: searchHistory.createdAt,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(searchHistory)
+          .leftJoin(users, eq(searchHistory.userId, users.id))
+          .where(
+            and(
+              gte(searchHistory.createdAt, from),
+              lte(searchHistory.createdAt, to),
+            ),
+          )
+          .orderBy(desc(searchHistory.createdAt));
+
+        // Top destinations
+        const destMap: Record<string, number> = {};
+        for (const r of rows) {
+          const key = r.destination?.trim().toLowerCase() || "unknown";
+          destMap[key] = (destMap[key] || 0) + 1;
+        }
+        const topDestinations = Object.entries(destMap)
+          .map(([destination, count]) => ({ destination, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 20);
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `search-history-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              [
+                "Date",
+                "Time",
+                "User",
+                "Destination",
+                "Check-In",
+                "Check-Out",
+                "Guests",
+              ],
+              ...rows.map((r) => [
+                new Date(r.createdAt!).toLocaleDateString("en-IN"),
+                new Date(r.createdAt!).toLocaleTimeString("en-IN"),
+                `${r.firstName || ""} ${r.lastName || ""}`.trim() || "Guest",
+                r.destination,
+                r.checkIn
+                  ? new Date(r.checkIn).toLocaleDateString("en-IN")
+                  : "",
+                r.checkOut
+                  ? new Date(r.checkOut).toLocaleDateString("en-IN")
+                  : "",
+                String(r.guests || ""),
+              ]),
+            ],
+          );
+        }
+        res.json({
+          total: rows.length,
+          topDestinations,
+          rows: rows.slice(0, 200),
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
+
+  // ── Notification Logs report ───────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/notification-logs",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const rows = await db
+          .select({
+            id: notificationLogs.id,
+            channel: notificationLogs.channel,
+            status: notificationLogs.status,
+            title: notificationLogs.title,
+            devicePlatform: notificationLogs.devicePlatform,
+            actionTaken: notificationLogs.actionTaken,
+            sentAt: notificationLogs.sentAt,
+            error: notificationLogs.error,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(notificationLogs)
+          .leftJoin(users, eq(notificationLogs.userId, users.id))
+          .where(
+            and(
+              gte(notificationLogs.sentAt, from),
+              lte(notificationLogs.sentAt, to),
+            ),
+          )
+          .orderBy(desc(notificationLogs.sentAt));
+
+        const total = rows.length;
+        const byStatus: Record<string, number> = {};
+        const byChannel: Record<string, number> = {};
+        let actioned = 0;
+        for (const r of rows) {
+          byStatus[r.status] = (byStatus[r.status] || 0) + 1;
+          byChannel[r.channel] = (byChannel[r.channel] || 0) + 1;
+          if (r.actionTaken) actioned++;
+        }
+        const deliveryRate = total
+          ? +(
+              (((byStatus.delivered || 0) + (byStatus.clicked || 0)) / total) *
+              100
+            ).toFixed(1)
+          : 0;
+        const actionRate = total ? +((actioned / total) * 100).toFixed(1) : 0;
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `notification-logs-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              [
+                "Date",
+                "User",
+                "Channel",
+                "Status",
+                "Title",
+                "Device",
+                "Action Taken",
+              ],
+              ...rows.map((r) => [
+                new Date(r.sentAt!).toLocaleDateString("en-IN"),
+                `${r.firstName || ""} ${r.lastName || ""}`.trim() || "—",
+                r.channel,
+                r.status,
+                r.title || "",
+                r.devicePlatform || "",
+                r.actionTaken || "",
+              ]),
+            ],
+          );
+        }
+        res.json({
+          total,
+          deliveryRate,
+          actionRate,
+          byStatus,
+          byChannel,
+          rows: rows.slice(0, 200),
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
+
+  // ── Chat Logs report ───────────────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/chat-logs",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const rows = await db
+          .select({
+            id: chatLogs.id,
+            messageCount: chatLogs.messageCount,
+            senderRole: chatLogs.senderRole,
+            startedAt: chatLogs.startedAt,
+            endedAt: chatLogs.endedAt,
+            createdAt: chatLogs.createdAt,
+            propertyTitle: propertiesTable.title,
+          })
+          .from(chatLogs)
+          .leftJoin(
+            propertiesTable,
+            eq(chatLogs.propertyId, propertiesTable.id),
+          )
+          .where(
+            and(gte(chatLogs.createdAt, from), lte(chatLogs.createdAt, to)),
+          )
+          .orderBy(desc(chatLogs.createdAt));
+
+        const totalMessages = rows.reduce(
+          (s, r) => s + (r.messageCount || 0),
+          0,
+        );
+        const avgMessages = rows.length
+          ? Math.round(totalMessages / rows.length)
+          : 0;
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `chat-logs-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              [
+                "Date",
+                "Property",
+                "Sender Role",
+                "Message Count",
+                "Duration (min)",
+              ],
+              ...rows.map((r) => {
+                const dur =
+                  r.startedAt && r.endedAt
+                    ? Math.round(
+                        (new Date(r.endedAt).getTime() -
+                          new Date(r.startedAt).getTime()) /
+                          60000,
+                      )
+                    : "";
+                return [
+                  new Date(r.createdAt!).toLocaleDateString("en-IN"),
+                  r.propertyTitle || "",
+                  r.senderRole || "",
+                  String(r.messageCount || 0),
+                  String(dur),
+                ];
+              }),
+            ],
+          );
+        }
+        res.json({
+          total: rows.length,
+          totalMessages,
+          avgMessages,
+          rows: rows.slice(0, 200),
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
+
+  // ── Call Logs report ───────────────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/call-logs",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const rows = await db
+          .select({
+            id: callLogs.id,
+            initiatedBy: callLogs.initiatedBy,
+            callType: callLogs.callType,
+            durationSeconds: callLogs.durationSeconds,
+            startedAt: callLogs.startedAt,
+            createdAt: callLogs.createdAt,
+            propertyTitle: propertiesTable.title,
+            guestFirst: users.firstName,
+            guestLast: users.lastName,
+            guestPhone: users.phone,
+          })
+          .from(callLogs)
+          .leftJoin(
+            propertiesTable,
+            eq(callLogs.propertyId, propertiesTable.id),
+          )
+          .leftJoin(users, eq(callLogs.guestId, users.id))
+          .where(
+            and(gte(callLogs.createdAt, from), lte(callLogs.createdAt, to)),
+          )
+          .orderBy(desc(callLogs.createdAt));
+
+        const totalDuration = rows.reduce(
+          (s, r) => s + (r.durationSeconds || 0),
+          0,
+        );
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `call-logs-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              [
+                "Date",
+                "Property",
+                "Initiated By",
+                "Call Type",
+                "Duration (sec)",
+                "Guest",
+                "Guest Phone",
+              ],
+              ...rows.map((r) => [
+                new Date(r.createdAt!).toLocaleDateString("en-IN"),
+                r.propertyTitle || "",
+                r.initiatedBy || "",
+                r.callType || "",
+                String(r.durationSeconds || 0),
+                `${r.guestFirst || ""} ${r.guestLast || ""}`.trim() || "—",
+                r.guestPhone || "—",
+              ]),
+            ],
+          );
+        }
+        res.json({
+          total: rows.length,
+          totalDurationSeconds: totalDuration,
+          rows: rows.slice(0, 200),
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
+
+  // ── Admin Audit Logs report ────────────────────────────────────────────────
+  app.get(
+    "/api/admin/reports/audit-logs",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || !userHasRole(user, "admin"))
+          return res.status(403).json({ message: "Admin only" });
+
+        const { from, to } = reportDateRange(req);
+
+        const rows = await db
+          .select({
+            id: adminAuditLogs.id,
+            action: adminAuditLogs.action,
+            reason: adminAuditLogs.reason,
+            createdAt: adminAuditLogs.createdAt,
+            adminFirst: users.firstName,
+            adminLast: users.lastName,
+            propertyTitle: propertiesTable.title,
+          })
+          .from(adminAuditLogs)
+          .leftJoin(users, eq(adminAuditLogs.adminId, users.id))
+          .leftJoin(
+            propertiesTable,
+            eq(adminAuditLogs.propertyId, propertiesTable.id),
+          )
+          .where(
+            and(
+              gte(adminAuditLogs.createdAt, from),
+              lte(adminAuditLogs.createdAt, to),
+            ),
+          )
+          .orderBy(desc(adminAuditLogs.createdAt));
+
+        const byAction: Record<string, number> = {};
+        for (const r of rows)
+          byAction[r.action] = (byAction[r.action] || 0) + 1;
+
+        if (req.query.format === "csv") {
+          return sendCsv(
+            res,
+            `audit-logs-${from.toISOString().slice(0, 10)}.csv`,
+            [
+              ["Date", "Admin", "Action", "Property", "Reason"],
+              ...rows.map((r) => [
+                new Date(r.createdAt!).toLocaleDateString("en-IN"),
+                `${r.adminFirst || ""} ${r.adminLast || ""}`.trim() || "—",
+                r.action,
+                r.propertyTitle || "—",
+                r.reason || "",
+              ]),
+            ],
+          );
+        }
+        res.json({ total: rows.length, byAction, rows: rows.slice(0, 200) });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed" });
+      }
+    },
+  );
 
   return httpServer;
 }
