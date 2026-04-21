@@ -4,7 +4,7 @@ import {
   subscriptionPlans,
   properties,
 } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { storage } from "./storage";
 import { broadcastToUser } from "./routes";
 import { createNotification } from "./services/notificationService";
@@ -193,7 +193,12 @@ export async function checkSubscriptionExpiry(): Promise<void> {
         subscriptionPlans,
         eq(ownerSubscriptions.planId, subscriptionPlans.id),
       )
-      .where(eq(ownerSubscriptions.status, "active"));
+      .where(
+        and(
+          eq(ownerSubscriptions.status, "active"),
+          ne(ownerSubscriptions.isWaived, true), // never auto-expire admin-waived subscriptions
+        ),
+      );
 
     for (const sub of activeSubs) {
       if (!sub.endDate) continue;

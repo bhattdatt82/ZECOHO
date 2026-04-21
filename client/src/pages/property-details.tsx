@@ -98,6 +98,7 @@ import {
   type GuestDetailsFormData,
 } from "@/components/GuestDetailsForm";
 import { BookingPriceSummary } from "@/components/BookingPriceSummary";
+import { ProfileCompletionDialog } from "@/components/ProfileCompletionDialog";
 import type { Property, Amenity } from "@shared/schema";
 import { insertReviewSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -182,8 +183,11 @@ export default function PropertyDetails() {
   const [guestDetailsValid, setGuestDetailsValid] = useState(false);
   const [guestDetailsData, setGuestDetailsData] =
     useState<GuestDetailsFormData | null>(null);
-  // Ref to scroll to the traveller details form on desktop when Reserve is clicked
   const travellerDetailsRef = useRef<HTMLDivElement>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [pendingContactAction, setPendingContactAction] = useState<
+    "chat" | "call" | null
+  >(null);
 
   // Controlled popover states for date pickers and guests with auto-navigation
   const [checkInPopoverOpen, setCheckInPopoverOpen] = useState(false);
@@ -1251,6 +1255,7 @@ export default function PropertyDetails() {
   const additionalImages = property.images?.slice(1, 5) || [];
 
   return (
+    <>
     <div className="min-h-screen pb-24 md:pb-16">
       <Helmet>
         <title>
@@ -2899,14 +2904,17 @@ export default function PropertyDetails() {
                           }, 500);
                           return;
                         }
-                        // Owners can chat with other owners, just not themselves
-                        if (property && property.ownerId === user.id) {
+                        if (property && (property as any).ownerId === (user as any).id) {
                           toast({
                             title: "Cannot Chat With Yourself",
-                            description:
-                              "You cannot start a conversation with yourself",
+                            description: "You cannot start a conversation with yourself",
                             variant: "destructive",
                           });
+                          return;
+                        }
+                        if (!(user as any).phone) {
+                          setPendingContactAction("chat");
+                          setProfileDialogOpen(true);
                           return;
                         }
                         contactOwnerMutation.mutate();
@@ -2925,6 +2933,11 @@ export default function PropertyDetails() {
                         variant="outline"
                         size="lg"
                         onClick={() => {
+                          if (!(user as any)?.phone) {
+                            setPendingContactAction("call");
+                            setProfileDialogOpen(true);
+                            return;
+                          }
                           window.location.href = `tel:${(property as any).ownerContact.phone}`;
                         }}
                         data-testid="button-call-owner"
@@ -3075,5 +3088,23 @@ export default function PropertyDetails() {
         }
       />
     </div>
+
+    <ProfileCompletionDialog
+      open={profileDialogOpen}
+      onOpenChange={setProfileDialogOpen}
+      user={user as any}
+      actionLabel={
+        pendingContactAction === "call" ? "Save & Call Owner" : "Save & Chat"
+      }
+      onComplete={() => {
+        if (pendingContactAction === "chat") {
+          contactOwnerMutation.mutate();
+        } else if (pendingContactAction === "call") {
+          window.location.href = `tel:${(property as any)?.ownerContact?.phone}`;
+        }
+        setPendingContactAction(null);
+      }}
+    />
+    </>
   );
 }

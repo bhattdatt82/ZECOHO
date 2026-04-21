@@ -42,6 +42,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useBookingUpdates } from "@/hooks/useBookingUpdates";
+import { ProfileCompletionDialog } from "@/components/ProfileCompletionDialog";
 
 interface Booking {
   id: string;
@@ -150,6 +151,12 @@ export default function MyBookings() {
   const [location, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [showNewBookingBanner, setShowNewBookingBanner] = useState(false);
+
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [pendingContactAction, setPendingContactAction] = useState<{
+    type: "call";
+    phone: string;
+  } | null>(null);
 
   // Cancellation modal state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -389,18 +396,31 @@ export default function MyBookings() {
     }
   };
 
+  const handleChatClick = () => {
+    if (!(user as any)?.phone) {
+      setPendingContactAction(null);
+      setProfileDialogOpen(true);
+      return;
+    }
+    setLocation("/messages");
+  };
+
   // Handle call button click with logging
   const handleCallClick = (booking: Booking) => {
-    if (booking.ownerContact?.phone) {
-      logContactInteraction(
-        booking.id,
-        "call",
-        booking.ownerContact.phone,
-        booking.property?.id,
-        booking.property?.title,
-      );
-      window.location.href = `tel:${booking.ownerContact.phone}`;
+    if (!booking.ownerContact?.phone) return;
+    if (!(user as any)?.phone) {
+      setPendingContactAction({ type: "call", phone: booking.ownerContact.phone });
+      setProfileDialogOpen(true);
+      return;
     }
+    logContactInteraction(
+      booking.id,
+      "call",
+      booking.ownerContact.phone,
+      booking.property?.id,
+      booking.property?.title,
+    );
+    window.location.href = `tel:${booking.ownerContact.phone}`;
   };
 
   // Enhanced status configuration with colors and explanations
@@ -1139,17 +1159,16 @@ export default function MyBookings() {
                             Contact Hotel
                           </p>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Link href="/messages">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-2"
-                                data-testid={`btn-chat-hotel-confirmed-${booking.id}`}
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                                Chat
-                              </Button>
-                            </Link>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-2"
+                              onClick={handleChatClick}
+                              data-testid={`btn-chat-hotel-confirmed-${booking.id}`}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                              Chat
+                            </Button>
                             {booking.ownerContact?.phone && (
                               <>
                                 <Button
@@ -1250,16 +1269,15 @@ export default function MyBookings() {
 
                   {/* Action Buttons for Customer Confirmed - Chat, Call, WhatsApp enabled */}
                   <div className="flex items-center gap-3 flex-wrap">
-                    <Link href="/messages">
-                      <Button
-                        size="sm"
-                        className="gap-2"
-                        data-testid={`btn-message-hotel-${booking.id}`}
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        Chat with Hotel
-                      </Button>
-                    </Link>
+                    <Button
+                      size="sm"
+                      className="gap-2"
+                      onClick={handleChatClick}
+                      data-testid={`btn-message-hotel-${booking.id}`}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Chat with Hotel
+                    </Button>
                     {booking.ownerContact?.phone && (
                       <>
                         <Button
@@ -1316,16 +1334,15 @@ export default function MyBookings() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <Link href="/messages">
-                      <Button
-                        size="sm"
-                        className="gap-2"
-                        data-testid={`btn-chat-hotel-checked-in-${booking.id}`}
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        Chat with Hotel
-                      </Button>
-                    </Link>
+                    <Button
+                      size="sm"
+                      className="gap-2"
+                      onClick={handleChatClick}
+                      data-testid={`btn-chat-hotel-checked-in-${booking.id}`}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Chat with Hotel
+                    </Button>
                     {booking.ownerContact?.phone && (
                       <>
                         <Button
@@ -2004,6 +2021,23 @@ export default function MyBookings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProfileCompletionDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        user={user as any}
+        actionLabel={
+          pendingContactAction?.type === "call" ? "Save & Call Hotel" : "Save & Continue"
+        }
+        onComplete={() => {
+          if (pendingContactAction?.type === "call") {
+            window.location.href = `tel:${pendingContactAction.phone}`;
+          } else {
+            setLocation("/messages");
+          }
+          setPendingContactAction(null);
+        }}
+      />
     </div>
   );
 }

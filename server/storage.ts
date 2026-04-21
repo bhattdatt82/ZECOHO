@@ -3797,9 +3797,13 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(ownerSubscriptions.ownerId, ownerId),
-          eq(ownerSubscriptions.status, "active"),
+          or(
+            eq(ownerSubscriptions.status, "active"),
+            eq(ownerSubscriptions.isWaived, true), // admin-waived subs always grant access
+          ),
         ),
       )
+      .orderBy(desc(ownerSubscriptions.createdAt))
       .limit(1);
     return sub;
   }
