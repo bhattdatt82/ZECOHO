@@ -23,6 +23,7 @@ import {
   notificationLogs,
   bookings,
   properties as propertiesTable,
+  adminPermissions,
 } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import subscriptionRoutes from "./subscriptions.ts";
@@ -1055,6 +1056,296 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error promoting user to admin:", error);
       res.status(500).json({ message: "Failed to promote user to admin" });
+    }
+  });
+
+  // ── Sub-Admin Permission Management ──────────────────────────────────────
+
+  // Helper: check full admin OR specific sub-admin permission
+  async function canAdminAccess(req: any, permission?: string): Promise<{ user: any; ok: boolean }> {
+    const userId = req.user?.claims?.sub ?? req.user?.id;
+    const user = await storage.getUser(userId);
+    if (!user) return { user: null, ok: false };
+    if (user.userRole === "admin") return { user, ok: true };
+    if (!permission) return { user, ok: false };
+    const [row] = await db
+      .select()
+      .from(adminPermissions)
+      .where(eq(adminPermissions.userId, userId))
+      .limit(1);
+    if (!row) return { user, ok: false };
+    return { user, ok: (row.permissions as string[]).includes(permission) };
+  }
+
+  // GET /api/admin/my-permissions — frontend uses this to know what to show
+  app.get("/api/admin/my-permissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub ?? req.user?.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      if (user.userRole === "admin") {
+        return res.json({
+          isFullAdmin: true,
+          permissions: ["accounts","subscriptions","reports","properties","bookings","kyc","content","support","coming_soon"],
+        });
+      }
+      const [row] = await db
+        .select()
+        .from(adminPermissions)
+        .where(eq(adminPermissions.userId, userId))
+        .limit(1);
+      res.json({ isFullAdmin: false, permissions: (row?.permissions as string[]) ?? [] });
+    } catch (e) {
+      res.status(500).json({ error: "Failed" });
+    }
+  });
+
+  // GET /api/admin/sub-admins — list all sub-admins
+  app.get("/api/admin/sub-admins", isAuthenticated, async (req: any, res) => {
+    try {
+      const { user, ok } = await canAdminAccess(req);
+      if (!ok || user?.userRole !== "admin") return res.status(403).json({ error: "Full admin required" });
+      const rows = await db
+        .select({
+          id: adminPermissions.id,
+          userId: adminPermissions.userId,
+          email: adminPermissions.email,
+          permissions: adminPermissions.permissions,
+          createdAt: adminPermissions.createdAt,
+          updatedAt: adminPermissions.updatedAt,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+        .from(adminPermissions)
+        .leftJoin(users, eq(adminPermissions.userId, users.id))
+        .orderBy(desc(adminPermissions.createdAt));
+      res.json(rows);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch sub-admins" });
+    }
+  });
+
+  // POST /api/admin/sub-admins — grant permissions
+  app.post("/api/admin/sub-admins", isAuthenticated, async (req: any, res) => {
+    try {
+      const { user, ok } = await canAdminAccess(req);
+      if (!ok || user?.userRole !== "admin") return res.status(403).json({ error: "Full admin required" });
+      const { email, permissions } = req.body;
+      if (!email || !Array.isArray(permissions)) return res.status(400).json({ error: "email and permissions required" });
+      if (!email.endsWith("@zecoho.com")) return res.status(400).json({ error: "Only @zecoho.com email addresses can be granted sub-admin access" });
+      const targetUser = await storage.getUserByEmail(email.toLowerCase());
+      if (!targetUser) return res.status(404).json({ error: "No account found with that email. The user must sign up first." });
+      // Upsert: if row exists, update it
+      const [existing] = await db.select().from(adminPermissions).where(eq(adminPermissions.userId, targetUser.id)).limit(1);
+      if (existing) {
+        const [updated] = await db.update(adminPermissions)
+          .set({ permissions, updatedAt: new Date() })
+          .where(eq(adminPermissions.id, existing.id))
+          .returning();
+        return res.json(updated);
+      }
+      const adminId = req.user?.claims?.sub ?? req.user?.id;
+      const [created] = await db.insert(adminPermissions).values({
+        userId: targetUser.id,
+        email: email.toLowerCase(),
+        grantedBy: adminId,
+        permissions,
+      }).returning();
+      res.json(created);
+    } catch (e) {
+      console.error("sub-admin grant error:", e);
+      res.status(500).json({ error: "Failed to grant access" });
+    }
+  });
+
+  // PATCH /api/admin/sub-admins/:id — update permissions
+  app.patch("/api/admin/sub-admins/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { user, ok } = await canAdminAccess(req);
+      if (!ok || user?.userRole !== "admin") return res.status(403).json({ error: "Full admin required" });
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) return res.status(400).json({ error: "permissions array required" });
+      const [updated] = await db.update(adminPermissions)
+        .set({ permissions, updatedAt: new Date() })
+        .where(eq(adminPermissions.id, req.params.id))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Not found" });
+      res.json(updated);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to update" });
+    }
+  });
+
+  // DELETE /api/admin/sub-admins/:id — revoke access
+  app.delete("/api/admin/sub-admins/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { user, ok } = await canAdminAccess(req);
+      if (!ok || user?.userRole !== "admin") return res.status(403).json({ error: "Full admin required" });
+      await db.delete(adminPermissions).where(eq(adminPermissions.id, req.params.id));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to revoke" });
+    }
+  });
+
+  // ── Admin CSV Exports ─────────────────────────────────────────────────────
+
+  function csvEscape(val: any): string {
+    if (val === null || val === undefined) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) return `"${str.replace(/"/g, '""')}"`;
+    return str;
+  }
+  function buildCsv(headers: string[], rows: any[][]): string {
+    return [headers.join(","), ...rows.map((r) => r.map(csvEscape).join(","))].join("\n");
+  }
+
+  // Owners export
+  app.get("/api/admin/export/owners", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ok } = await canAdminAccess(req, "reports");
+      if (!ok) return res.status(403).json({ error: "Access denied" });
+      const allOwners = await db.select().from(users).where(eq(users.userRole, "owner")).orderBy(users.createdAt);
+      const headers = ["ID","First Name","Last Name","Email","Phone","Alt Phone","KYC Status","Suspended","Created At"];
+      const rows = allOwners.map((u) => [
+        u.id, u.firstName, u.lastName, u.email, u.phone, u.alternativePhone,
+        u.kycStatus, u.suspendedAt ? "Yes" : "No",
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN") : "",
+      ]);
+      const fmt = (req.query.format as string) || "csv";
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="zecoho-owners-${new Date().toISOString().slice(0,10)}.csv"`);
+      res.send(buildCsv(headers, rows));
+    } catch (e) {
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
+  // Customers export
+  app.get("/api/admin/export/customers", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ok } = await canAdminAccess(req, "reports");
+      if (!ok) return res.status(403).json({ error: "Access denied" });
+      const guests = await db.select().from(users).where(eq(users.userRole, "guest")).orderBy(users.createdAt);
+      const headers = ["ID","First Name","Last Name","Email","Phone","Deactivated","Created At"];
+      const rows = guests.map((u) => [
+        u.id, u.firstName, u.lastName, u.email, u.phone,
+        u.isDeactivated ? "Yes" : "No",
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN") : "",
+      ]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="zecoho-customers-${new Date().toISOString().slice(0,10)}.csv"`);
+      res.send(buildCsv(headers, rows));
+    } catch (e) {
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
+  // Bookings export
+  app.get("/api/admin/export/bookings", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ok } = await canAdminAccess(req, "reports");
+      if (!ok) return res.status(403).json({ error: "Access denied" });
+      const allBookings = await db.select({
+        id: bookings.id,
+        propertyId: bookings.propertyId,
+        guestId: bookings.guestId,
+        status: bookings.status,
+        checkIn: bookings.checkIn,
+        checkOut: bookings.checkOut,
+        guests: bookings.guests,
+        totalPrice: bookings.totalPrice,
+        guestName: bookings.guestName,
+        guestEmail: bookings.guestEmail,
+        guestMobile: bookings.guestMobile,
+        createdAt: bookings.createdAt,
+      }).from(bookings).orderBy(desc(bookings.createdAt));
+      const headers = ["Booking ID","Property ID","Guest ID","Guest Name","Guest Email","Guest Mobile","Status","Check In","Check Out","Guests","Total Price","Created At"];
+      const rows = allBookings.map((b) => [
+        b.id, b.propertyId, b.guestId, b.guestName, b.guestEmail, b.guestMobile,
+        b.status,
+        b.checkIn ? new Date(b.checkIn).toLocaleDateString("en-IN") : "",
+        b.checkOut ? new Date(b.checkOut).toLocaleDateString("en-IN") : "",
+        b.guests, b.totalPrice,
+        b.createdAt ? new Date(b.createdAt).toLocaleDateString("en-IN") : "",
+      ]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="zecoho-bookings-${new Date().toISOString().slice(0,10)}.csv"`);
+      res.send(buildCsv(headers, rows));
+    } catch (e) {
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
+  // Properties export
+  app.get("/api/admin/export/properties", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ok } = await canAdminAccess(req, "reports");
+      if (!ok) return res.status(403).json({ error: "Access denied" });
+      const allProps = await db.select({
+        id: propertiesTable.id,
+        title: propertiesTable.title,
+        ownerId: propertiesTable.ownerId,
+        status: propertiesTable.status,
+        city: propertiesTable.city,
+        state: propertiesTable.state,
+        propertyType: propertiesTable.propertyType,
+        pricePerNight: propertiesTable.pricePerNight,
+        rating: propertiesTable.rating,
+        reviewCount: propertiesTable.reviewCount,
+        createdAt: propertiesTable.createdAt,
+      }).from(propertiesTable).orderBy(desc(propertiesTable.createdAt));
+      const headers = ["Property ID","Title","Owner ID","Status","City","State","Type","Price/Night","Rating","Reviews","Created At"];
+      const rows = allProps.map((p) => [
+        p.id, p.title, p.ownerId, p.status, p.city, p.state, p.propertyType,
+        p.pricePerNight, p.rating, p.reviewCount,
+        p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-IN") : "",
+      ]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="zecoho-properties-${new Date().toISOString().slice(0,10)}.csv"`);
+      res.send(buildCsv(headers, rows));
+    } catch (e) {
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
+  // Subscriptions export
+  app.get("/api/admin/export/subscriptions", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ok } = await canAdminAccess(req, "reports");
+      if (!ok) return res.status(403).json({ error: "Access denied" });
+      const subs = await db.select({
+        id: ownerSubscriptions.id,
+        ownerId: ownerSubscriptions.ownerId,
+        tier: ownerSubscriptions.tier,
+        status: ownerSubscriptions.status,
+        duration: ownerSubscriptions.duration,
+        pricePaid: ownerSubscriptions.pricePaid,
+        isWaived: ownerSubscriptions.isWaived,
+        startDate: ownerSubscriptions.startDate,
+        endDate: ownerSubscriptions.endDate,
+        createdAt: ownerSubscriptions.createdAt,
+        ownerEmail: users.email,
+        ownerFirst: users.firstName,
+        ownerLast: users.lastName,
+      }).from(ownerSubscriptions)
+        .leftJoin(users, eq(ownerSubscriptions.ownerId, users.id))
+        .orderBy(desc(ownerSubscriptions.createdAt));
+      const headers = ["Sub ID","Owner ID","Owner Name","Owner Email","Tier","Status","Duration","Price Paid","Waived","Start Date","End Date","Created At"];
+      const rows = subs.map((s) => [
+        s.id, s.ownerId,
+        `${s.ownerFirst ?? ""} ${s.ownerLast ?? ""}`.trim(),
+        s.ownerEmail, s.tier, s.status, s.duration, s.pricePaid,
+        s.isWaived ? "Yes" : "No",
+        s.startDate ? new Date(s.startDate).toLocaleDateString("en-IN") : "",
+        s.endDate ? new Date(s.endDate).toLocaleDateString("en-IN") : "",
+        s.createdAt ? new Date(s.createdAt).toLocaleDateString("en-IN") : "",
+      ]);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="zecoho-subscriptions-${new Date().toISOString().slice(0,10)}.csv"`);
+      res.send(buildCsv(headers, rows));
+    } catch (e) {
+      res.status(500).json({ error: "Export failed" });
     }
   });
 

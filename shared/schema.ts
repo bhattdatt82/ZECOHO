@@ -2758,3 +2758,24 @@ export const invoices = pgTable("invoices", {
 });
 
 export type Invoice = typeof invoices.$inferSelect;
+
+// ── Sub-Admin Permissions ──────────────────────────────────────────────────
+// Grants specific admin section access to non-admin users (zecoho.com domain only)
+export const adminPermissions = pgTable("admin_permissions", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
+  grantedBy: varchar("granted_by").references(() => users.id),
+  // Array of permission keys: accounts, subscriptions, reports, properties,
+  // bookings, kyc, content, support, coming_soon
+  permissions: jsonb("permissions").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type AdminPermission = typeof adminPermissions.$inferSelect;
+export type InsertAdminPermission = typeof adminPermissions.$inferInsert;

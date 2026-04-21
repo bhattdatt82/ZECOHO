@@ -66,6 +66,8 @@ import DestinationDetails from "@/pages/destination-details";
 import AdminProperties from "@/pages/admin-properties";
 import AdminKYC from "@/pages/admin-kyc";
 import AdminAccess from "@/pages/admin-access";
+import AdminSubAdmins from "@/pages/admin-sub-admins";
+import AdminExports from "@/pages/admin-exports";
 import AdminPolicies from "@/pages/admin-policies";
 import AdminOwnerAgreements from "@/pages/admin-owner-agreements";
 import AdminContactSettings from "@/pages/admin-contact-settings";
@@ -166,6 +168,8 @@ function Router() {
       <Route path="/admin/logo" component={AdminLogo} />
       <Route path="/admin/coming-soon" component={AdminComingSoon} />
       <Route path="/admin/reports" component={AdminReports} />
+      <Route path="/admin/sub-admins" component={AdminSubAdmins} />
+      <Route path="/admin/exports" component={AdminExports} />
       <Route path="/admin" component={AdminHome} />
       <Route path="/coming-soon" component={ComingSoon} />
       <Route path="/contact" component={ContactUs} />

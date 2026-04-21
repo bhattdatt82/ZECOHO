@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminAccess, type PermissionKey } from "@/hooks/useAdminAccess";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -30,6 +31,7 @@ import {
   BarChart2,
   Trash2,
   Wrench,
+  ShieldPlus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -60,13 +62,23 @@ interface AdminCallLog {
   total: number;
 }
 
-const adminSections = [
+interface AdminSection {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  href: string;
+  testId: string;
+  permission: PermissionKey | "full_admin";
+}
+
+const adminSections: AdminSection[] = [
   {
     title: "Properties",
     description: "Review and manage property listings",
     icon: Building2,
     href: "/admin/properties",
     testId: "admin-nav-properties",
+    permission: "properties",
   },
   {
     title: "Bookings",
@@ -74,6 +86,7 @@ const adminSections = [
     icon: CalendarCheck,
     href: "/admin/bookings",
     testId: "admin-nav-bookings",
+    permission: "bookings",
   },
   {
     title: "Reports & Analytics",
@@ -81,27 +94,15 @@ const adminSections = [
     icon: BarChart2,
     href: "/admin/reports",
     testId: "admin-nav-reports",
+    permission: "reports",
   },
   {
-    title: "Coming Soon Mode",
-    description: "Control site access, whitelist testers, view signups",
-    icon: Radio,
-    href: "/admin/coming-soon",
-    testId: "admin-nav-coming-soon",
-  },
-  {
-    title: "Logo Settings",
-    description: "Upload and update the website logo",
-    icon: ImageIcon,
-    href: "/admin/logo",
-    testId: "admin-nav-logo",
-  },
-  {
-    title: "Brand Assets",
-    description: "Download logo files",
-    icon: Palette,
-    href: "/logo-gallery",
-    testId: "admin-nav-brand-assets",
+    title: "Data Exports",
+    description: "Download owners, customers, bookings, properties, subscriptions as CSV",
+    icon: Download,
+    href: "/admin/exports",
+    testId: "admin-nav-exports",
+    permission: "reports",
   },
   {
     title: "Users",
@@ -109,6 +110,7 @@ const adminSections = [
     icon: Users,
     href: "/admin/users",
     testId: "admin-nav-users",
+    permission: "accounts",
   },
   {
     title: "Owners",
@@ -116,6 +118,7 @@ const adminSections = [
     icon: UserCog,
     href: "/admin/owners",
     testId: "admin-nav-owners",
+    permission: "accounts",
   },
   {
     title: "Subscriptions",
@@ -123,20 +126,7 @@ const adminSections = [
     icon: CreditCard,
     href: "/admin/subscriptions",
     testId: "admin-nav-subscriptions",
-  },
-  {
-    title: "Inventory",
-    description: "Monitor room availability",
-    icon: Package,
-    href: "/admin/inventory",
-    testId: "admin-nav-inventory",
-  },
-  {
-    title: "Support",
-    description: "Customer support inbox",
-    icon: HeadphonesIcon,
-    href: "/admin/support",
-    testId: "admin-nav-support",
+    permission: "subscriptions",
   },
   {
     title: "KYC Verification",
@@ -144,6 +134,15 @@ const adminSections = [
     icon: FileCheck,
     href: "/admin/kyc",
     testId: "admin-nav-kyc",
+    permission: "kyc",
+  },
+  {
+    title: "Support",
+    description: "Customer support inbox",
+    icon: HeadphonesIcon,
+    href: "/admin/support",
+    testId: "admin-nav-support",
+    permission: "support",
   },
   {
     title: "Policies",
@@ -151,6 +150,7 @@ const adminSections = [
     icon: FileText,
     href: "/admin/policies",
     testId: "admin-nav-policies",
+    permission: "content",
   },
   {
     title: "Owner Agreements",
@@ -158,6 +158,7 @@ const adminSections = [
     icon: Handshake,
     href: "/admin/owner-agreements",
     testId: "admin-nav-agreements",
+    permission: "content",
   },
   {
     title: "About Us",
@@ -165,6 +166,7 @@ const adminSections = [
     icon: Info,
     href: "/admin/about-us",
     testId: "admin-nav-about",
+    permission: "content",
   },
   {
     title: "Contact Settings",
@@ -172,11 +174,53 @@ const adminSections = [
     icon: Phone,
     href: "/admin/contact-settings",
     testId: "admin-nav-contact",
+    permission: "content",
+  },
+  {
+    title: "Inventory",
+    description: "Monitor room availability",
+    icon: Package,
+    href: "/admin/inventory",
+    testId: "admin-nav-inventory",
+    permission: "full_admin",
+  },
+  {
+    title: "Coming Soon Mode",
+    description: "Control site access, whitelist testers, view signups",
+    icon: Radio,
+    href: "/admin/coming-soon",
+    testId: "admin-nav-coming-soon",
+    permission: "coming_soon",
+  },
+  {
+    title: "Logo Settings",
+    description: "Upload and update the website logo",
+    icon: ImageIcon,
+    href: "/admin/logo",
+    testId: "admin-nav-logo",
+    permission: "content",
+  },
+  {
+    title: "Brand Assets",
+    description: "Download logo files",
+    icon: Palette,
+    href: "/logo-gallery",
+    testId: "admin-nav-brand-assets",
+    permission: "content",
+  },
+  {
+    title: "Team Access",
+    description: "Grant specific admin section access to @zecoho.com team members",
+    icon: ShieldPlus,
+    href: "/admin/sub-admins",
+    testId: "admin-nav-sub-admins",
+    permission: "full_admin",
   },
 ];
 
 export default function AdminHome() {
   const { user } = useAuth();
+  const { isFullAdmin, hasPermission, hasAnyAdminAccess } = useAdminAccess();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [cleanupResult, setCleanupResult] = useState<{ deletedCount: number; skippedCount: number } | null>(null);
@@ -215,7 +259,7 @@ export default function AdminHome() {
           `/api/communication/admin/call-log?from=${callLogFrom}&to=${callLogTo}`,
           { credentials: "include" },
         ).then((r) => r.json()),
-      enabled: (user as any)?.userRole === "admin",
+      enabled: isFullAdmin,
     });
 
   const handleCallLogDownload = () => {
@@ -235,7 +279,7 @@ export default function AdminHome() {
           credentials: "include",
         }).then((r) => r.json()),
       refetchInterval: 300000,
-      enabled: user?.userRole === "admin",
+      enabled: isFullAdmin,
     });
 
   const handleDownload = () => {
@@ -261,25 +305,27 @@ export default function AdminHome() {
     URL.revokeObjectURL(url);
   };
 
-  // Check if user is admin
-  if (user?.userRole !== "admin") {
+  // Check if user has any admin access
+  if (!hasAnyAdminAccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
           <p className="text-muted-foreground mb-6 text-sm">
-            You need admin privileges to access this panel.
+            You need admin or sub-admin access to view this panel.
           </p>
-          <Button
-            onClick={() => setLocation("/")}
-            data-testid="button-back-home"
-          >
+          <Button onClick={() => setLocation("/")} data-testid="button-back-home">
             Back to Home
           </Button>
         </div>
       </div>
     );
   }
+
+  const visibleSections = adminSections.filter((s) => {
+    if (s.permission === "full_admin") return isFullAdmin;
+    return hasPermission(s.permission as PermissionKey);
+  });
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -290,7 +336,7 @@ export default function AdminHome() {
         </p>
 
         <div className="space-y-3 mb-6">
-          {adminSections.map((section) => (
+          {visibleSections.map((section) => (
             <Card
               key={section.href}
               className="hover-elevate cursor-pointer"
