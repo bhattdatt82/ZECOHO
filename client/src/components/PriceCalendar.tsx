@@ -228,13 +228,24 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
     return rt.defaultPrice;
   }
 
+  function getOccupancyIncrement(rt: PricingCalendarData["roomTypes"][number]): number {
+    const single = rt.singleOccupancyPrice ?? rt.defaultPrice;
+    if (selectedOccupancy === 3 && rt.tripleOccupancyPrice != null) return rt.tripleOccupancyPrice - single;
+    if (selectedOccupancy === 2 && rt.doubleOccupancyPrice != null) return rt.doubleOccupancyPrice - single;
+    return 0;
+  }
+
   function getPriceInfo(dateStr: string): {
     price: number | null;
     isOverride: boolean;
   } {
     if (editMode === "room" && selectedRoomType) {
       const override = selectedRoomType.overrides[dateStr];
-      if (override !== undefined) return { price: override, isOverride: true };
+      if (override !== undefined) {
+        // Override is the single/base rate; add occupancy increment so the
+        // calendar shows exactly what a guest will see for the selected occupancy.
+        return { price: override + getOccupancyIncrement(selectedRoomType), isOverride: true };
+      }
       return { price: getOccupancyBasePrice(selectedRoomType), isOverride: false };
     }
     if (editMode === "mealplan" && selectedRoomOptionId && calendarData) {
