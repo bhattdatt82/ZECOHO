@@ -132,19 +132,25 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
   }, [selectedRoomTypeId]);
 
   const setRoomPriceMutation = useMutation({
-    mutationFn: ({ roomTypeId, startDate, endDate, price }: any) =>
-      apiRequest("PUT", `/api/owner/room-types/${roomTypeId}/price-overrides`, {
-        startDate,
-        endDate,
-        price,
-      }).then((r) => r.json()),
-    onSuccess: () => {
+    mutationFn: async ({ roomTypeId, dates, price }: { roomTypeId: string; dates: string[]; price: number }) => {
+      await Promise.all(
+        dates.map((d) =>
+          apiRequest("PUT", `/api/owner/room-types/${roomTypeId}/price-overrides`, {
+            startDate: d,
+            endDate: d,
+            price,
+          }).then((r) => r.json()),
+        ),
+      );
+      return dates.length;
+    },
+    onSuccess: (count) => {
       queryClient.invalidateQueries({
         queryKey: ["/api/properties", propertyId, "pricing-calendar"],
       });
       toast({
         title: "Prices saved",
-        description: `${selectedDates.size} date(s) updated.`,
+        description: `${count} date(s) updated.`,
       });
       setSelectedDates(new Set());
       setPriceInput("");
@@ -152,7 +158,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
     onError: () =>
       toast({
         title: "Error",
-        description: "Failed to save prices.",
+        description: "Failed to save prices. Please try again.",
         variant: "destructive",
       }),
   });
@@ -297,14 +303,11 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
 
     const sorted = Array.from(selectedDates).sort();
     if (editMode === "room") {
-      sorted.forEach((d) =>
-        setRoomPriceMutation.mutate({
-          roomTypeId: selectedRoomTypeId,
-          startDate: d,
-          endDate: d,
-          price,
-        }),
-      );
+      setRoomPriceMutation.mutate({
+        roomTypeId: selectedRoomTypeId,
+        dates: sorted,
+        price,
+      });
     } else {
       sorted.forEach((d) =>
         setMealPriceMutation.mutate({
@@ -451,7 +454,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
           </SelectContent>
         </Select>
 
-        {/* Occupancy selector (room mode only) */}
+        {/* Occupancy price view selector (room mode only) */}
         {editMode === "room" && (
           <Select
             value={String(selectedOccupancy)}
@@ -460,13 +463,13 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
               setSelectedDates(new Set());
             }}
           >
-            <SelectTrigger className="w-40 bg-white">
-              <SelectValue placeholder="Occupancy" />
+            <SelectTrigger className="w-44 bg-white">
+              <SelectValue placeholder="View prices for" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">1 Guest</SelectItem>
-              <SelectItem value="2">2 Guests</SelectItem>
-              <SelectItem value="3">3 Guests</SelectItem>
+              <SelectItem value="1">View: 1 Guest</SelectItem>
+              <SelectItem value="2">View: 2 Guests</SelectItem>
+              <SelectItem value="3">View: 3 Guests</SelectItem>
             </SelectContent>
           </Select>
         )}
@@ -744,7 +747,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
             </div>
             {editMode === "room" && (
               <p className="text-xs text-muted-foreground">
-                This sets the <strong>single/base rate</strong> for selected dates. Extra-guest charges (double/triple occupancy) are added on top automatically.
+                Sets the <strong>base price</strong> for selected dates. Use the "View" dropdown above to see effective prices for each occupancy level on the calendar.
               </p>
             )}
 

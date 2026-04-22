@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -367,59 +366,6 @@ export function PropertyImageUploader({
 
   return (
     <div className="space-y-6">
-      {/* Quick Upload Grid */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Quick Upload - Click a category to upload photos
-          </CardTitle>
-          <CardDescription>
-            Select a category below to directly upload images
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {IMAGE_CATEGORIES.map((category) => {
-              const Icon = category.icon;
-              const count = getCategoryCount(category.id);
-              const isUploading = uploadingCategory === category.id;
-              return (
-                <div key={category.id} className="relative">
-                  <input
-                    ref={(el) => { fileInputRefs.current[category.id] = el; }}
-                    type="file"
-                    multiple
-                    accept=".jpeg,.jpg,.png,.webp,image/*"
-                    onChange={(e) => handleQuickFileChange(category.id, e)}
-                    className="hidden"
-                    data-testid={`input-quick-upload-${category.id}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleQuickUploadClick(category.id)}
-                    disabled={isUploading}
-                    className="w-full p-4 rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    data-testid={`button-quick-upload-${category.id}`}
-                  >
-                    <div className="relative">
-                      <Icon className="h-8 w-8 text-muted-foreground" />
-                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                        <Plus className="h-3 w-3" />
-                      </div>
-                    </div>
-                    <span className="text-sm font-medium">{category.label}</span>
-                    <Badge variant={count > 0 ? "default" : "outline"} className="text-xs">
-                      {isUploading ? "Uploading..." : `${count} photo${count !== 1 ? 's' : ''}`}
-                    </Badge>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
       <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
@@ -440,12 +386,9 @@ export function PropertyImageUploader({
       </Card>
 
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Property Photos</h3>
-          <p className="text-sm text-muted-foreground">
-            Total: {getTotalImages()} photos uploaded
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Click a category header to upload photos directly. Total: <strong>{getTotalImages()} photos</strong> uploaded.
+        </p>
         <Badge variant={getTotalImages() >= 10 ? "default" : "secondary"}>
           {getTotalImages() >= 10 ? "Good coverage" : "Add more photos"}
         </Badge>
@@ -456,19 +399,36 @@ export function PropertyImageUploader({
           {IMAGE_CATEGORIES.map((category) => {
             const Icon = category.icon;
             const count = getCategoryCount(category.id);
+            const isUploading = uploadingCategory === category.id;
             return (
-              <TabsTrigger
-                key={category.id}
-                value={category.id}
-                className="flex flex-col gap-1 py-2 px-1 text-xs"
-                data-testid={`tab-images-${category.id}`}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{category.label}</span>
-                <Badge variant={count > 0 ? "default" : "outline"} className="text-xs px-1.5">
-                  {count}
-                </Badge>
-              </TabsTrigger>
+              <div key={category.id} className="relative">
+                <input
+                  ref={(el) => { fileInputRefs.current[category.id] = el; }}
+                  type="file"
+                  multiple
+                  accept=".jpeg,.jpg,.png,.webp,image/*"
+                  onChange={(e) => handleQuickFileChange(category.id, e)}
+                  className="hidden"
+                  data-testid={`input-quick-upload-${category.id}`}
+                />
+                <TabsTrigger
+                  value={category.id}
+                  className="w-full flex flex-col gap-1 py-2 px-1 text-xs"
+                  data-testid={`tab-images-${category.id}`}
+                  onClick={() => handleQuickUploadClick(category.id)}
+                >
+                  <div className="relative">
+                    <Icon className="h-4 w-4" />
+                    <div className="absolute -top-1 -right-2 bg-primary text-primary-foreground rounded-full p-0.5">
+                      <Plus className="h-2 w-2" />
+                    </div>
+                  </div>
+                  <span className="hidden sm:inline">{category.label}</span>
+                  <Badge variant={count > 0 ? "default" : "outline"} className="text-xs px-1.5">
+                    {isUploading ? "…" : count}
+                  </Badge>
+                </TabsTrigger>
+              </div>
             );
           })}
         </TabsList>
@@ -506,20 +466,19 @@ export function PropertyImageUploader({
                   </ul>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <ObjectUploader
-                    maxNumberOfFiles={10}
-                    maxFileSize={5242880}
-                    onGetUploadParameters={handleGetUploadParameters}
-                    onComplete={(result) => handleImageUpload(category.id, result)}
-                    accept={{ 'image/*': ['.jpeg', '.jpg', '.png', '.webp'] }}
-                    visibility="public"
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickUploadClick(category.id)}
+                    disabled={uploadingCategory === category.id}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    data-testid={`button-quick-upload-${category.id}`}
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload {category.label} Photos
-                  </ObjectUploader>
+                    <Upload className="h-4 w-4" />
+                    {uploadingCategory === category.id ? "Uploading..." : `Upload ${category.label} Photos`}
+                  </button>
                   <span className="text-sm text-muted-foreground">
-                    Min. 100KB · Max 5MB per image. JPEG, PNG, or WebP.
+                    Min. 100KB · Max 5MB · JPEG, PNG, or WebP
                   </span>
                 </div>
 

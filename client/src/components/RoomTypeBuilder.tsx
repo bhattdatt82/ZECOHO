@@ -49,6 +49,15 @@ export interface WizardRoomType {
   maxGuests: number;
   totalRooms: number;
   mealOptions: WizardMealOption[];
+  // In-room amenities
+  hasAC?: boolean;
+  hasTV?: boolean;
+  hasWifi?: boolean;
+  hasFridge?: boolean;
+  hasKettle?: boolean;
+  hasSafe?: boolean;
+  hasBalcony?: boolean;
+  hasHeater?: boolean;
 }
 
 export interface WizardMealOption {

@@ -103,6 +103,7 @@ import {
   Mail,
   Phone,
   FileX,
+  Bed,
 } from "lucide-react";
 import { PriceCalendar } from "@/components/PriceCalendar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -1481,6 +1482,14 @@ export default function ListPropertyWizard() {
             basePrice: rt.basePrice,
             maxGuests: rt.maxGuests,
             totalRooms: rt.totalRooms,
+            hasAC: rt.hasAC ?? false,
+            hasTV: rt.hasTV ?? false,
+            hasWifi: rt.hasWifi ?? false,
+            hasFridge: rt.hasFridge ?? false,
+            hasKettle: rt.hasKettle ?? false,
+            hasSafe: rt.hasSafe ?? false,
+            hasBalcony: rt.hasBalcony ?? false,
+            hasHeater: rt.hasHeater ?? false,
             mealOptions: rt.mealOptions.map((mo) => ({
               name: mo.name,
               inclusions: mo.inclusions,
@@ -4019,7 +4028,7 @@ export default function ListPropertyWizard() {
                           {amenities
                             .filter(
                               (a) =>
-                                (a.category === "essential" || a.name === "Hot water") &&
+                                (a.category === "essential" || a.name === "Hot water" || a.name === "Laundry") &&
                                 a.name !== "Shared Kitchen",
                             )
                             .map((amenity) => (
@@ -4089,6 +4098,7 @@ export default function ListPropertyWizard() {
                               (a) =>
                                 a.category === category &&
                                 a.name !== "Hot water" &&
+                                a.name !== "Laundry" &&
                                 a.name !== "Shared Kitchen",
                             );
                             if (categoryAmenities.length === 0) return null;
@@ -4138,6 +4148,53 @@ export default function ListPropertyWizard() {
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* Room-type in-room amenities */}
+                  {wizardRoomTypes.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Bed className="h-5 w-5" />
+                          Room-Type Amenities
+                        </CardTitle>
+                        <CardDescription>Set in-room amenities for each room type</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {wizardRoomTypes.map((rt) => (
+                          <div key={rt.id} className="border rounded-lg p-4 space-y-3">
+                            <p className="font-medium text-sm">{rt.name}</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              {[
+                                { key: "hasAC", label: "Air Conditioning" },
+                                { key: "hasTV", label: "TV" },
+                                { key: "hasWifi", label: "WiFi" },
+                                { key: "hasFridge", label: "Refrigerator" },
+                                { key: "hasKettle", label: "Electric Kettle" },
+                                { key: "hasSafe", label: "In-room Safe" },
+                                { key: "hasBalcony", label: "Balcony" },
+                                { key: "hasHeater", label: "Heater" },
+                              ].map(({ key, label }) => (
+                                <div key={key} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`${rt.id}-${key}`}
+                                    checked={!!(rt as any)[key]}
+                                    onCheckedChange={(checked) => {
+                                      setWizardRoomTypes((prev) =>
+                                        prev.map((r) =>
+                                          r.id === rt.id ? { ...r, [key]: !!checked } : r,
+                                        ),
+                                      );
+                                    }}
+                                  />
+                                  <label htmlFor={`${rt.id}-${key}`} className="text-sm cursor-pointer">{label}</label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 

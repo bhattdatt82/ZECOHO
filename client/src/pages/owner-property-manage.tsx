@@ -3928,7 +3928,7 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
   };
 
   const essentialAmenities = allAmenities.filter(
-    (a: any) => (a.category === "essential" || a.name === "Hot water") && a.name !== "Shared Kitchen",
+    (a: any) => (a.category === "essential" || a.name === "Hot water" || a.name === "Laundry") && a.name !== "Shared Kitchen",
   );
   const otherCategories = ["bathroom","safety","services","outdoor","family","food","entertainment","accessibility","work"];
 
@@ -3961,7 +3961,7 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
             <div className="space-y-4 mt-3 border-t pt-3">
               {otherCategories.map((cat) => {
                 const catAmenities = allAmenities.filter(
-                  (a: any) => a.category === cat && a.name !== "Hot water" && a.name !== "Shared Kitchen",
+                  (a: any) => a.category === cat && a.name !== "Hot water" && a.name !== "Laundry" && a.name !== "Shared Kitchen",
                 );
                 if (!catAmenities.length) return null;
                 return (
