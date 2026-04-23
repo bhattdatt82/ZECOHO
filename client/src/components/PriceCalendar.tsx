@@ -48,7 +48,7 @@ interface PricingCalendarData {
     singleOccupancyPrice: number | null;
     doubleOccupancyPrice: number | null;
     tripleOccupancyPrice: number | null;
-    overrides: Record<string, number>; // date → price
+    overrides: Record<string, { base?: number; double?: number; triple?: number }>; // date → per-tier override
   }[];
   mealPlanOverrides: Record<string, Record<string, number>>; // date → roomOptionId → price
   roomOptions: Record<
@@ -132,13 +132,14 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
   }, [selectedRoomTypeId]);
 
   const setRoomPriceMutation = useMutation({
-    mutationFn: async ({ roomTypeId, dates, price }: { roomTypeId: string; dates: string[]; price: number }) => {
+    mutationFn: async ({ roomTypeId, dates, price, occupancyTier }: { roomTypeId: string; dates: string[]; price: number; occupancyTier: 1 | 2 | 3 }) => {
       await Promise.all(
         dates.map((d) =>
           apiRequest("PUT", `/api/owner/room-types/${roomTypeId}/price-overrides`, {
             startDate: d,
             endDate: d,
             price,
+            occupancyTier,
           }).then((r) => r.json()),
         ),
       );
@@ -240,11 +241,12 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
     isOverride: boolean;
   } {
     if (editMode === "room" && selectedRoomType) {
-      const override = selectedRoomType.overrides[dateStr];
-      if (override !== undefined) {
-        // Override is the single/base rate; add occupancy increment so the
-        // calendar shows exactly what a guest will see for the selected occupancy.
-        return { price: override + getOccupancyIncrement(selectedRoomType), isOverride: true };
+      const o = selectedRoomType.overrides[dateStr];
+      if (o !== undefined) {
+        if (selectedOccupancy === 3 && o.triple !== undefined) return { price: o.triple, isOverride: true };
+        if (selectedOccupancy === 2 && o.double !== undefined) return { price: o.double, isOverride: true };
+        if (o.base !== undefined) return { price: o.base + getOccupancyIncrement(selectedRoomType), isOverride: true };
+        // Override row exists but only for a different tier — show static, not highlighted
       }
       return { price: getOccupancyBasePrice(selectedRoomType), isOverride: false };
     }
@@ -329,6 +331,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
         roomTypeId: selectedRoomTypeId,
         dates: sorted,
         price,
+        occupancyTier: selectedOccupancy,
       });
     } else {
       setMealPriceMutation.mutate({
@@ -359,9 +362,15 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
 
   const overridesThisMonth = useMemo(() => {
     if (editMode === "room" && selectedRoomType) {
-      return Object.entries(selectedRoomType.overrides).filter(
-        ([d]) => d >= startDate && d <= endDate,
-      );
+      return Object.entries(selectedRoomType.overrides)
+        .filter(([d]) => d >= startDate && d <= endDate)
+        .map(([d, o]): [string, number] | null => {
+          if (selectedOccupancy === 3 && o.triple !== undefined) return [d, o.triple];
+          if (selectedOccupancy === 2 && o.double !== undefined) return [d, o.double];
+          if (o.base !== undefined) return [d, o.base + getOccupancyIncrement(selectedRoomType)];
+          return null;
+        })
+        .filter((x): x is [string, number] => x !== null);
     }
     if (editMode === "mealplan" && selectedRoomOptionId && calendarData) {
       return Object.entries(calendarData.mealPlanOverrides)
@@ -709,7 +718,11 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
               <h4 className="font-bold text-gray-900 text-sm">Set Price</h4>
               <p className="text-xs text-gray-400 mt-0.5">
                 {editMode === "room"
-                  ? "Price per room per night"
+                  ? selectedOccupancy === 1
+                    ? "Single occupancy — price per room per night"
+                    : selectedOccupancy === 2
+                      ? "Double occupancy — price per room per night"
+                      : "Triple occupancy — price per room per night"
                   : "Add-on per person per night"}
               </p>
             </div>
@@ -766,7 +779,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
             </div>
             {editMode === "room" && (
               <p className="text-xs text-muted-foreground">
-                Sets the <strong>base price</strong> for selected dates. Use the "View" dropdown above to see effective prices for each occupancy level on the calendar.
+                Sets the <strong>{selectedOccupancy === 1 ? "single" : selectedOccupancy === 2 ? "double" : "triple"} occupancy</strong> price for the selected dates. Other tiers are unaffected.
               </p>
             )}
 
@@ -856,7 +869,7 @@ export function PriceCalendar({ propertyId, roomTypes }: PriceCalendarProps) {
                             setSelectedDates(new Set([dateStr]));
                             if (editMode === "room" && selectedRoomType) {
                               setPriceInput(
-                                String(selectedRoomType.defaultPrice),
+                                String(getOccupancyBasePrice(selectedRoomType)),
                               );
                             } else if (
                               editMode === "mealplan" &&

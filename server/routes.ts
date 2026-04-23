@@ -148,22 +148,26 @@ function occupancyIncrement(roomType: any, adultsCount: number): number {
   return 0;
 }
 
-// Resolve nightly price for a given occupancy level, optionally using a
-// day-level override as the base rate (MMT-style: override is single/base
-// rate; occupancy increments are preserved on top).
+// Resolve nightly price for a given occupancy level.
+// overrideEntry: per-date tier-specific overrides; tiers not set fall back to
+// base+increment (or fully static if no base override either).
 function resolveOccupancyPrice(
   roomType: any,
   adultsCount: number,
-  overrideBasePrice?: number,
+  overrideEntry?: { base?: number; double?: number; triple?: number },
 ): number {
   const adults = Math.max(1, adultsCount || 1);
 
-  if (overrideBasePrice !== undefined) {
-    // Day-level override: use as base, add occupancy increment on top
-    return overrideBasePrice + occupancyIncrement(roomType, adults);
+  if (overrideEntry !== undefined) {
+    if (adults >= 3 && overrideEntry.triple !== undefined) return overrideEntry.triple;
+    if (adults >= 2 && overrideEntry.double !== undefined) return overrideEntry.double;
+    if (overrideEntry.base !== undefined) {
+      return overrideEntry.base + occupancyIncrement(roomType, adults);
+    }
+    // Override row exists for a different tier only — fall through to static
   }
 
-  // No override — use static room type prices
+  // No applicable override — use static room type prices
   const single = roomType.singleOccupancyPrice
     ? Number(roomType.singleOccupancyPrice)
     : Number(roomType.basePrice);
@@ -171,14 +175,14 @@ function resolveOccupancyPrice(
 }
 
 // Calculate total room cost night-by-night, applying per-day price overrides.
-// overridesMap: date string (YYYY-MM-DD) → override base price for that night.
+// overridesMap: date string (YYYY-MM-DD) → per-tier override entry for that night.
 function calculateNightlyRoomCost(
   roomType: any,
   adultsPerRoom: number,
   roomsCount: number,
   checkIn: Date,
   checkOut: Date,
-  overridesMap: Map<string, number>,
+  overridesMap: Map<string, { base?: number; double?: number; triple?: number }>,
 ): number {
   let total = 0;
   const cursor = new Date(checkIn);
@@ -5131,7 +5135,7 @@ export async function registerRoutes(
       const guestCount = validatedData.guests || 1;
       const adultsCount = validatedData.adults || guestCount;
 
-      let mealPrice = 0;
+      let mealSubtotal = 0;
       let roomSubtotal = nights * Number(property.pricePerNight) * roomsCount;
 
       // If room type is selected, use room type pricing with per-night overrides
@@ -5150,11 +5154,15 @@ export async function registerRoutes(
             startKey,
             endKey,
           );
-          const overridesMap = new Map<string, number>(
-            overrideRows.map((r) => [r.date, Number(r.roomPrice)]),
+          const overridesMap = new Map<string, { base?: number; double?: number; triple?: number }>(
+            overrideRows.map((r) => [r.date, {
+              base: r.roomPrice != null ? Number(r.roomPrice) : undefined,
+              double: r.doublePriceOverride != null ? Number(r.doublePriceOverride) : undefined,
+              triple: r.triplePriceOverride != null ? Number(r.triplePriceOverride) : undefined,
+            }]),
           );
 
-          // Sum nightly prices: each night uses override base + occupancy increment
+          // Sum nightly prices: each night uses tier override or base+increment
           roomSubtotal = calculateNightlyRoomCost(
             roomType,
             adultsPerRoom,
@@ -5164,7 +5172,7 @@ export async function registerRoutes(
             overridesMap,
           );
 
-          // Meal option price (per person per night, no day overrides yet)
+          // Meal option price: per-night with day-level overrides applied
           if (validatedData.roomOptionId) {
             const mealOption = await storage.getRoomOption(
               validatedData.roomOptionId,
@@ -5173,14 +5181,24 @@ export async function registerRoutes(
               mealOption &&
               mealOption.roomTypeId === validatedData.roomTypeId
             ) {
-              mealPrice = Number(mealOption.priceAdjustment);
+              const mealOverrides = await storage.getMealPlanPriceOverrides(
+                [validatedData.roomOptionId],
+                startKey,
+                endKey,
+              );
+              const mealOverridesMap = new Map<string, number>(
+                mealOverrides.map((r) => [r.date, Number(r.price)]),
+              );
+              const mc = new Date(checkIn);
+              while (mc < checkOut) {
+                const dk = mc.toISOString().split("T")[0];
+                mealSubtotal += (mealOverridesMap.get(dk) ?? Number(mealOption.priceAdjustment)) * guestCount;
+                mc.setDate(mc.getDate() + 1);
+              }
             }
           }
         }
       }
-
-      // Meal subtotal: mealPrice × guests × nights (per person per night)
-      const mealSubtotal = nights * mealPrice * guestCount;
 
       // Platform fee: ZERO commission model - no platform fee
       const platformFee = 0;
@@ -13095,7 +13113,7 @@ export async function registerRoutes(
         const guestCount = parentBooking.guests || 1;
         const adultsCount = parentBooking.adults || guestCount;
 
-        let mealPrice = 0;
+        let mealSubtotal = 0;
         let roomSubtotal = nights * Number(property.pricePerNight) * roomsCount;
 
         // Use same room type and meal option pricing from parent booking
@@ -13114,8 +13132,12 @@ export async function registerRoutes(
               startKey,
               endKey,
             );
-            const overridesMap = new Map<string, number>(
-              overrideRows.map((r) => [r.date, Number(r.roomPrice)]),
+            const overridesMap = new Map<string, { base?: number; double?: number; triple?: number }>(
+              overrideRows.map((r) => [r.date, {
+                base: r.roomPrice != null ? Number(r.roomPrice) : undefined,
+                double: r.doublePriceOverride != null ? Number(r.doublePriceOverride) : undefined,
+                triple: r.triplePriceOverride != null ? Number(r.triplePriceOverride) : undefined,
+              }]),
             );
 
             roomSubtotal = calculateNightlyRoomCost(
@@ -13135,14 +13157,24 @@ export async function registerRoutes(
                 mealOption &&
                 mealOption.roomTypeId === parentBooking.roomTypeId
               ) {
-                mealPrice = Number(mealOption.priceAdjustment);
+                const mealOverrides = await storage.getMealPlanPriceOverrides(
+                  [parentBooking.roomOptionId],
+                  startKey,
+                  endKey,
+                );
+                const mealOverridesMap = new Map<string, number>(
+                  mealOverrides.map((r) => [r.date, Number(r.price)]),
+                );
+                const mc = new Date(extensionCheckIn);
+                while (mc < extensionCheckOut) {
+                  const dk = mc.toISOString().split("T")[0];
+                  mealSubtotal += (mealOverridesMap.get(dk) ?? Number(mealOption.priceAdjustment)) * guestCount;
+                  mc.setDate(mc.getDate() + 1);
+                }
               }
             }
           }
         }
-
-        // Meal subtotal: mealPrice × guests × nights (per person per night)
-        const mealSubtotal = nights * mealPrice * guestCount;
         const totalPrice = roomSubtotal + mealSubtotal;
 
         // Create extension booking (payment at hotel)
@@ -13897,9 +13929,13 @@ export async function registerRoutes(
             startDate,
             endDate,
           );
-          const overrideMap: Record<string, number> = {};
+          const overrideMap: Record<string, { base?: number; double?: number; triple?: number }> = {};
           for (const o of overrides) {
-            overrideMap[o.date] = parseFloat(o.roomPrice);
+            overrideMap[o.date] = {
+              base: o.roomPrice != null ? parseFloat(o.roomPrice) : undefined,
+              double: o.doublePriceOverride != null ? parseFloat(o.doublePriceOverride) : undefined,
+              triple: o.triplePriceOverride != null ? parseFloat(o.triplePriceOverride) : undefined,
+            };
           }
           return {
             roomTypeId: rt.id,
@@ -13974,7 +14010,7 @@ export async function registerRoutes(
       try {
         const userId = req.user.claims.sub;
         const { roomTypeId } = req.params;
-        const { startDate, endDate, price } = req.body;
+        const { startDate, endDate, price, occupancyTier = 1 } = req.body;
 
         if (!startDate || !endDate || price === undefined) {
           return res
@@ -13987,6 +14023,11 @@ export async function registerRoutes(
           return res
             .status(400)
             .json({ message: "price must be a non-negative number" });
+        }
+
+        const tier = Number(occupancyTier) as 1 | 2 | 3;
+        if (![1, 2, 3].includes(tier)) {
+          return res.status(400).json({ message: "occupancyTier must be 1, 2, or 3" });
         }
 
         const roomType = await storage.getRoomType(roomTypeId);
@@ -14008,6 +14049,7 @@ export async function registerRoutes(
             roomTypeId,
             dateStr,
             parsedPrice,
+            tier,
           );
           results.push(override);
           current.setDate(current.getDate() + 1);

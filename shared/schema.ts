@@ -2399,7 +2399,9 @@ export const roomPriceOverrides = pgTable(
       .notNull()
       .references(() => roomTypes.id, { onDelete: "cascade" }),
     date: varchar("date", { length: 10 }).notNull(), // ISO date string "YYYY-MM-DD"
-    roomPrice: decimal("room_price", { precision: 10, scale: 2 }).notNull(),
+    roomPrice: decimal("room_price", { precision: 10, scale: 2 }), // single/base override (nullable)
+    doublePriceOverride: decimal("double_price_override", { precision: 10, scale: 2 }),
+    triplePriceOverride: decimal("triple_price_override", { precision: 10, scale: 2 }),
     createdBy: varchar("created_by").references(() => users.id),
     createdAt: timestamp("created_at").defaultNow(),
   },

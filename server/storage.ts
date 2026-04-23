@@ -442,6 +442,7 @@ export interface IStorage {
     roomTypeId: string,
     date: string,
     price: number,
+    occupancyTier?: 1 | 2 | 3,
   ): Promise<RoomPriceOverride>;
   deleteRoomPriceOverride(id: string): Promise<void>;
   getMealPlanPriceOverrides(
@@ -3663,13 +3664,28 @@ export class DatabaseStorage implements IStorage {
     roomTypeId: string,
     date: string,
     price: number,
+    occupancyTier: 1 | 2 | 3 = 1,
   ): Promise<RoomPriceOverride> {
+    type InsertVal = { propertyId: string; roomTypeId: string; date: string; roomPrice?: string; doublePriceOverride?: string; triplePriceOverride?: string };
+    type UpdateSet = { roomPrice?: string; doublePriceOverride?: string; triplePriceOverride?: string };
+    const insertValues: InsertVal = { propertyId, roomTypeId, date };
+    const updateSet: UpdateSet = {};
+    if (occupancyTier === 2) {
+      insertValues.doublePriceOverride = price.toString();
+      updateSet.doublePriceOverride = price.toString();
+    } else if (occupancyTier === 3) {
+      insertValues.triplePriceOverride = price.toString();
+      updateSet.triplePriceOverride = price.toString();
+    } else {
+      insertValues.roomPrice = price.toString();
+      updateSet.roomPrice = price.toString();
+    }
     const [result] = await db
       .insert(roomPriceOverrides)
-      .values({ propertyId, roomTypeId, date, roomPrice: price.toString() })
+      .values(insertValues)
       .onConflictDoUpdate({
         target: [roomPriceOverrides.roomTypeId, roomPriceOverrides.date],
-        set: { roomPrice: price.toString() },
+        set: updateSet,
       })
       .returning();
     return result;
