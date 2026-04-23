@@ -91,7 +91,11 @@ const parseLocalDate = (dateStr: string): Date => {
 import type { LucideIcon } from "lucide-react";
 import { PropertyMap } from "@/components/PropertyMap";
 import { MobileBookingBar } from "@/components/MobileBookingBar";
-import { RoomTypeSelect, type RoomInventory } from "@/components/RoomTypeCard";
+import {
+  RoomTypeSelect,
+  RoomTypeCards,
+  type RoomInventory,
+} from "@/components/RoomTypeCard";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import {
   GuestDetailsForm,
@@ -923,9 +927,10 @@ export default function PropertyDetails() {
         bookingData.roomOptionId = selectedMealOptionId;
       }
 
-      return apiRequest("POST", "/api/bookings", bookingData);
+      const res = await apiRequest("POST", "/api/bookings", bookingData);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (booking: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/owner/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -944,8 +949,8 @@ export default function PropertyDetails() {
       setGuestDetailsValid(false);
       setGuestDetailsData(null);
 
-      // Redirect to My Bookings page immediately with success indicator
-      setLocation("/my-bookings?new=true");
+      // Redirect to booking confirmation page
+      setLocation(`/booking-confirmed/${booking.id}`);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -2672,12 +2677,13 @@ export default function PropertyDetails() {
                       </Popover>
                     </div>
 
-                    {/* Room Type Selection — Option A: dropdown + always-visible meal plan */}
+                    {/* Room Type Selection — MMT-style cards */}
                     {roomTypes.length > 0 && (
-                      <RoomTypeSelect
+                      <RoomTypeCards
                         roomTypes={roomTypes.filter(
                           (rt: any) => rt.isActive !== false,
                         )}
+                        propertyImages={property?.images || []}
                         selectedRoomTypeId={selectedRoomTypeId}
                         selectedMealOptionId={selectedMealOptionId}
                         onRoomTypeSelect={(id) => {
@@ -2698,6 +2704,8 @@ export default function PropertyDetails() {
                         )}
                         showDatesContext={!!(checkIn && checkOut)}
                         adults={adults}
+                        guests={guests}
+                        nights={nights}
                       />
                     )}
 

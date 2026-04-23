@@ -97,6 +97,7 @@ import AuthError from "@/pages/auth-error";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import OwnerBookings from "@/pages/owner-bookings";
 import MyBookings from "@/pages/my-bookings";
+import BookingConfirmed from "@/pages/booking-confirmed";
 import OwnerMessagesPage from "@/pages/owner-messages";
 import OwnerProperty from "@/pages/owner-property";
 import OwnerPropertyManage from "@/pages/owner-property-manage";
@@ -125,6 +126,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/my-bookings" component={MyBookings} />
+      <Route path="/booking-confirmed/:id" component={BookingConfirmed} />
       <Route path="/owner/dashboard" component={OwnerDashboard} />
       <Route path="/owner/bookings" component={OwnerBookings} />
       <Route path="/owner/analytics" component={OwnerAnalytics} />
