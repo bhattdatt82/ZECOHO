@@ -49,36 +49,55 @@ export function BookingPriceSummary({ breakdown }: BookingPriceSummaryProps) {
   const gstAmount = 0;
 
   const subtotal = roomSubtotal + mealSubtotal;
-  const bulkDiscount = bulkDiscountPercent > 0 ? Math.round(subtotal * bulkDiscountPercent / 100) : 0;
+  const bulkDiscount =
+    bulkDiscountPercent > 0
+      ? Math.round((subtotal * bulkDiscountPercent) / 100)
+      : 0;
   const totalPrice = subtotal - bulkDiscount + platformFee + gstAmount;
 
   const fmt = (n: number) => n.toLocaleString("en-IN");
 
   return (
     <Card className="p-4 space-y-3">
-      <h3 className="text-base font-semibold" data-testid="text-price-summary-title">Price Summary</h3>
+      <h3
+        className="text-base font-semibold"
+        data-testid="text-price-summary-title"
+      >
+        Price Summary
+      </h3>
 
       {originalPrice && originalPrice > basePrice && (
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground line-through">
             {roomTypeName}: ₹{fmt(originalPrice)} × {nights}N × {rooms}R
           </span>
-          <span className="text-muted-foreground line-through">₹{fmt(originalSubtotal)}</span>
+          <span className="text-muted-foreground line-through">
+            ₹{fmt(originalSubtotal)}
+          </span>
         </div>
       )}
 
-      <div className="flex justify-between text-sm" data-testid="price-room-subtotal">
+      <div
+        className="flex justify-between text-sm"
+        data-testid="price-room-subtotal"
+      >
         <span className="text-muted-foreground">
           <span className="font-medium">{roomTypeName}: </span>
-          <span className={originalPrice ? "text-green-600 dark:text-green-400" : ""}>
+          <span
+            className={
+              originalPrice ? "text-green-600 dark:text-green-400" : ""
+            }
+          >
             ₹{fmt(basePrice)}
           </span>
           {occupancyAdjustment > 0 && (
             <span className="text-orange-600 dark:text-orange-400">
-              {" + ₹"}{fmt(occupancyAdjustment)} ({occupancyLabel})
+              {" + ₹"}
+              {fmt(occupancyAdjustment)} ({occupancyLabel})
             </span>
           )}
-          {" × "}{nights}N × {rooms}R
+          {" × "}
+          {nights}N × {rooms}R
         </span>
         <span className="font-medium">₹{fmt(roomSubtotal)}</span>
       </div>
@@ -91,9 +110,15 @@ export function BookingPriceSummary({ breakdown }: BookingPriceSummaryProps) {
       )}
 
       {mealOptionPrice > 0 && (
-        <div className="flex justify-between text-sm" data-testid="price-meal-subtotal">
+        <div
+          className="flex justify-between text-sm"
+          data-testid="price-meal-subtotal"
+        >
           <span className="text-muted-foreground">
-            {mealOptionName}: ₹{fmt(mealOptionPrice)}/person × {guests}G × {nights}N
+            // ✅ Clearer breakdown label
+            {mealOptionName} (meal): ₹{fmt(mealOptionPrice)}/person × {adults}{" "}
+            adults
+            {children > 0 ? ` + ${children} children` : ""} × {nights}N
           </span>
           <span className="font-medium">₹{fmt(mealSubtotal)}</span>
         </div>
@@ -106,7 +131,10 @@ export function BookingPriceSummary({ breakdown }: BookingPriceSummaryProps) {
         </div>
       )}
 
-      <div className="flex justify-between text-sm" data-testid="price-platform-fee">
+      <div
+        className="flex justify-between text-sm"
+        data-testid="price-platform-fee"
+      >
         <span className="text-muted-foreground">Platform Fee</span>
         <span className="font-medium text-green-600 dark:text-green-400">
           {platformFee === 0 ? "FREE" : `₹${fmt(platformFee)}`}
@@ -122,23 +150,37 @@ export function BookingPriceSummary({ breakdown }: BookingPriceSummaryProps) {
 
       <Separator />
 
-      <div className="flex justify-between items-center" data-testid="price-total">
+      <div
+        className="flex justify-between items-center"
+        data-testid="price-total"
+      >
         <span className="text-base font-semibold">Total Amount</span>
         <span className="text-lg font-bold">₹{fmt(totalPrice)}</span>
       </div>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{guests} guest{guests !== 1 ? "s" : ""} ({adults} adult{adults !== 1 ? "s" : ""}, {children} child{children !== 1 ? "ren" : ""})</span>
+        <span>
+          {guests} guest{guests !== 1 ? "s" : ""} ({adults} adult
+          {adults !== 1 ? "s" : ""}, {children} child
+          {children !== 1 ? "ren" : ""})
+        </span>
       </div>
 
       <div className="bg-green-50 dark:bg-green-950/30 rounded-md p-3 space-y-1">
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 no-default-hover-elevate no-default-active-elevate">
+          <Badge
+            variant="secondary"
+            className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 no-default-hover-elevate no-default-active-elevate"
+          >
             ZERO Commission
           </Badge>
         </div>
-        <p className="text-xs text-green-700 dark:text-green-300" data-testid="text-pay-at-hotel">
-          Pay the full amount directly at the hotel. No advance payment required.
+        <p
+          className="text-xs text-green-700 dark:text-green-300"
+          data-testid="text-pay-at-hotel"
+        >
+          Pay the full amount directly at the hotel. No advance payment
+          required.
         </p>
       </div>
     </Card>

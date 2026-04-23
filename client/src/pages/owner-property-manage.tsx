@@ -84,7 +84,12 @@ import {
   PropertyImageUploader,
   defaultCategorizedImages,
 } from "@/components/PropertyImageUploader";
-import type { Property, AvailabilityOverride, RoomType, CategorizedPropertyImages } from "@shared/schema";
+import type {
+  Property,
+  AvailabilityOverride,
+  RoomType,
+  CategorizedPropertyImages,
+} from "@shared/schema";
 import { PriceCalendar } from "@/components/PriceCalendar";
 import { Collapsible } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
@@ -102,7 +107,11 @@ export default function OwnerPropertyManage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("property-details");
 
-  const { data: property, isLoading, isError } = useQuery<Property>({
+  const {
+    data: property,
+    isLoading,
+    isError,
+  } = useQuery<Property>({
     queryKey: ["/api/properties", id],
     enabled: !!id,
   });
@@ -1328,7 +1337,6 @@ function StatusSection({ property }: { property: Property }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
@@ -2018,13 +2026,35 @@ function RoomsSection({
                 {/* Template selector */}
                 <div className="space-y-1.5">
                   <Label>Quick Select Room Type</Label>
-                  <Select onValueChange={(val) => { if (val) setNewRoomName(val); }}>
+                  <Select
+                    onValueChange={(val) => {
+                      if (val) setNewRoomName(val);
+                    }}
+                  >
                     <SelectTrigger data-testid="select-room-template">
                       <SelectValue placeholder="Choose a template to prefill name…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {["Standard Room","Deluxe Room","Superior Room","Premium Room","Luxury Room","Suite","Junior Suite","Executive Suite","Family Room","Double Room","Twin Room","Single Room","Triple Room","Studio","Dormitory / Dorm Bed"].map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      {[
+                        "Standard Room",
+                        "Deluxe Room",
+                        "Superior Room",
+                        "Premium Room",
+                        "Luxury Room",
+                        "Suite",
+                        "Junior Suite",
+                        "Executive Suite",
+                        "Family Room",
+                        "Double Room",
+                        "Twin Room",
+                        "Single Room",
+                        "Triple Room",
+                        "Studio",
+                        "Dormitory / Dorm Bed",
+                      ].map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -3088,7 +3118,8 @@ function MealOptionsManager({ roomTypeId }: { roomTypeId: string }) {
           <span className="text-sm font-medium min-w-[140px]">{opt.name}</span>
 
           {/* Price edit */}
-          {Number(opt.priceAdjustment) === 0 && opt.name === "Room Only (Best Price)" ? (
+          {Number(opt.priceAdjustment) === 0 &&
+          opt.name === "Room Only (Best Price)" ? (
             <Badge variant="secondary" className="text-xs">
               Base price
             </Badge>
@@ -3097,9 +3128,12 @@ function MealOptionsManager({ roomTypeId }: { roomTypeId: string }) {
               size="sm"
               variant="outline"
               className="h-7 px-2 text-xs text-amber-600 border-amber-300"
-              onClick={() => { setEditingPriceId(opt.id); setEditPrice(""); }}
+              onClick={() => {
+                setEditingPriceId(opt.id);
+                setEditPrice("");
+              }}
             >
-              Set price/person
+              Set price/person/night
             </Button>
           ) : editingPriceId === opt.id ? (
             <div className="flex items-center gap-1">
@@ -3111,7 +3145,9 @@ function MealOptionsManager({ roomTypeId }: { roomTypeId: string }) {
                 onChange={(e) => setEditPrice(e.target.value)}
                 autoFocus
               />
-              <span className="text-xs text-muted-foreground">/person</span>
+              <span className="text-xs text-muted-foreground">
+                /person/night
+              </span>
               <Button
                 size="sm"
                 className="h-7 px-2 text-xs"
@@ -3137,7 +3173,7 @@ function MealOptionsManager({ roomTypeId }: { roomTypeId: string }) {
           ) : (
             <div className="flex items-center gap-1">
               <Badge variant="default" className="text-xs">
-                +₹{Number(opt.priceAdjustment)}/person
+                +₹{Number(opt.priceAdjustment)}/person/night
               </Badge>
               <Button
                 size="icon"
@@ -3189,15 +3225,24 @@ const CHANNEL_MANAGERS = [
 ];
 
 const PROPERTY_TYPES = [
-  "hotel", "villa", "hostel", "lodge", "resort",
-  "apartment", "farmhouse", "homestay", "cottage",
+  "hotel",
+  "villa",
+  "hostel",
+  "lodge",
+  "resort",
+  "apartment",
+  "farmhouse",
+  "homestay",
+  "cottage",
 ];
 
 function PropertyDetailsSection({ property }: { property: Property }) {
   const { toast } = useToast();
 
   const [title, setTitle] = useState(property.title || "");
-  const [propertyType, setPropertyType] = useState<string>(property.propertyType || "");
+  const [propertyType, setPropertyType] = useState<string>(
+    property.propertyType || "",
+  );
   const [starRating, setStarRating] = useState<number | null>(
     (property as any).starRating ?? null,
   );
@@ -3227,11 +3272,17 @@ function PropertyDetailsSection({ property }: { property: Property }) {
     mutationFn: async (data: Record<string, any>) =>
       apiRequest("PATCH", `/api/properties/${property.id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/properties", property.id],
+      });
       toast({ title: "Saved", description: "Property details updated." });
     },
     onError: () =>
-      toast({ title: "Error", description: "Failed to save.", variant: "destructive" }),
+      toast({
+        title: "Error",
+        description: "Failed to save.",
+        variant: "destructive",
+      }),
   });
 
   const handleSave = () => {
@@ -3304,9 +3355,7 @@ function PropertyDetailsSection({ property }: { property: Property }) {
                   <button
                     key={n}
                     type="button"
-                    onClick={() =>
-                      setStarRating(starRating === n ? null : n)
-                    }
+                    onClick={() => setStarRating(starRating === n ? null : n)}
                     className="focus:outline-none"
                     data-testid={`star-${n}`}
                   >
@@ -3383,7 +3432,9 @@ function PropertyDetailsSection({ property }: { property: Property }) {
                   <Input
                     id="pd-cm-custom"
                     value={channelManagerNameCustom}
-                    onChange={(e) => setChannelManagerNameCustom(e.target.value)}
+                    onChange={(e) =>
+                      setChannelManagerNameCustom(e.target.value)
+                    }
                     placeholder="Enter channel manager name"
                     data-testid="input-cm-custom"
                   />
@@ -3435,7 +3486,10 @@ function PropertyDetailsSection({ property }: { property: Property }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pd-whatsapp" className="flex items-center gap-1.5">
+              <Label
+                htmlFor="pd-whatsapp"
+                className="flex items-center gap-1.5"
+              >
                 <MessageSquare className="h-3.5 w-3.5" /> WhatsApp No.
               </Label>
               <Input
@@ -3448,7 +3502,10 @@ function PropertyDetailsSection({ property }: { property: Property }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pd-reception" className="flex items-center gap-1.5">
+              <Label
+                htmlFor="pd-reception"
+                className="flex items-center gap-1.5"
+              >
                 <Phone className="h-3.5 w-3.5" /> Reception No.
               </Label>
               <Input
@@ -3482,20 +3539,51 @@ function PropertyDetailsSection({ property }: { property: Property }) {
 // PolicySection
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CHECK_IN_TIMES = ["10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00"];
-const CHECK_OUT_TIMES = ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00"];
-const LOCAL_ID_OPTIONS = ["Aadhaar", "PAN", "Passport", "Voter ID", "Driving License"];
+const CHECK_IN_TIMES = [
+  "10:00",
+  "11:00",
+  "12:00",
+  "13:00",
+  "14:00",
+  "15:00",
+  "16:00",
+  "17:00",
+  "18:00",
+];
+const CHECK_OUT_TIMES = [
+  "06:00",
+  "07:00",
+  "08:00",
+  "09:00",
+  "10:00",
+  "11:00",
+  "12:00",
+  "13:00",
+];
+const LOCAL_ID_OPTIONS = [
+  "Aadhaar",
+  "PAN",
+  "Passport",
+  "Voter ID",
+  "Driving License",
+];
 const FOREIGN_ID_OPTIONS = ["Passport", "Visa", "OCI Card"];
 
 function PolicySection({ property }: { property: Property }) {
   const { toast } = useToast();
 
   // House rules
-  const [houseRules, setHouseRules] = useState((property as any).policies || "");
+  const [houseRules, setHouseRules] = useState(
+    (property as any).policies || "",
+  );
 
   // Check-in / Check-out
-  const [checkInTime, setCheckInTime] = useState(property.checkInTime || "14:00");
-  const [checkOutTime, setCheckOutTime] = useState(property.checkOutTime || "11:00");
+  const [checkInTime, setCheckInTime] = useState(
+    property.checkInTime || "14:00",
+  );
+  const [checkOutTime, setCheckOutTime] = useState(
+    property.checkOutTime || "11:00",
+  );
 
   // Cancellation
   type PolicyType = "flexible" | "moderate" | "strict" | "custom";
@@ -3521,27 +3609,53 @@ function PolicySection({ property }: { property: Property }) {
   );
 
   // Hotel rules
-  const [coupleFriendly, setCoupleFriendly] = useState(property.coupleFriendly ?? false);
-  const [foreignGuestsAllowed, setForeignGuestsAllowed] = useState((property as any).foreignGuestsAllowed ?? false);
-  const [petsAllowed, setPetsAllowed] = useState((property as any).petsAllowed ?? false);
-  const [smokingAllowed, setSmokingAllowed] = useState((property as any).smokingAllowed ?? false);
-  const [liquorAllowed, setLiquorAllowed] = useState((property as any).liquorAllowed ?? false);
-  const [visitorsAllowed, setVisitorsAllowed] = useState((property as any).visitorsAllowed ?? false);
-  const [hourlyBookingAllowed, setHourlyBookingAllowed] = useState(property.hourlyBookingAllowed ?? false);
+  const [coupleFriendly, setCoupleFriendly] = useState(
+    property.coupleFriendly ?? false,
+  );
+  const [foreignGuestsAllowed, setForeignGuestsAllowed] = useState(
+    (property as any).foreignGuestsAllowed ?? false,
+  );
+  const [petsAllowed, setPetsAllowed] = useState(
+    (property as any).petsAllowed ?? false,
+  );
+  const [smokingAllowed, setSmokingAllowed] = useState(
+    (property as any).smokingAllowed ?? false,
+  );
+  const [liquorAllowed, setLiquorAllowed] = useState(
+    (property as any).liquorAllowed ?? false,
+  );
+  const [visitorsAllowed, setVisitorsAllowed] = useState(
+    (property as any).visitorsAllowed ?? false,
+  );
+  const [hourlyBookingAllowed, setHourlyBookingAllowed] = useState(
+    property.hourlyBookingAllowed ?? false,
+  );
 
   const updateMutation = useMutation({
     mutationFn: async (data: Record<string, any>) =>
       apiRequest("PATCH", `/api/properties/${property.id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/properties", property.id],
+      });
       toast({ title: "Saved", description: "Policy updated." });
     },
     onError: () =>
-      toast({ title: "Error", description: "Failed to save.", variant: "destructive" }),
+      toast({
+        title: "Error",
+        description: "Failed to save.",
+        variant: "destructive",
+      }),
   });
 
-  const toggleIdType = (list: string[], setList: (v: string[]) => void, value: string) => {
-    setList(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  const toggleIdType = (
+    list: string[],
+    setList: (v: string[]) => void,
+    value: string,
+  ) => {
+    setList(
+      list.includes(value) ? list.filter((x) => x !== value) : [...list, value],
+    );
   };
 
   const handleSave = () => {
@@ -3550,7 +3664,10 @@ function PolicySection({ property }: { property: Property }) {
 
     if (policyType !== "custom") {
       if (isNaN(hours) || hours < 1 || hours > 168) {
-        toast({ title: "Free cancellation hours must be 1–168.", variant: "destructive" });
+        toast({
+          title: "Free cancellation hours must be 1–168.",
+          variant: "destructive",
+        });
         return;
       }
       if (isNaN(percent) || percent < 0 || percent > 100) {
@@ -3558,7 +3675,10 @@ function PolicySection({ property }: { property: Property }) {
         return;
       }
     } else if (!customPolicyText.trim()) {
-      toast({ title: "Please enter your custom policy text.", variant: "destructive" });
+      toast({
+        title: "Please enter your custom policy text.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -3566,8 +3686,10 @@ function PolicySection({ property }: { property: Property }) {
       checkInTime: checkInTime || null,
       checkOutTime: checkOutTime || null,
       cancellationPolicyType: policyType,
-      freeCancellationHours: policyType !== "custom" ? hours : property.freeCancellationHours,
-      partialRefundPercent: policyType !== "custom" ? percent : property.partialRefundPercent,
+      freeCancellationHours:
+        policyType !== "custom" ? hours : property.freeCancellationHours,
+      partialRefundPercent:
+        policyType !== "custom" ? percent : property.partialRefundPercent,
       cancellationPolicy: policyType === "custom" ? customPolicyText : null,
       cancellationPolicyConfigured: true,
       acceptedLocalIdTypes: localIdTypes,
@@ -3603,7 +3725,9 @@ function PolicySection({ property }: { property: Property }) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Check-in Time <span className="text-destructive">*</span></Label>
+              <Label>
+                Check-in Time <span className="text-destructive">*</span>
+              </Label>
               <Select value={checkInTime} onValueChange={setCheckInTime}>
                 <SelectTrigger data-testid="select-checkin">
                   <SelectValue placeholder="Select time" />
@@ -3618,7 +3742,9 @@ function PolicySection({ property }: { property: Property }) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Check-out Time <span className="text-destructive">*</span></Label>
+              <Label>
+                Check-out Time <span className="text-destructive">*</span>
+              </Label>
               <Select value={checkOutTime} onValueChange={setCheckOutTime}>
                 <SelectTrigger data-testid="select-checkout">
                   <SelectValue placeholder="Select time" />
@@ -3643,7 +3769,9 @@ function PolicySection({ property }: { property: Property }) {
             <FileX className="h-5 w-5" />
             Cancellation Policy
           </CardTitle>
-          <CardDescription>Define how refunds work when guests cancel</CardDescription>
+          <CardDescription>
+            Define how refunds work when guests cancel
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -3656,8 +3784,12 @@ function PolicySection({ property }: { property: Property }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="flexible">Free cancellation (Flexible)</SelectItem>
-                <SelectItem value="moderate">Partial refund (Moderate)</SelectItem>
+                <SelectItem value="flexible">
+                  Free cancellation (Flexible)
+                </SelectItem>
+                <SelectItem value="moderate">
+                  Partial refund (Moderate)
+                </SelectItem>
                 <SelectItem value="strict">Non-refundable (Strict)</SelectItem>
                 <SelectItem value="custom">Custom policy</SelectItem>
               </SelectContent>
@@ -3667,7 +3799,9 @@ function PolicySection({ property }: { property: Property }) {
           {policyType !== "custom" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="policy-hours">Free cancellation window (hours)</Label>
+                <Label htmlFor="policy-hours">
+                  Free cancellation window (hours)
+                </Label>
                 <Input
                   id="policy-hours"
                   type="number"
@@ -3734,7 +3868,10 @@ function PolicySection({ property }: { property: Property }) {
                     }
                     data-testid={`checkbox-local-${id}`}
                   />
-                  <Label htmlFor={`local-${id}`} className="font-normal cursor-pointer">
+                  <Label
+                    htmlFor={`local-${id}`}
+                    className="font-normal cursor-pointer"
+                  >
                     {id}
                   </Label>
                 </div>
@@ -3754,7 +3891,10 @@ function PolicySection({ property }: { property: Property }) {
                     }
                     data-testid={`checkbox-foreign-${id}`}
                   />
-                  <Label htmlFor={`foreign-${id}`} className="font-normal cursor-pointer">
+                  <Label
+                    htmlFor={`foreign-${id}`}
+                    className="font-normal cursor-pointer"
+                  >
                     {id}
                   </Label>
                 </div>
@@ -3776,16 +3916,61 @@ function PolicySection({ property }: { property: Property }) {
           <div className="space-y-4">
             {(
               [
-                { label: "Couple-friendly", desc: "Allow unmarried couples to check in", value: coupleFriendly, set: setCoupleFriendly, testId: "switch-couple-friendly" },
-                { label: "Foreign guests allowed", desc: "Accept international guests with passport", value: foreignGuestsAllowed, set: setForeignGuestsAllowed, testId: "switch-foreign-guests-policy" },
-                { label: "Pets allowed", desc: "Guests may bring pets", value: petsAllowed, set: setPetsAllowed, testId: "switch-pets" },
-                { label: "Smoking in room", desc: "Smoking permitted inside rooms", value: smokingAllowed, set: setSmokingAllowed, testId: "switch-smoking" },
-                { label: "Liquor in room", desc: "Guests may consume liquor in room", value: liquorAllowed, set: setLiquorAllowed, testId: "switch-liquor" },
-                { label: "Visitors allowed in room", desc: "Registered guests may bring visitors to the room", value: visitorsAllowed, set: setVisitorsAllowed, testId: "switch-visitors" },
-                { label: "Hourly booking", desc: "Accept bookings by the hour", value: hourlyBookingAllowed, set: setHourlyBookingAllowed, testId: "switch-hourly" },
+                {
+                  label: "Couple-friendly",
+                  desc: "Allow unmarried couples to check in",
+                  value: coupleFriendly,
+                  set: setCoupleFriendly,
+                  testId: "switch-couple-friendly",
+                },
+                {
+                  label: "Foreign guests allowed",
+                  desc: "Accept international guests with passport",
+                  value: foreignGuestsAllowed,
+                  set: setForeignGuestsAllowed,
+                  testId: "switch-foreign-guests-policy",
+                },
+                {
+                  label: "Pets allowed",
+                  desc: "Guests may bring pets",
+                  value: petsAllowed,
+                  set: setPetsAllowed,
+                  testId: "switch-pets",
+                },
+                {
+                  label: "Smoking in room",
+                  desc: "Smoking permitted inside rooms",
+                  value: smokingAllowed,
+                  set: setSmokingAllowed,
+                  testId: "switch-smoking",
+                },
+                {
+                  label: "Liquor in room",
+                  desc: "Guests may consume liquor in room",
+                  value: liquorAllowed,
+                  set: setLiquorAllowed,
+                  testId: "switch-liquor",
+                },
+                {
+                  label: "Visitors allowed in room",
+                  desc: "Registered guests may bring visitors to the room",
+                  value: visitorsAllowed,
+                  set: setVisitorsAllowed,
+                  testId: "switch-visitors",
+                },
+                {
+                  label: "Hourly booking",
+                  desc: "Accept bookings by the hour",
+                  value: hourlyBookingAllowed,
+                  set: setHourlyBookingAllowed,
+                  testId: "switch-hourly",
+                },
               ] as const
             ).map(({ label, desc, value, set, testId }) => (
-              <div key={label} className="flex items-center justify-between py-2 border-b last:border-b-0">
+              <div
+                key={label}
+                className="flex items-center justify-between py-2 border-b last:border-b-0"
+              >
                 <div>
                   <p className="text-sm font-medium">{label}</p>
                   <p className="text-xs text-muted-foreground">{desc}</p>
@@ -3808,7 +3993,9 @@ function PolicySection({ property }: { property: Property }) {
             <Shield className="h-5 w-5" />
             House Rules
           </CardTitle>
-          <CardDescription>Additional rules guests must follow during their stay</CardDescription>
+          <CardDescription>
+            Additional rules guests must follow during their stay
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -3854,7 +4041,13 @@ const ROOM_IN_AMENITIES = [
   { key: "hasHeater", label: "Heater" },
 ] as const;
 
-function AmenitiesSection({ property, roomTypes }: { property: Property; roomTypes: RoomType[] }) {
+function AmenitiesSection({
+  property,
+  roomTypes,
+}: {
+  property: Property;
+  roomTypes: RoomType[];
+}) {
   const { toast } = useToast();
   const { data: allAmenities = [] } = useQuery<any[]>({
     queryKey: ["/api/amenities"],
@@ -3864,10 +4057,14 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
   });
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]);
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>("");
-  const [roomAmenityEdits, setRoomAmenityEdits] = useState<Record<string, Record<string, boolean>>>({});
+  const [roomAmenityEdits, setRoomAmenityEdits] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
 
   useEffect(() => {
-    setSelectedAmenityIds(propertyAmenities.map((a: any) => a.amenityId || a.id));
+    setSelectedAmenityIds(
+      propertyAmenities.map((a: any) => a.amenityId || a.id),
+    );
   }, [propertyAmenities]);
 
   useEffect(() => {
@@ -3878,23 +4075,51 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
 
   const updateMutation = useMutation({
     mutationFn: async () =>
-      apiRequest("PATCH", `/api/properties/${property.id}`, { amenityIds: selectedAmenityIds }),
+      apiRequest("PATCH", `/api/properties/${property.id}`, {
+        amenityIds: selectedAmenityIds,
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id, "amenities"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/properties", property.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/properties", property.id, "amenities"],
+      });
       toast({ title: "Saved", description: "Amenities updated." });
     },
-    onError: () => toast({ title: "Error", description: "Failed to save.", variant: "destructive" }),
+    onError: () =>
+      toast({
+        title: "Error",
+        description: "Failed to save.",
+        variant: "destructive",
+      }),
   });
 
   const updateRoomAmenityMutation = useMutation({
-    mutationFn: async ({ roomId, data }: { roomId: string; data: Record<string, boolean> }) =>
-      apiRequest("PATCH", `/api/properties/${property.id}/rooms/${roomId}`, data),
+    mutationFn: async ({
+      roomId,
+      data,
+    }: {
+      roomId: string;
+      data: Record<string, boolean>;
+    }) =>
+      apiRequest(
+        "PATCH",
+        `/api/properties/${property.id}/rooms/${roomId}`,
+        data,
+      ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", property.id, "rooms"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/properties", property.id, "rooms"],
+      });
       toast({ title: "Saved", description: "Room amenities updated." });
     },
-    onError: () => toast({ title: "Error", description: "Failed to save room amenities.", variant: "destructive" }),
+    onError: () =>
+      toast({
+        title: "Error",
+        description: "Failed to save room amenities.",
+        variant: "destructive",
+      }),
   });
 
   const toggleAmenity = (id: string) => {
@@ -3903,7 +4128,9 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
     );
   };
 
-  const selectedRoom = roomTypes.find((r) => String(r.id) === selectedRoomTypeId);
+  const selectedRoom = roomTypes.find(
+    (r) => String(r.id) === selectedRoomTypeId,
+  );
   const roomAmenityCurrent = selectedRoomTypeId
     ? (roomAmenityEdits[selectedRoomTypeId] ?? {
         hasAC: selectedRoom?.hasAC ?? true,
@@ -3928,9 +4155,23 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
   };
 
   const essentialAmenities = allAmenities.filter(
-    (a: any) => (a.category === "essential" || a.name === "Hot water" || a.name === "Laundry") && a.name !== "Shared Kitchen",
+    (a: any) =>
+      (a.category === "essential" ||
+        a.name === "Hot water" ||
+        a.name === "Laundry") &&
+      a.name !== "Shared Kitchen",
   );
-  const otherCategories = ["bathroom","safety","services","outdoor","family","food","entertainment","accessibility","work"];
+  const otherCategories = [
+    "bathroom",
+    "safety",
+    "services",
+    "outdoor",
+    "family",
+    "food",
+    "entertainment",
+    "accessibility",
+    "work",
+  ];
 
   return (
     <div className="space-y-6">
@@ -3941,7 +4182,9 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
             <Sparkles className="h-5 w-5" />
             Property Amenities
           </CardTitle>
-          <CardDescription>Select what your property offers to all guests</CardDescription>
+          <CardDescription>
+            Select what your property offers to all guests
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -3952,30 +4195,51 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
                   checked={selectedAmenityIds.includes(amenity.id)}
                   onCheckedChange={() => toggleAmenity(amenity.id)}
                 />
-                <label htmlFor={`amenity-${amenity.id}`} className="text-sm cursor-pointer">{amenity.name}</label>
+                <label
+                  htmlFor={`amenity-${amenity.id}`}
+                  className="text-sm cursor-pointer"
+                >
+                  {amenity.name}
+                </label>
               </div>
             ))}
           </div>
           <details className="mt-2">
-            <summary className="text-sm text-muted-foreground cursor-pointer">Show more amenity categories</summary>
+            <summary className="text-sm text-muted-foreground cursor-pointer">
+              Show more amenity categories
+            </summary>
             <div className="space-y-4 mt-3 border-t pt-3">
               {otherCategories.map((cat) => {
                 const catAmenities = allAmenities.filter(
-                  (a: any) => a.category === cat && a.name !== "Hot water" && a.name !== "Laundry" && a.name !== "Shared Kitchen",
+                  (a: any) =>
+                    a.category === cat &&
+                    a.name !== "Hot water" &&
+                    a.name !== "Laundry" &&
+                    a.name !== "Shared Kitchen",
                 );
                 if (!catAmenities.length) return null;
                 return (
                   <div key={cat}>
-                    <p className="text-xs font-medium text-muted-foreground capitalize mb-2">{cat}</p>
+                    <p className="text-xs font-medium text-muted-foreground capitalize mb-2">
+                      {cat}
+                    </p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       {catAmenities.map((amenity: any) => (
-                        <div key={amenity.id} className="flex items-center gap-2">
+                        <div
+                          key={amenity.id}
+                          className="flex items-center gap-2"
+                        >
                           <Checkbox
                             id={`amenity-${amenity.id}`}
                             checked={selectedAmenityIds.includes(amenity.id)}
                             onCheckedChange={() => toggleAmenity(amenity.id)}
                           />
-                          <label htmlFor={`amenity-${amenity.id}`} className="text-sm cursor-pointer">{amenity.name}</label>
+                          <label
+                            htmlFor={`amenity-${amenity.id}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {amenity.name}
+                          </label>
                         </div>
                       ))}
                     </div>
@@ -3995,18 +4259,25 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
               <Bed className="h-5 w-5" />
               Room-Type Amenities
             </CardTitle>
-            <CardDescription>Set in-room amenities for each room type</CardDescription>
+            <CardDescription>
+              Set in-room amenities for each room type
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Select Room Type</Label>
-              <Select value={selectedRoomTypeId} onValueChange={setSelectedRoomTypeId}>
+              <Select
+                value={selectedRoomTypeId}
+                onValueChange={setSelectedRoomTypeId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a room type" />
                 </SelectTrigger>
                 <SelectContent>
                   {roomTypes.map((rt) => (
-                    <SelectItem key={rt.id} value={String(rt.id)}>{rt.name}</SelectItem>
+                    <SelectItem key={rt.id} value={String(rt.id)}>
+                      {rt.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -4018,17 +4289,33 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
                     <div key={key} className="flex items-center gap-2">
                       <Checkbox
                         id={`room-amenity-${key}`}
-                        checked={!!roomAmenityCurrent[key as keyof typeof roomAmenityCurrent]}
+                        checked={
+                          !!roomAmenityCurrent[
+                            key as keyof typeof roomAmenityCurrent
+                          ]
+                        }
                         onCheckedChange={() => toggleRoomAmenity(key)}
                       />
-                      <label htmlFor={`room-amenity-${key}`} className="text-sm cursor-pointer">{label}</label>
+                      <label
+                        htmlFor={`room-amenity-${key}`}
+                        className="text-sm cursor-pointer"
+                      >
+                        {label}
+                      </label>
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    onClick={() => updateRoomAmenityMutation.mutate({ roomId: selectedRoomTypeId, data: roomAmenityEdits[selectedRoomTypeId] ?? roomAmenityCurrent })}
+                    onClick={() =>
+                      updateRoomAmenityMutation.mutate({
+                        roomId: selectedRoomTypeId,
+                        data:
+                          roomAmenityEdits[selectedRoomTypeId] ??
+                          roomAmenityCurrent,
+                      })
+                    }
                     disabled={updateRoomAmenityMutation.isPending}
                   >
                     <Save className="h-4 w-4 mr-2" />
@@ -4042,7 +4329,11 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
       )}
 
       <div className="flex justify-end">
-        <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} data-testid="button-save-amenities">
+        <Button
+          onClick={() => updateMutation.mutate()}
+          disabled={updateMutation.isPending}
+          data-testid="button-save-amenities"
+        >
           <Save className="h-4 w-4 mr-2" />
           {updateMutation.isPending ? "Saving..." : "Save Property Amenities"}
         </Button>
@@ -4055,12 +4346,21 @@ function AmenitiesSection({ property, roomTypes }: { property: Property; roomTyp
 // PhotosSection
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PhotosSection({ property, roomTypes }: { property: Property; roomTypes: RoomType[] }) {
+function PhotosSection({
+  property,
+  roomTypes,
+}: {
+  property: Property;
+  roomTypes: RoomType[];
+}) {
   const { toast } = useToast();
-  const [categorizedImages, setCategorizedImages] = useState<CategorizedPropertyImages>(
-    (property as any).categorizedImages || defaultCategorizedImages,
-  );
-  const [roomTypeImages, setRoomTypeImages] = useState<Record<string, string[]>>({});
+  const [categorizedImages, setCategorizedImages] =
+    useState<CategorizedPropertyImages>(
+      (property as any).categorizedImages || defaultCategorizedImages,
+    );
+  const [roomTypeImages, setRoomTypeImages] = useState<
+    Record<string, string[]>
+  >({});
 
   useEffect(() => {
     const initial: Record<string, string[]> = {};
@@ -4072,22 +4372,38 @@ function PhotosSection({ property, roomTypes }: { property: Property; roomTypes:
 
   const updateMutation = useMutation({
     mutationFn: async () =>
-      apiRequest("PATCH", `/api/properties/${property.id}`, { categorizedImages }),
+      apiRequest("PATCH", `/api/properties/${property.id}`, {
+        categorizedImages,
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties", String(property.id)] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/properties", String(property.id)],
+      });
       toast({ title: "Saved", description: "Photos updated successfully." });
     },
     onError: () =>
-      toast({ title: "Error", description: "Failed to save photos.", variant: "destructive" }),
+      toast({
+        title: "Error",
+        description: "Failed to save photos.",
+        variant: "destructive",
+      }),
   });
 
-  const handleRoomTypeImagesChange = async (images: Record<string, string[]>) => {
+  const handleRoomTypeImagesChange = async (
+    images: Record<string, string[]>,
+  ) => {
     setRoomTypeImages(images);
     for (const [roomTypeId, imgs] of Object.entries(images)) {
       try {
-        await apiRequest("PATCH", `/api/owner/room-types/${roomTypeId}`, { images: imgs });
+        await apiRequest("PATCH", `/api/owner/room-types/${roomTypeId}`, {
+          images: imgs,
+        });
       } catch {
-        toast({ title: "Error", description: "Failed to save room type photos.", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Failed to save room type photos.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -4106,7 +4422,8 @@ function PhotosSection({ property, roomTypes }: { property: Property; roomTypes:
             Property Photos
           </CardTitle>
           <CardDescription>
-            Upload high-quality photos (min. 100KB) to showcase your property to guests.
+            Upload high-quality photos (min. 100KB) to showcase your property to
+            guests.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -4120,7 +4437,10 @@ function PhotosSection({ property, roomTypes }: { property: Property; roomTypes:
         </CardContent>
       </Card>
       <div className="flex justify-end">
-        <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+        <Button
+          onClick={() => updateMutation.mutate()}
+          disabled={updateMutation.isPending}
+        >
           <Save className="h-4 w-4 mr-2" />
           {updateMutation.isPending ? "Saving..." : "Save Photos"}
         </Button>
@@ -4142,7 +4462,10 @@ function SummarySection({
 }) {
   const p = property as any;
 
-  const totalRooms = roomTypes.reduce((sum, rt) => sum + ((rt as any).totalRooms ?? 0), 0);
+  const totalRooms = roomTypes.reduce(
+    (sum, rt) => sum + ((rt as any).totalRooms ?? 0),
+    0,
+  );
   const minPrice = roomTypes.length
     ? Math.min(...roomTypes.map((rt) => parseFloat(rt.basePrice)))
     : null;
@@ -4168,7 +4491,10 @@ function SummarySection({
       !!property.title,
       !!property.description,
       !!p.starRating,
-      !!p.contactEmail || !!p.contactPhone || !!p.whatsappNumber || !!p.receptionNumber,
+      !!p.contactEmail ||
+        !!p.contactPhone ||
+        !!p.whatsappNumber ||
+        !!p.receptionNumber,
       !!property.checkInTime && !!property.checkOutTime,
       !!property.cancellationPolicyConfigured,
       (p.acceptedLocalIdTypes?.length ?? 0) > 0,
@@ -4185,7 +4511,9 @@ function SummarySection({
         <CardContent className="pt-5 pb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold">Profile completeness</span>
-            <span className="text-sm font-bold text-primary">{completeness}%</span>
+            <span className="text-sm font-bold text-primary">
+              {completeness}%
+            </span>
           </div>
           <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -4195,7 +4523,8 @@ function SummarySection({
           </div>
           {completeness < 100 && (
             <p className="text-xs text-muted-foreground mt-2">
-              Fill in the missing details across the tabs above to improve your listing visibility.
+              Fill in the missing details across the tabs above to improve your
+              listing visibility.
             </p>
           )}
         </CardContent>
@@ -4222,7 +4551,10 @@ function SummarySection({
             <span>
               {p.starRating
                 ? Array.from({ length: p.starRating }).map((_, i) => (
-                    <Star key={i} className="inline h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    <Star
+                      key={i}
+                      className="inline h-3.5 w-3.5 fill-amber-400 text-amber-400"
+                    />
                   ))
                 : "—"}
             </span>
@@ -4233,7 +4565,12 @@ function SummarySection({
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Status</span>
-            <Badge variant={property.status === "published" ? "default" : "secondary"} className="capitalize">
+            <Badge
+              variant={
+                property.status === "published" ? "default" : "secondary"
+              }
+              className="capitalize"
+            >
               {property.status}
             </Badge>
           </div>
@@ -4250,7 +4587,11 @@ function SummarySection({
         <CardContent className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Room types</span>
-            <span>{roomTypes.length > 0 ? roomTypes.map((r) => r.name).join(", ") : "—"}</span>
+            <span>
+              {roomTypes.length > 0
+                ? roomTypes.map((r) => r.name).join(", ")
+                : "—"}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Total rooms</span>
@@ -4258,7 +4599,9 @@ function SummarySection({
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Starting price</span>
-            <span>{minPrice ? `₹${minPrice.toLocaleString("en-IN")}/night` : "—"}</span>
+            <span>
+              {minPrice ? `₹${minPrice.toLocaleString("en-IN")}/night` : "—"}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -4281,21 +4624,39 @@ function SummarySection({
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Cancellation</span>
-            <span>{policyLabels[property.cancellationPolicyType ?? ""] ?? "Not set"}</span>
+            <span>
+              {policyLabels[property.cancellationPolicyType ?? ""] ?? "Not set"}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Local IDs accepted</span>
-            <span>{(p.acceptedLocalIdTypes?.length ?? 0) > 0 ? p.acceptedLocalIdTypes.join(", ") : "—"}</span>
+            <span>
+              {(p.acceptedLocalIdTypes?.length ?? 0) > 0
+                ? p.acceptedLocalIdTypes.join(", ")
+                : "—"}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Foreign IDs accepted</span>
-            <span>{(p.acceptedForeignIdTypes?.length ?? 0) > 0 ? p.acceptedForeignIdTypes.join(", ") : "—"}</span>
+            <span>
+              {(p.acceptedForeignIdTypes?.length ?? 0) > 0
+                ? p.acceptedForeignIdTypes.join(", ")
+                : "—"}
+            </span>
           </div>
           <div className="pt-2 grid grid-cols-2 gap-x-4 gap-y-1">
             {rules.map(({ label, value }) => (
               <div key={label} className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${value ? "bg-green-500" : "bg-gray-300"}`} />
-                <span className={value ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${value ? "bg-green-500" : "bg-gray-300"}`}
+                />
+                <span
+                  className={
+                    value ? "text-foreground" : "text-muted-foreground"
+                  }
+                >
+                  {label}
+                </span>
               </div>
             ))}
           </div>
@@ -4332,7 +4693,9 @@ function SummarySection({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Phone className="h-4 w-4" /> Contact Details
-            <Badge variant="outline" className="text-xs ml-1">Owner only</Badge>
+            <Badge variant="outline" className="text-xs ml-1">
+              Owner only
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
@@ -4361,7 +4724,9 @@ function SummarySection({
           <div className="flex justify-between">
             <span className="text-muted-foreground">City / State</span>
             <span>
-              {[property.propCity, property.propState].filter(Boolean).join(", ") || "—"}
+              {[property.propCity, property.propState]
+                .filter(Boolean)
+                .join(", ") || "—"}
             </span>
           </div>
           <div className="flex justify-between mt-2">
@@ -4371,7 +4736,10 @@ function SummarySection({
                 <CheckCircle className="h-3 w-3 mr-1" /> Verified
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-xs text-destructive border-destructive">
+              <Badge
+                variant="outline"
+                className="text-xs text-destructive border-destructive"
+              >
                 <AlertTriangle className="h-3 w-3 mr-1" /> Not set
               </Badge>
             )}

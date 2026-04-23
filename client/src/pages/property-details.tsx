@@ -455,19 +455,31 @@ export default function PropertyDetails() {
 
   // Fetch price overrides for selected date range + room type (for accurate display)
   const { data: priceOverridesMap } = useQuery<Map<string, number>>({
-    queryKey: ["/api/properties", propertyId, "pricing-calendar", checkIn, checkOut, selectedRoomTypeId],
+    queryKey: [
+      "/api/properties",
+      propertyId,
+      "pricing-calendar",
+      checkIn,
+      checkOut,
+      selectedRoomTypeId,
+    ],
     queryFn: async () => {
-      if (!propertyId || !checkIn || !checkOut || !selectedRoomTypeId) return new Map();
+      if (!propertyId || !checkIn || !checkOut || !selectedRoomTypeId)
+        return new Map();
       const end = new Date(checkOut);
       end.setDate(end.getDate() - 1);
       const res = await fetch(
-        `/api/properties/${propertyId}/pricing-calendar?startDate=${checkIn}&endDate=${end.toISOString().split("T")[0]}`
+        `/api/properties/${propertyId}/pricing-calendar?startDate=${checkIn}&endDate=${end.toISOString().split("T")[0]}`,
       );
       if (!res.ok) return new Map();
       const data = await res.json();
-      const rt = (data.roomTypes || []).find((r: any) => r.roomTypeId === selectedRoomTypeId);
+      const rt = (data.roomTypes || []).find(
+        (r: any) => r.roomTypeId === selectedRoomTypeId,
+      );
       if (!rt?.overrides) return new Map();
-      return new Map<string, number>(Object.entries(rt.overrides).map(([d, p]) => [d, Number(p)]));
+      return new Map<string, number>(
+        Object.entries(rt.overrides).map(([d, p]) => [d, Number(p)]),
+      );
     },
     enabled: !!propertyId && !!checkIn && !!checkOut && !!selectedRoomTypeId,
   });
@@ -855,7 +867,6 @@ export default function PropertyDetails() {
     [],
   );
 
-
   // On desktop: scroll to the traveller details form when Reserve is clicked
   useEffect(() => {
     if (bookingStep === "details" && travellerDetailsRef.current) {
@@ -977,12 +988,96 @@ export default function PropertyDetails() {
     return rooms * maxGuestsPerRoom;
   }, [rooms, maxGuestsPerRoom]);
 
+  // ← ADD THE NEW FUNCTION HERE (paste starts here)
+  const getPriceBreakdownComponents = () => {
+    if (!checkIn || !checkOut || !selectedRoomTypeId) return null;
+
+    const rt = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
+    if (!rt) return null;
+
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const nightCount = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (nightCount <= 0) return null;
+
+    const adultsPerRoom = Math.ceil(adults / rooms);
+
+    const singleBase = rt.singleOccupancyPrice
+      ? Number(rt.singleOccupancyPrice)
+      : Number(rt.basePrice);
+
+    let occupancyIncrement = 0;
+    let occupancyLabel = "";
+    if (adultsPerRoom >= 3 && rt.tripleOccupancyPrice) {
+      occupancyIncrement = Number(rt.tripleOccupancyPrice) - singleBase;
+      occupancyLabel = "Triple occupancy";
+    } else if (adultsPerRoom >= 2 && rt.doubleOccupancyPrice) {
+      occupancyIncrement = Number(rt.doubleOccupancyPrice) - singleBase;
+      occupancyLabel = "Double occupancy";
+    } else {
+      occupancyLabel = "Single occupancy";
+    }
+
+    let totalBaseRoomCost = 0;
+    const cursor = new Date(start);
+    while (cursor < end) {
+      const dateKey = cursor.toISOString().split("T")[0];
+      const overrideBase = priceOverridesMap?.get(dateKey);
+      const base = overrideBase !== undefined ? overrideBase : singleBase;
+      totalBaseRoomCost += base;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    const avgNightlyBase = totalBaseRoomCost / nightCount;
+
+    let mealOptionName = "";
+    let mealOptionPrice = 0;
+    if (selectedMealOptionId && rt.mealOptions) {
+      const sel = rt.mealOptions.find(
+        (opt: any) => opt.id === selectedMealOptionId,
+      );
+      if (sel) {
+        mealOptionName = sel.name;
+        mealOptionPrice = Number(sel.priceAdjustment);
+      }
+    }
+
+    let originalPrice: number | null = null;
+    if (
+      rt.originalPrice &&
+      parseFloat(rt.originalPrice) > parseFloat(rt.basePrice)
+    ) {
+      originalPrice = Number(rt.originalPrice);
+    }
+
+    return {
+      roomTypeName: rt.name,
+      basePrice: avgNightlyBase,
+      occupancyAdjustment: occupancyIncrement,
+      occupancyLabel,
+      mealOptionName,
+      mealOptionPrice,
+      nights: nightCount,
+      rooms,
+      guests,
+      adults,
+      children,
+      originalPrice,
+      bulkDiscountPercent: 0,
+    };
+  };
+  // ← PASTE ENDS HERE
+
+  // ↓ THIS LINE WAS ALREADY THERE — do not touch it
   const calculateTotalPrice = () => {
     if (!checkIn || !checkOut || !property) return 0;
 
     const start = new Date(checkIn);
     const end = new Date(checkOut);
-    const nights = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const nights = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
     if (nights <= 0 || !selectedRoomTypeId) return 0;
 
     const rt = roomTypes.find((rt: any) => rt.id === selectedRoomTypeId);
@@ -991,7 +1086,9 @@ export default function PropertyDetails() {
     const adultsPerRoom = Math.ceil(adults / rooms);
 
     // Occupancy increment above single/base rate (same logic as backend)
-    const singleBase = rt.singleOccupancyPrice ? Number(rt.singleOccupancyPrice) : Number(rt.basePrice);
+    const singleBase = rt.singleOccupancyPrice
+      ? Number(rt.singleOccupancyPrice)
+      : Number(rt.basePrice);
     let occupancyIncrement = 0;
     if (adultsPerRoom >= 3 && rt.tripleOccupancyPrice) {
       occupancyIncrement = Number(rt.tripleOccupancyPrice) - singleBase;
@@ -1023,8 +1120,11 @@ export default function PropertyDetails() {
 
     let mealOptionPrice = 0;
     if (selectedMealOptionId && rt.mealOptions) {
-      const selectedMealOption = rt.mealOptions.find((opt: any) => opt.id === selectedMealOptionId);
-      if (selectedMealOption) mealOptionPrice = Number(selectedMealOption.priceAdjustment);
+      const selectedMealOption = rt.mealOptions.find(
+        (opt: any) => opt.id === selectedMealOptionId,
+      );
+      if (selectedMealOption)
+        mealOptionPrice = Number(selectedMealOption.priceAdjustment);
     }
 
     const mealCost = nights * mealOptionPrice * guests;
@@ -1256,113 +1356,146 @@ export default function PropertyDetails() {
 
   return (
     <>
-    <div className="min-h-screen pb-24 md:pb-16">
-      <Helmet>
-        <title>
-          {property.title} in {property.destination} — Book Direct, Save 15-25%
-          | ZECOHO
-        </title>
-        <meta
-          name="description"
-          content={`Book ${property.title} directly on ZECOHO. No commission, no hidden fees. Save 15-25% vs MakeMyTrip & OYO. ${property.description?.slice(0, 100) || ""}`}
-        />
-        <meta
-          property="og:title"
-          content={`${property.title} — Direct Booking | ZECOHO`}
-        />
-        <meta
-          property="og:description"
-          content={`Book ${property.title} in ${property.destination} directly. Zero commission. Save 15-25%.`}
-        />
-        <link
-          rel="canonical"
-          href={`https://www.zecoho.com/properties/${property.id}`}
-        />
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Hotel",
-            name: property.title,
-            description: property.description,
-            address: {
-              "@type": "PostalAddress",
-              addressLocality: property.destination,
-              addressCountry: "IN",
-            },
-            priceRange: `₹${property.pricePerNight}`,
-            url: `https://www.zecoho.com/properties/${property.id}`,
-          })}
-        </script>
-      </Helmet>
-      <div className="container px-4 md:px-6 py-6">
-        {/* Title and Actions */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-4 mb-2">
-            <div className="flex-1">
-              <h1
-                className="text-3xl font-semibold mb-2"
-                data-testid="text-property-title"
-              >
-                {property.title}
-              </h1>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>{property.destination}</span>
+      <div className="min-h-screen pb-24 md:pb-16">
+        <Helmet>
+          <title>
+            {property.title} in {property.destination} — Book Direct, Save
+            15-25% | ZECOHO
+          </title>
+          <meta
+            name="description"
+            content={`Book ${property.title} directly on ZECOHO. No commission, no hidden fees. Save 15-25% vs MakeMyTrip & OYO. ${property.description?.slice(0, 100) || ""}`}
+          />
+          <meta
+            property="og:title"
+            content={`${property.title} — Direct Booking | ZECOHO`}
+          />
+          <meta
+            property="og:description"
+            content={`Book ${property.title} in ${property.destination} directly. Zero commission. Save 15-25%.`}
+          />
+          <link
+            rel="canonical"
+            href={`https://www.zecoho.com/properties/${property.id}`}
+          />
+          <script type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Hotel",
+              name: property.title,
+              description: property.description,
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: property.destination,
+                addressCountry: "IN",
+              },
+              priceRange: `₹${property.pricePerNight}`,
+              url: `https://www.zecoho.com/properties/${property.id}`,
+            })}
+          </script>
+        </Helmet>
+        <div className="container px-4 md:px-6 py-6">
+          {/* Title and Actions */}
+          <div className="mb-6">
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <div className="flex-1">
+                <h1
+                  className="text-3xl font-semibold mb-2"
+                  data-testid="text-property-title"
+                >
+                  {property.title}
+                </h1>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    <span>{property.destination}</span>
+                  </div>
+                  {property.rating && Number(property.rating) > 0 && (
+                    <>
+                      <span>•</span>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-current text-yellow-500" />
+                        <span className="font-semibold">
+                          {Number(property.rating).toFixed(1)}
+                        </span>
+                        <span>({property.reviewCount} reviews)</span>
+                      </div>
+                    </>
+                  )}
                 </div>
-                {property.rating && Number(property.rating) > 0 && (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-current text-yellow-500" />
-                      <span className="font-semibold">
-                        {Number(property.rating).toFixed(1)}
-                      </span>
-                      <span>({property.reviewCount} reviews)</span>
-                    </div>
-                  </>
-                )}
               </div>
+
+              {user?.userRole === "guest" && (
+                <Button
+                  variant={isWishlisted ? "default" : "outline"}
+                  onClick={() => wishlistMutation.mutate()}
+                  disabled={wishlistMutation.isPending}
+                  data-testid="button-wishlist-toggle"
+                >
+                  <Heart
+                    className={`h-4 w-4 mr-2 ${isWishlisted ? "fill-current" : ""}`}
+                  />
+                  {isWishlisted ? "Saved" : "Save"}
+                </Button>
+              )}
             </div>
-
-            {user?.userRole === "guest" && (
-              <Button
-                variant={isWishlisted ? "default" : "outline"}
-                onClick={() => wishlistMutation.mutate()}
-                disabled={wishlistMutation.isPending}
-                data-testid="button-wishlist-toggle"
-              >
-                <Heart
-                  className={`h-4 w-4 mr-2 ${isWishlisted ? "fill-current" : ""}`}
-                />
-                {isWishlisted ? "Saved" : "Save"}
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>{property.propertyType}</Badge>
+              <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-0">
+                <BadgeCheck className="h-3 w-3 mr-1" />
+                100% Verified
+              </Badge>
+              <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-0">
+                <Handshake className="h-3 w-3 mr-1" />
+                Direct Negotiation
+              </Badge>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge>{property.propertyType}</Badge>
-            <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-0">
-              <BadgeCheck className="h-3 w-3 mr-1" />
-              100% Verified
-            </Badge>
-            <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-0">
-              <Handshake className="h-3 w-3 mr-1" />
-              Direct Negotiation
-            </Badge>
-          </div>
-        </div>
 
-        {/* Image Gallery */}
-        <div className="mb-8">
-          {additionalImages.length > 0 ? (
-            <div className="grid grid-cols-4 gap-2 rounded-xl overflow-hidden h-[500px]">
+          {/* Image Gallery */}
+          <div className="mb-8">
+            {additionalImages.length > 0 ? (
+              <div className="grid grid-cols-4 gap-2 rounded-xl overflow-hidden h-[500px]">
+                <div
+                  className="col-span-4 md:col-span-2 md:row-span-2 cursor-pointer"
+                  onClick={() => {
+                    setLightboxIndex(0);
+                    setLightboxOpen(true);
+                  }}
+                  data-testid="button-image-main"
+                >
+                  <img
+                    src={mainImage}
+                    alt={property.title}
+                    className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                  />
+                </div>
+                {additionalImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="col-span-2 md:col-span-1 cursor-pointer"
+                    onClick={() => {
+                      setLightboxIndex(idx + 1);
+                      setLightboxOpen(true);
+                    }}
+                    data-testid={`button-image-${idx + 1}`}
+                  >
+                    <img
+                      src={img}
+                      alt={`${property.title} ${idx + 2}`}
+                      className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
               <div
-                className="col-span-4 md:col-span-2 md:row-span-2 cursor-pointer"
+                className="aspect-[2/1] rounded-xl overflow-hidden cursor-pointer"
                 onClick={() => {
                   setLightboxIndex(0);
                   setLightboxOpen(true);
                 }}
-                data-testid="button-image-main"
+                data-testid="button-image-single"
               >
                 <img
                   src={mainImage}
@@ -1370,1741 +1503,1672 @@ export default function PropertyDetails() {
                   className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                 />
               </div>
-              {additionalImages.map((img, idx) => (
-                <div
-                  key={idx}
-                  className="col-span-2 md:col-span-1 cursor-pointer"
-                  onClick={() => {
-                    setLightboxIndex(idx + 1);
-                    setLightboxOpen(true);
-                  }}
-                  data-testid={`button-image-${idx + 1}`}
-                >
-                  <img
-                    src={img}
-                    alt={`${property.title} ${idx + 2}`}
-                    className="w-full h-full object-cover hover:opacity-90 transition-opacity"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div
-              className="aspect-[2/1] rounded-xl overflow-hidden cursor-pointer"
-              onClick={() => {
-                setLightboxIndex(0);
-                setLightboxOpen(true);
-              }}
-              data-testid="button-image-single"
-            >
-              <img
-                src={mainImage}
-                alt={property.title}
-                className="w-full h-full object-cover hover:opacity-90 transition-opacity"
-              />
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Image Lightbox */}
-        <ImageLightbox
-          images={property.images || [mainImage]}
-          initialIndex={lightboxIndex}
-          isOpen={lightboxOpen}
-          onClose={() => setLightboxOpen(false)}
-          alt={property.title}
-        />
+          {/* Image Lightbox */}
+          <ImageLightbox
+            images={property.images || [mainImage]}
+            initialIndex={lightboxIndex}
+            isOpen={lightboxOpen}
+            onClose={() => setLightboxOpen(false)}
+            alt={property.title}
+          />
 
-        {/* Content Grid */}
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="md:col-span-2 space-y-8">
-            {/* Quick Info */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Property details</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Guests</p>
-                      <p className="font-semibold">{property.maxGuests}</p>
+          {/* Content Grid */}
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="md:col-span-2 space-y-8">
+              {/* Quick Info */}
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Property details
+                  </h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Guests</p>
+                        <p className="font-semibold">{property.maxGuests}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Bed className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Bedrooms
+                        </p>
+                        <p className="font-semibold">{property.bedrooms}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Bed className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Beds</p>
+                        <p className="font-semibold">{property.beds}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Bath className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Bathrooms
+                        </p>
+                        <p className="font-semibold">{property.bathrooms}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Bed className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Bedrooms</p>
-                      <p className="font-semibold">{property.bedrooms}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Bed className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Beds</p>
-                      <p className="font-semibold">{property.beds}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Bath className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Bathrooms</p>
-                      <p className="font-semibold">{property.bathrooms}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Description */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">
-                About this property
-              </h2>
-              <p className="text-muted-foreground leading-relaxed">
-                {property.description}
-              </p>
-            </div>
+              {/* Description */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4">
+                  About this property
+                </h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  {property.description}
+                </p>
+              </div>
 
-            {/* Amenities */}
-            <div>
-              <h2 className="text-xl font-semibold mb-6">
-                What this place offers
-              </h2>
-              {propertyAmenities.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
-                    {propertyAmenities.slice(0, 8).map((amenity) => {
-                      const IconComponent = getAmenityIcon(amenity.icon);
-                      return (
-                        <div
-                          key={amenity.id}
-                          className="flex items-center gap-4 py-2"
-                          data-testid={`amenity-item-${amenity.id}`}
-                        >
-                          <IconComponent className="h-6 w-6 text-foreground flex-shrink-0" />
-                          <span className="text-foreground">
-                            {amenity.name}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {propertyAmenities.length > 8 && (
-                    <Dialog
-                      open={amenitiesDialogOpen}
-                      onOpenChange={setAmenitiesDialogOpen}
-                    >
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="mt-6"
-                          data-testid="button-show-all-amenities"
-                        >
-                          Show all {propertyAmenities.length} amenities
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>What this place offers</DialogTitle>
-                          <DialogDescription>
-                            All amenities available at this property
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 mt-4">
-                          {propertyAmenities.map((amenity) => {
-                            const IconComponent = getAmenityIcon(amenity.icon);
-                            return (
-                              <div
-                                key={amenity.id}
-                                className="flex items-center gap-4 py-2"
-                              >
-                                <IconComponent className="h-6 w-6 text-foreground flex-shrink-0" />
-                                <span className="text-foreground">
-                                  {amenity.name}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </>
-              ) : (
-                <div className="text-muted-foreground">
-                  No amenities listed for this property
-                </div>
-              )}
-            </div>
-
-            {/* Location Map */}
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Where you'll be</h2>
-              {property.latitude && property.longitude ? (
-                <>
-                  <div className="mb-4 space-y-1">
-                    {(property.propStreetAddress ||
-                      property.propLocality ||
-                      property.propCity) && (
-                      <p
-                        className="text-foreground"
-                        data-testid="text-property-address"
+              {/* Amenities */}
+              <div>
+                <h2 className="text-xl font-semibold mb-6">
+                  What this place offers
+                </h2>
+                {propertyAmenities.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
+                      {propertyAmenities.slice(0, 8).map((amenity) => {
+                        const IconComponent = getAmenityIcon(amenity.icon);
+                        return (
+                          <div
+                            key={amenity.id}
+                            className="flex items-center gap-4 py-2"
+                            data-testid={`amenity-item-${amenity.id}`}
+                          >
+                            <IconComponent className="h-6 w-6 text-foreground flex-shrink-0" />
+                            <span className="text-foreground">
+                              {amenity.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {propertyAmenities.length > 8 && (
+                      <Dialog
+                        open={amenitiesDialogOpen}
+                        onOpenChange={setAmenitiesDialogOpen}
                       >
-                        {[
-                          property.propStreetAddress,
-                          property.propLocality,
-                          property.propCity,
-                          property.propState,
-                          property.propPincode,
-                        ]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </p>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="mt-6"
+                            data-testid="button-show-all-amenities"
+                          >
+                            Show all {propertyAmenities.length} amenities
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>What this place offers</DialogTitle>
+                            <DialogDescription>
+                              All amenities available at this property
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 mt-4">
+                            {propertyAmenities.map((amenity) => {
+                              const IconComponent = getAmenityIcon(
+                                amenity.icon,
+                              );
+                              return (
+                                <div
+                                  key={amenity.id}
+                                  className="flex items-center gap-4 py-2"
+                                >
+                                  <IconComponent className="h-6 w-6 text-foreground flex-shrink-0" />
+                                  <span className="text-foreground">
+                                    {amenity.name}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     )}
-                    <p
-                      className="text-muted-foreground"
-                      data-testid="text-property-destination"
+                  </>
+                ) : (
+                  <div className="text-muted-foreground">
+                    No amenities listed for this property
+                  </div>
+                )}
+              </div>
+
+              {/* Location Map */}
+              <div>
+                <h2 className="text-xl font-semibold mb-2">Where you'll be</h2>
+                {property.latitude && property.longitude ? (
+                  <>
+                    <div className="mb-4 space-y-1">
+                      {(property.propStreetAddress ||
+                        property.propLocality ||
+                        property.propCity) && (
+                        <p
+                          className="text-foreground"
+                          data-testid="text-property-address"
+                        >
+                          {[
+                            property.propStreetAddress,
+                            property.propLocality,
+                            property.propCity,
+                            property.propState,
+                            property.propPincode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </p>
+                      )}
+                      <p
+                        className="text-muted-foreground"
+                        data-testid="text-property-destination"
+                      >
+                        {property.destination}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-xl overflow-hidden border"
+                      data-testid="property-map-container"
                     >
+                      <PropertyMap
+                        latitude={Number(property.latitude)}
+                        longitude={Number(property.longitude)}
+                        title={property.title}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className="p-6 bg-muted/50 rounded-lg border text-center"
+                    data-testid="location-unavailable"
+                  >
+                    <p className="text-muted-foreground">
+                      Exact location will be provided after booking
+                      confirmation.
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
                       {property.destination}
                     </p>
                   </div>
-                  <div
-                    className="rounded-xl overflow-hidden border"
-                    data-testid="property-map-container"
-                  >
-                    <PropertyMap
-                      latitude={Number(property.latitude)}
-                      longitude={Number(property.longitude)}
-                      title={property.title}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div
-                  className="p-6 bg-muted/50 rounded-lg border text-center"
-                  data-testid="location-unavailable"
-                >
-                  <p className="text-muted-foreground">
-                    Exact location will be provided after booking confirmation.
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {property.destination}
-                  </p>
-                </div>
+                )}
+              </div>
+
+              {/* How to Reach - Transport hubs with travel time estimates */}
+              {property.latitude && property.longitude && (
+                <HowToReach
+                  propertyId={property.id}
+                  propertyName={property.title}
+                  latitude={Number(property.latitude)}
+                  longitude={Number(property.longitude)}
+                />
               )}
-            </div>
 
-            {/* How to Reach - Transport hubs with travel time estimates */}
-            {property.latitude && property.longitude && (
-              <HowToReach
-                propertyId={property.id}
-                propertyName={property.title}
-                latitude={Number(property.latitude)}
-                longitude={Number(property.longitude)}
-              />
-            )}
+              {/* Nearby Places - Localities, Landmarks, Things to Do */}
+              {property.latitude && property.longitude && (
+                <NearbyPlaces
+                  propertyId={property.id}
+                  latitude={Number(property.latitude)}
+                  longitude={Number(property.longitude)}
+                />
+              )}
 
-            {/* Nearby Places - Localities, Landmarks, Things to Do */}
-            {property.latitude && property.longitude && (
-              <NearbyPlaces
-                propertyId={property.id}
-                latitude={Number(property.latitude)}
-                longitude={Number(property.longitude)}
-              />
-            )}
-
-            {/* Things to Know */}
-            {(property.policies ||
-              property.checkInTime ||
-              property.checkOutTime ||
-              (property.safetyFeatures && property.safetyFeatures.length > 0) ||
-              property.cancellationPolicy ||
-              property.maxGuests) && (
-              <div>
-                <h2 className="text-xl font-semibold mb-6">Things to know</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {/* House Rules */}
-                  <div>
-                    <h3 className="font-semibold mb-3">House rules</h3>
-                    <div className="space-y-2 text-muted-foreground">
-                      {property.checkInTime && (
-                        <p>Check-in after {property.checkInTime}</p>
-                      )}
-                      {property.checkOutTime && (
-                        <p>Checkout before {property.checkOutTime}</p>
-                      )}
-                      <p>{property.maxGuests} guests maximum</p>
-                      {property.policies && (
-                        <p className="text-sm mt-2">
-                          {property.policies.length > 100
-                            ? property.policies.substring(0, 100) + "..."
-                            : property.policies}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Safety & Property */}
-                  <div>
-                    <h3 className="font-semibold mb-3">Safety & property</h3>
-                    <div className="space-y-2 text-muted-foreground">
-                      {property.safetyFeatures &&
-                      property.safetyFeatures.length > 0 ? (
-                        property.safetyFeatures
-                          .slice(0, 4)
-                          .map((feature, idx) => <p key={idx}>{feature}</p>)
-                      ) : (
-                        <p className="text-sm">
-                          Contact host for safety information
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Cancellation Policy */}
-                  <div>
-                    <h3 className="font-semibold mb-3">Cancellation policy</h3>
-                    <div className="space-y-2 text-muted-foreground">
-                      {/* Policy Type Badge */}
-                      {property.cancellationPolicyType && (
-                        <div className="mb-3">
-                          <Badge
-                            variant={
-                              property.cancellationPolicyType === "flexible"
-                                ? "default"
-                                : property.cancellationPolicyType === "moderate"
-                                  ? "secondary"
-                                  : "outline"
-                            }
-                            className="capitalize"
-                          >
-                            {property.cancellationPolicyType}
-                          </Badge>
-                        </div>
-                      )}
-
-                      {/* Policy Details - Using actual owner-configured values */}
-                      {property.cancellationPolicyType === "flexible" &&
-                        (() => {
-                          const hours = property.freeCancellationHours || 24;
-                          const partialPercent =
-                            property.partialRefundPercent || 50;
-                          return (
-                            <div className="text-sm space-y-1">
-                              <p className="text-green-600 dark:text-green-400 font-medium">
-                                Free cancellation until {hours} hours before
-                                check-in
-                              </p>
-                              <p>
-                                100% refund if cancelled {hours}+ hours before
-                              </p>
-                              <p>
-                                {partialPercent}% refund if cancelled less than{" "}
-                                {hours} hours before
-                              </p>
-                            </div>
-                          );
-                        })()}
-
-                      {property.cancellationPolicyType === "moderate" &&
-                        (() => {
-                          const hours = property.freeCancellationHours || 48;
-                          const halfHours = hours / 2;
-                          const partialPercent =
-                            property.partialRefundPercent || 50;
-                          const halfHoursDisplay = Number.isInteger(halfHours)
-                            ? halfHours
-                            : halfHours.toFixed(1);
-                          return (
-                            <div className="text-sm space-y-1">
-                              <p className="text-amber-600 dark:text-amber-400 font-medium">
-                                Free cancellation until {hours} hours before
-                                check-in
-                              </p>
-                              <p>
-                                100% refund if cancelled {hours}+ hours before
-                              </p>
-                              <p>
-                                {partialPercent}% refund if cancelled{" "}
-                                {halfHoursDisplay}+ to {hours} hours before
-                              </p>
-                              <p>
-                                No refund if cancelled less than{" "}
-                                {halfHoursDisplay} hours before
-                              </p>
-                            </div>
-                          );
-                        })()}
-
-                      {property.cancellationPolicyType === "strict" &&
-                        (() => {
-                          const hours = property.freeCancellationHours || 168;
-                          const doubleHours = hours * 2;
-                          const partialPercent =
-                            property.partialRefundPercent || 50;
-                          const daysDisplay =
-                            doubleHours >= 24
-                              ? ` (${(doubleHours / 24).toFixed(0)} days)`
-                              : "";
-                          return (
-                            <div className="text-sm space-y-1">
-                              <p className="text-red-600 dark:text-red-400 font-medium">
-                                Limited refund available
-                              </p>
-                              <p>
-                                {partialPercent}% refund if cancelled{" "}
-                                {doubleHours}+ hours{daysDisplay} before
-                              </p>
-                              <p>
-                                No refund if cancelled less than {doubleHours}{" "}
-                                hours before
-                              </p>
-                            </div>
-                          );
-                        })()}
-
-                      {/* Custom Policy Text if available */}
-                      {property.cancellationPolicy && (
-                        <p className="text-xs mt-2 italic">
-                          {property.cancellationPolicy.length > 100
-                            ? property.cancellationPolicy.substring(0, 100) +
-                              "..."
-                            : property.cancellationPolicy}
-                        </p>
-                      )}
-
-                      {!property.cancellationPolicyType &&
-                        !property.cancellationPolicy && (
-                          <p className="text-sm">
-                            Contact host for cancellation details
+              {/* Things to Know */}
+              {(property.policies ||
+                property.checkInTime ||
+                property.checkOutTime ||
+                (property.safetyFeatures &&
+                  property.safetyFeatures.length > 0) ||
+                property.cancellationPolicy ||
+                property.maxGuests) && (
+                <div>
+                  <h2 className="text-xl font-semibold mb-6">Things to know</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* House Rules */}
+                    <div>
+                      <h3 className="font-semibold mb-3">House rules</h3>
+                      <div className="space-y-2 text-muted-foreground">
+                        {property.checkInTime && (
+                          <p>Check-in after {property.checkInTime}</p>
+                        )}
+                        {property.checkOutTime && (
+                          <p>Checkout before {property.checkOutTime}</p>
+                        )}
+                        <p>{property.maxGuests} guests maximum</p>
+                        {property.policies && (
+                          <p className="text-sm mt-2">
+                            {property.policies.length > 100
+                              ? property.policies.substring(0, 100) + "..."
+                              : property.policies}
                           </p>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Safety & Property */}
+                    <div>
+                      <h3 className="font-semibold mb-3">Safety & property</h3>
+                      <div className="space-y-2 text-muted-foreground">
+                        {property.safetyFeatures &&
+                        property.safetyFeatures.length > 0 ? (
+                          property.safetyFeatures
+                            .slice(0, 4)
+                            .map((feature, idx) => <p key={idx}>{feature}</p>)
+                        ) : (
+                          <p className="text-sm">
+                            Contact host for safety information
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Cancellation Policy */}
+                    <div>
+                      <h3 className="font-semibold mb-3">
+                        Cancellation policy
+                      </h3>
+                      <div className="space-y-2 text-muted-foreground">
+                        {/* Policy Type Badge */}
+                        {property.cancellationPolicyType && (
+                          <div className="mb-3">
+                            <Badge
+                              variant={
+                                property.cancellationPolicyType === "flexible"
+                                  ? "default"
+                                  : property.cancellationPolicyType ===
+                                      "moderate"
+                                    ? "secondary"
+                                    : "outline"
+                              }
+                              className="capitalize"
+                            >
+                              {property.cancellationPolicyType}
+                            </Badge>
+                          </div>
+                        )}
+
+                        {/* Policy Details - Using actual owner-configured values */}
+                        {property.cancellationPolicyType === "flexible" &&
+                          (() => {
+                            const hours = property.freeCancellationHours || 24;
+                            const partialPercent =
+                              property.partialRefundPercent || 50;
+                            return (
+                              <div className="text-sm space-y-1">
+                                <p className="text-green-600 dark:text-green-400 font-medium">
+                                  Free cancellation until {hours} hours before
+                                  check-in
+                                </p>
+                                <p>
+                                  100% refund if cancelled {hours}+ hours before
+                                </p>
+                                <p>
+                                  {partialPercent}% refund if cancelled less
+                                  than {hours} hours before
+                                </p>
+                              </div>
+                            );
+                          })()}
+
+                        {property.cancellationPolicyType === "moderate" &&
+                          (() => {
+                            const hours = property.freeCancellationHours || 48;
+                            const halfHours = hours / 2;
+                            const partialPercent =
+                              property.partialRefundPercent || 50;
+                            const halfHoursDisplay = Number.isInteger(halfHours)
+                              ? halfHours
+                              : halfHours.toFixed(1);
+                            return (
+                              <div className="text-sm space-y-1">
+                                <p className="text-amber-600 dark:text-amber-400 font-medium">
+                                  Free cancellation until {hours} hours before
+                                  check-in
+                                </p>
+                                <p>
+                                  100% refund if cancelled {hours}+ hours before
+                                </p>
+                                <p>
+                                  {partialPercent}% refund if cancelled{" "}
+                                  {halfHoursDisplay}+ to {hours} hours before
+                                </p>
+                                <p>
+                                  No refund if cancelled less than{" "}
+                                  {halfHoursDisplay} hours before
+                                </p>
+                              </div>
+                            );
+                          })()}
+
+                        {property.cancellationPolicyType === "strict" &&
+                          (() => {
+                            const hours = property.freeCancellationHours || 168;
+                            const doubleHours = hours * 2;
+                            const partialPercent =
+                              property.partialRefundPercent || 50;
+                            const daysDisplay =
+                              doubleHours >= 24
+                                ? ` (${(doubleHours / 24).toFixed(0)} days)`
+                                : "";
+                            return (
+                              <div className="text-sm space-y-1">
+                                <p className="text-red-600 dark:text-red-400 font-medium">
+                                  Limited refund available
+                                </p>
+                                <p>
+                                  {partialPercent}% refund if cancelled{" "}
+                                  {doubleHours}+ hours{daysDisplay} before
+                                </p>
+                                <p>
+                                  No refund if cancelled less than {doubleHours}{" "}
+                                  hours before
+                                </p>
+                              </div>
+                            );
+                          })()}
+
+                        {/* Custom Policy Text if available */}
+                        {property.cancellationPolicy && (
+                          <p className="text-xs mt-2 italic">
+                            {property.cancellationPolicy.length > 100
+                              ? property.cancellationPolicy.substring(0, 100) +
+                                "..."
+                              : property.cancellationPolicy}
+                          </p>
+                        )}
+
+                        {!property.cancellationPolicyType &&
+                          !property.cancellationPolicy && (
+                            <p className="text-sm">
+                              Contact host for cancellation details
+                            </p>
+                          )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* Reviews Section */}
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-semibold mb-2">
-                    Reviews {reviews.length > 0 && `(${reviews.length})`}
-                  </h2>
-                  {property.rating && Number(property.rating) > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Star className="h-5 w-5 fill-current text-yellow-500" />
-                      <span className="text-lg font-semibold">
-                        {Number(property.rating).toFixed(1)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        • {property.reviewCount} reviews
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {canReview && (
-                  <Dialog
-                    open={reviewDialogOpen}
-                    onOpenChange={setReviewDialogOpen}
-                  >
-                    <DialogTrigger asChild>
-                      <Button data-testid="button-write-review">
-                        Write a Review
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                      <DialogHeader>
-                        <DialogTitle>Write a Review</DialogTitle>
-                        <DialogDescription>
-                          Share your experience with other travelers
-                        </DialogDescription>
-                      </DialogHeader>
-                      <Form {...reviewForm}>
-                        <form
-                          onSubmit={reviewForm.handleSubmit(handleReviewSubmit)}
-                          className="space-y-4"
-                        >
-                          <FormField
-                            control={reviewForm.control}
-                            name="rating"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Rating</FormLabel>
-                                <FormControl>
-                                  <RadioGroup
-                                    value={String(field.value ?? 5)}
-                                    onValueChange={(value) =>
-                                      field.onChange(Number(value))
-                                    }
-                                    className="flex gap-1"
-                                  >
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                      <div key={star} className="relative">
-                                        <RadioGroupItem
-                                          value={String(star)}
-                                          id={`rating-${star}`}
-                                          className="peer sr-only"
-                                          data-testid={`button-rating-${star}`}
-                                        />
-                                        <label
-                                          htmlFor={`rating-${star}`}
-                                          className="cursor-pointer hover:scale-110 transition-transform"
-                                        >
-                                          <Star
-                                            className={`h-8 w-8 transition-colors ${
-                                              star <= Number(field.value ?? 5)
-                                                ? "fill-yellow-500 text-yellow-500"
-                                                : "text-muted-foreground hover:text-yellow-300"
-                                            }`}
-                                          />
-                                        </label>
-                                      </div>
-                                    ))}
-                                  </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={reviewForm.control}
-                            name="comment"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Your Review</FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    {...field}
-                                    placeholder="Tell us about your stay..."
-                                    rows={6}
-                                    data-testid="textarea-review-comment"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setReviewDialogOpen(false)}
-                              data-testid="button-cancel-review"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="submit"
-                              disabled={submitReviewMutation.isPending}
-                              data-testid="button-submit-review"
-                            >
-                              {submitReviewMutation.isPending
-                                ? "Submitting..."
-                                : "Submit Review"}
-                            </Button>
-                          </div>
-                        </form>
-                      </Form>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-
-              {reviews.length > 0 ? (
-                <div className="space-y-6">
-                  {reviews.map((review: any) => (
-                    <Card
-                      key={review.id}
-                      data-testid={`card-review-${review.id}`}
-                    >
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-4">
-                          <Avatar>
-                            <AvatarImage src={review.guestProfileImageUrl} />
-                            <AvatarFallback>
-                              {review.guestFirstName?.[0]}
-                              {review.guestLastName?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 space-y-3">
-                            <div>
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <h4
-                                  className="font-semibold"
-                                  data-testid={`text-reviewer-name-${review.id}`}
-                                >
-                                  {review.guestFirstName} {review.guestLastName}
-                                </h4>
-                                <span className="text-sm text-muted-foreground">
-                                  {new Date(
-                                    review.createdAt,
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1 mb-2">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    className={`h-4 w-4 ${
-                                      star <= review.rating
-                                        ? "fill-yellow-500 text-yellow-500"
-                                        : "text-muted-foreground"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-
-                            <p
-                              className="text-muted-foreground leading-relaxed"
-                              data-testid={`text-review-comment-${review.id}`}
-                            >
-                              {review.comment}
-                            </p>
-
-                            {review.ownerResponse && (
-                              <div className="mt-4 pl-4 border-l-2 border-muted">
-                                <p className="text-sm font-semibold mb-1">
-                                  Response from owner
-                                </p>
-                                <p
-                                  className="text-sm text-muted-foreground"
-                                  data-testid={`text-owner-response-${review.id}`}
-                                >
-                                  {review.ownerResponse}
-                                </p>
-                              </div>
-                            )}
-
-                            <div className="flex items-center gap-3 pt-2">
-                              <Button
-                                variant={
-                                  markedHelpfulReviews.has(review.id)
-                                    ? "default"
-                                    : "ghost"
-                                }
-                                size="sm"
-                                onClick={() =>
-                                  helpfulMutation.mutate(review.id)
-                                }
-                                disabled={
-                                  helpfulMutation.isPending ||
-                                  markedHelpfulReviews.has(review.id)
-                                }
-                                data-testid={`button-helpful-${review.id}`}
-                              >
-                                <ThumbsUp
-                                  className={`h-4 w-4 mr-1 ${markedHelpfulReviews.has(review.id) ? "fill-current" : ""}`}
-                                />
-                                {markedHelpfulReviews.has(review.id)
-                                  ? "Marked Helpful"
-                                  : "Helpful"}{" "}
-                                {review.helpful > 0 && `(${review.helpful})`}
-                              </Button>
-
-                              {user?.id === property.ownerId &&
-                                !review.ownerResponse && (
-                                  <Dialog
-                                    open={
-                                      ownerResponseDialogOpen &&
-                                      selectedReviewId === review.id
-                                    }
-                                    onOpenChange={(open) => {
-                                      setOwnerResponseDialogOpen(open);
-                                      if (open) {
-                                        setSelectedReviewId(review.id);
-                                      } else {
-                                        setSelectedReviewId(null);
-                                        ownerResponseForm.reset();
-                                      }
-                                    }}
-                                  >
-                                    <DialogTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        data-testid={`button-respond-${review.id}`}
-                                      >
-                                        Respond
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-[500px]">
-                                      <DialogHeader>
-                                        <DialogTitle>
-                                          Respond to Review
-                                        </DialogTitle>
-                                        <DialogDescription>
-                                          Share your response with{" "}
-                                          {review.guestFirstName}
-                                        </DialogDescription>
-                                      </DialogHeader>
-                                      <Form {...ownerResponseForm}>
-                                        <form
-                                          onSubmit={ownerResponseForm.handleSubmit(
-                                            createOwnerResponseSubmitHandler(
-                                              review.id,
-                                            ),
-                                          )}
-                                          className="space-y-4"
-                                        >
-                                          <FormField
-                                            control={ownerResponseForm.control}
-                                            name="ownerResponse"
-                                            render={({ field }) => (
-                                              <FormItem>
-                                                <FormControl>
-                                                  <Textarea
-                                                    {...field}
-                                                    placeholder="Thank you for your feedback..."
-                                                    rows={4}
-                                                    data-testid="textarea-owner-response"
-                                                  />
-                                                </FormControl>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
-                                          <div className="flex gap-2 justify-end">
-                                            <Button
-                                              type="button"
-                                              variant="outline"
-                                              onClick={() => {
-                                                setOwnerResponseDialogOpen(
-                                                  false,
-                                                );
-                                                setSelectedReviewId(null);
-                                                ownerResponseForm.reset();
-                                              }}
-                                              data-testid="button-cancel-response"
-                                            >
-                                              Cancel
-                                            </Button>
-                                            <Button
-                                              type="submit"
-                                              disabled={
-                                                ownerResponseMutation.isPending
-                                              }
-                                              data-testid="button-submit-response"
-                                            >
-                                              {ownerResponseMutation.isPending
-                                                ? "Posting..."
-                                                : "Post Response"}
-                                            </Button>
-                                          </div>
-                                        </form>
-                                      </Form>
-                                    </DialogContent>
-                                  </Dialog>
-                                )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p>No reviews yet. Be the first to review this property!</p>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* Booking Card - Hidden on mobile, shown on desktop */}
-          <div className="hidden md:block md:sticky md:top-24 h-fit">
-            <Card>
-              <CardContent className="p-6">
-                <div className="mb-6">
-                  {roomTypes.length > 0 ? (
-                    <>
-                      {(() => {
-                        const lowestPrice = Math.min(
-                          ...roomTypes.map((rt: any) => Number(rt.basePrice)),
-                        );
-                        const roomWithLowestPrice = roomTypes.find(
-                          (rt: any) => Number(rt.basePrice) === lowestPrice,
-                        );
-                        const hasDiscount =
-                          roomWithLowestPrice?.originalPrice &&
-                          parseFloat(roomWithLowestPrice.originalPrice) >
-                            parseFloat(roomWithLowestPrice.basePrice);
-
-                        return (
-                          <>
-                            <div className="flex items-baseline gap-1 mb-2 flex-wrap">
-                              {hasDiscount && (
-                                <span className="text-xl text-muted-foreground line-through">
-                                  ₹
-                                  {Number(
-                                    roomWithLowestPrice.originalPrice,
-                                  ).toLocaleString("en-IN")}
-                                </span>
-                              )}
-                              <span
-                                className={`text-3xl font-semibold ${hasDiscount ? "text-green-600 dark:text-green-400" : ""}`}
-                                data-testid="text-price-detail"
-                              >
-                                ₹{lowestPrice.toLocaleString("en-IN")}
-                              </span>
-                              <span className="text-muted-foreground">
-                                / night
-                              </span>
-                            </div>
-                            {hasDiscount && (
-                              <Badge
-                                variant="secondary"
-                                className="text-xs mb-2"
-                              >
-                                {Math.round(
-                                  (1 -
-                                    lowestPrice /
-                                      Number(
-                                        roomWithLowestPrice.originalPrice,
-                                      )) *
-                                    100,
-                                )}
-                                % OFF
-                              </Badge>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              Starting from
-                            </p>
-                          </>
-                        );
-                      })()}
-                    </>
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-muted-foreground">
-                        No rooms available
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Please check back later
-                      </p>
-                    </div>
-                  )}
-                  {property.rating && Number(property.rating) > 0 && (
-                    <div className="flex items-center gap-1 text-sm mt-2">
-                      <Star className="h-4 w-4 fill-current text-yellow-500" />
-                      <span className="font-semibold">
-                        {Number(property.rating).toFixed(1)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ({property.reviewCount} reviews)
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-4 mb-6">
+              {/* Reviews Section */}
+              <div>
+                <div className="flex items-center justify-between mb-6">
                   <div>
-                    <label className="text-sm font-semibold block mb-2">
-                      Check-in
-                    </label>
-                    <Popover
-                      open={checkInPopoverOpen}
-                      onOpenChange={setCheckInPopoverOpen}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          data-testid="input-checkin-booking"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {checkIn ? (
-                            format(parseLocalDate(checkIn), "PPP")
-                          ) : (
-                            <span className="text-muted-foreground">
-                              Select date
-                            </span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={
-                            checkIn ? parseLocalDate(checkIn) : undefined
-                          }
-                          onSelect={(date) => {
-                            // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
-                            const dateStr = date
-                              ? format(date, "yyyy-MM-dd")
-                              : "";
-                            setCheckIn(dateStr);
-                            if (
-                              checkOut &&
-                              date &&
-                              parseLocalDate(checkOut) <= date
-                            ) {
-                              setCheckOut("");
-                            }
-                            // Close check-in and auto-open check-out using requestAnimationFrame to prevent race condition
-                            if (date) {
-                              setCheckInPopoverOpen(false);
-                              requestAnimationFrame(() => {
-                                requestAnimationFrame(() => {
-                                  setCheckOutPopoverOpen(true);
-                                });
-                              });
-                            }
-                          }}
-                          disabled={(date) => {
-                            const today = new Date(
-                              new Date().setHours(0, 0, 0, 0),
-                            );
-                            if (date < today) return true;
-
-                            // Check availability using the new calendar availability data
-                            // Only disable if availableRooms === 0
-                            const dateStr = format(date, "yyyy-MM-dd");
-                            const availability =
-                              availabilityByDate.get(dateStr);
-                            if (
-                              availability &&
-                              availability.availableRooms === 0
-                            ) {
-                              return true;
-                            }
-
-                            // Also check owner-blocked dates
-                            const currentDate = new Date(date);
-                            currentDate.setHours(0, 0, 0, 0);
-                            const isBlocked = blockedDates.some((blocked) => {
-                              const blockStart = new Date(blocked.startDate);
-                              const blockEnd = new Date(blocked.endDate);
-                              blockStart.setHours(0, 0, 0, 0);
-                              blockEnd.setHours(0, 0, 0, 0);
-                              return (
-                                currentDate >= blockStart &&
-                                currentDate < blockEnd
-                              );
-                            });
-                            return isBlocked;
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold block mb-2">
-                      Check-out
-                    </label>
-                    <Popover
-                      open={checkOutPopoverOpen}
-                      onOpenChange={setCheckOutPopoverOpen}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          data-testid="input-checkout-booking"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {checkOut ? (
-                            format(parseLocalDate(checkOut), "PPP")
-                          ) : (
-                            <span className="text-muted-foreground">
-                              Select date
-                            </span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={
-                            checkOut ? parseLocalDate(checkOut) : undefined
-                          }
-                          onSelect={(date) => {
-                            // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
-                            setCheckOut(date ? format(date, "yyyy-MM-dd") : "");
-                            if (date) {
-                              setCheckOutPopoverOpen(false);
-                            }
-                          }}
-                          disabled={(date) => {
-                            const today = new Date(
-                              new Date().setHours(0, 0, 0, 0),
-                            );
-                            if (date <= today) return true;
-                            if (checkIn && date <= parseLocalDate(checkIn))
-                              return true;
-
-                            // Check availability using the new calendar availability data
-                            // Only disable if availableRooms === 0
-                            const dateStr = format(date, "yyyy-MM-dd");
-                            const availability =
-                              availabilityByDate.get(dateStr);
-                            if (
-                              availability &&
-                              availability.availableRooms === 0
-                            ) {
-                              return true;
-                            }
-
-                            // Also check owner-blocked dates
-                            const currentDate = new Date(date);
-                            currentDate.setHours(0, 0, 0, 0);
-                            const isBlocked = blockedDates.some((blocked) => {
-                              const blockStart = new Date(blocked.startDate);
-                              const blockEnd = new Date(blocked.endDate);
-                              blockStart.setHours(0, 0, 0, 0);
-                              blockEnd.setHours(0, 0, 0, 0);
-                              return (
-                                currentDate >= blockStart &&
-                                currentDate < blockEnd
-                              );
-                            });
-                            return isBlocked;
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold block mb-2">
-                      Guests
-                    </label>
-                    <Popover
-                      open={guestsPopoverOpen}
-                      onOpenChange={setGuestsPopoverOpen}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between text-left font-normal"
-                          data-testid="input-guests-booking"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            <span>
-                              {adults} Adult{adults !== 1 ? "s" : ""},{" "}
-                              {children} Child{children !== 1 ? "ren" : ""}
-                            </span>
-                          </div>
-                          <ChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-4" align="start">
-                        <div className="space-y-4">
-                          {/* Adults */}
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium">Adults</div>
-                              <div className="text-xs text-muted-foreground">
-                                Ages 13 or above
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setAdults(Math.max(1, adults - 1));
-                                }}
-                                disabled={adults <= 1}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                data-testid="button-adults-minus"
-                              >
-                                <Minus className="h-4 w-4 text-gray-600" />
-                              </button>
-                              <span
-                                className="w-6 text-center font-medium"
-                                data-testid="text-adults-count"
-                              >
-                                {adults}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (adults + children < absoluteMaxGuests) {
-                                    setAdults(adults + 1);
-                                  }
-                                }}
-                                disabled={
-                                  adults + children >= absoluteMaxGuests
-                                }
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                data-testid="button-adults-plus"
-                              >
-                                <Plus className="h-4 w-4 text-gray-600" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Children */}
-                          <div className="flex items-center justify-between border-t pt-4">
-                            <div>
-                              <div className="font-medium">Children</div>
-                              <div className="text-xs text-muted-foreground">
-                                Ages 2–12
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setChildren(Math.max(0, children - 1));
-                                }}
-                                disabled={children <= 0}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                data-testid="button-children-minus"
-                              >
-                                <Minus className="h-4 w-4 text-gray-600" />
-                              </button>
-                              <span
-                                className="w-6 text-center font-medium"
-                                data-testid="text-children-count"
-                              >
-                                {children}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (adults + children < absoluteMaxGuests) {
-                                    setChildren(children + 1);
-                                  }
-                                }}
-                                disabled={
-                                  adults + children >= absoluteMaxGuests
-                                }
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                data-testid="button-children-plus"
-                              >
-                                <Plus className="h-4 w-4 text-gray-600" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Rooms */}
-                          <div className="flex items-center justify-between border-t pt-4">
-                            <div>
-                              <div className="font-medium">Rooms</div>
-                              <div className="text-xs text-muted-foreground">
-                                {requiredRooms > 1
-                                  ? `Min ${requiredRooms} for ${guests} guests`
-                                  : "Number of rooms"}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  // Cannot reduce below requiredRooms
-                                  setRooms(Math.max(requiredRooms, rooms - 1));
-                                }}
-                                disabled={rooms <= requiredRooms}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                data-testid="button-rooms-minus"
-                              >
-                                <Minus className="h-4 w-4 text-gray-600" />
-                              </button>
-                              <span
-                                className="w-6 text-center font-medium"
-                                data-testid="text-rooms-count"
-                              >
-                                {rooms}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setRooms(Math.min(5, rooms + 1));
-                                }}
-                                disabled={rooms >= 5}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                data-testid="button-rooms-plus"
-                              >
-                                <Plus className="h-4 w-4 text-gray-600" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Max guests info */}
-                          <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                            Max {maxGuestsPerRoom} guests per room (
-                            {maxAllowedGuests} total for {rooms} room
-                            {rooms > 1 ? "s" : ""})
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  {/* Room Type Selection — Option A: dropdown + always-visible meal plan */}
-                  {roomTypes.length > 0 && (
-                    <RoomTypeSelect
-                      roomTypes={roomTypes.filter(
-                        (rt: any) => rt.isActive !== false,
-                      )}
-                      selectedRoomTypeId={selectedRoomTypeId}
-                      selectedMealOptionId={selectedMealOptionId}
-                      onRoomTypeSelect={(id) => {
-                        setSelectedRoomTypeId(id);
-                        setSelectedMealOptionId(null);
-                      }}
-                      onMealOptionSelect={setSelectedMealOptionId}
-                      inventoryMap={Object.fromEntries(
-                        roomInventory.map((ri: any) => [
-                          ri.roomTypeId,
-                          {
-                            roomTypeId: ri.roomTypeId,
-                            availableRooms: ri.availableRooms,
-                            isSoldOut: ri.isSoldOut || false,
-                            isLowStock: ri.isLowStock || false,
-                          },
-                        ]),
-                      )}
-                      showDatesContext={!!(checkIn && checkOut)}
-                      adults={adults}
-                    />
-                  )}
-
-                  {/* Guest/Room calculation helper and warnings */}
-                  {selectedRoomType && (
-                    <div className="space-y-2">
-                      {/* Helper text showing auto-calculated rooms */}
-                      <div
-                        className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
-                        data-testid="room-calculation-helper"
-                      >
-                        <p className="text-sm text-blue-800 dark:text-blue-200">
-                          <span className="font-medium">
-                            {guests} guest{guests !== 1 ? "s" : ""} · {rooms}{" "}
-                            room{rooms !== 1 ? "s" : ""}
-                          </span>
-                          {requiredRooms !== rooms && (
-                            <span className="ml-2 text-blue-600 dark:text-blue-300">
-                              ({requiredRooms} room
-                              {requiredRooms !== 1 ? "s" : ""} needed for{" "}
-                              {adults} adult{adults !== 1 ? "s" : ""})
-                            </span>
-                          )}
-                        </p>
+                    <h2 className="text-xl font-semibold mb-2">
+                      Reviews {reviews.length > 0 && `(${reviews.length})`}
+                    </h2>
+                    {property.rating && Number(property.rating) > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Star className="h-5 w-5 fill-current text-yellow-500" />
+                        <span className="text-lg font-semibold">
+                          {Number(property.rating).toFixed(1)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          • {property.reviewCount} reviews
+                        </span>
                       </div>
-
-                      {/* Low inventory warning */}
-                      {isLowInventory && !hasInsufficientRooms && (
-                        <div
-                          className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
-                          data-testid="low-inventory-warning"
-                        >
-                          <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
-                            Only {availableRoomsForType} room
-                            {availableRoomsForType !== 1 ? "s" : ""} left for
-                            this room type!
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Insufficient rooms error */}
-                      {hasInsufficientRooms && (
-                        <div
-                          className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg"
-                          data-testid="insufficient-rooms-error"
-                        >
-                          <p className="text-sm text-destructive font-medium">
-                            Only {availableRoomsForType} room
-                            {availableRoomsForType !== 1 ? "s" : ""} available
-                            for selected dates.
-                          </p>
-                          <p className="text-xs text-destructive/80 mt-1">
-                            Please reduce the number of guests or select a
-                            different room type.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {hasDateOverlap && (
-                  <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                    <p className="text-sm text-destructive font-medium">
-                      Selected dates are not available. Please choose different
-                      dates.
-                    </p>
-                  </div>
-                )}
-
-                {hasBlockedDateOverlap && !hasDateOverlap && (
-                  <div
-                    className="mb-4 p-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg"
-                    data-testid="blocked-dates-warning"
-                  >
-                    <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
-                      {blockedDateInfo?.type === "hold" &&
-                        "This property is temporarily not accepting bookings for these dates."}
-                      {blockedDateInfo?.type === "sold_out" &&
-                        "This property is fully booked for these dates."}
-                      {blockedDateInfo?.type === "maintenance" &&
-                        "This property is under maintenance during these dates."}
-                    </p>
-                    {blockedDateInfo?.type === "hold" && (
-                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                        The owner has placed a temporary hold on bookings.
-                        Please select different dates or contact the owner.
-                      </p>
                     )}
                   </div>
-                )}
 
-                {/* Limited availability info label - shown when selected room type has low stock */}
-                {selectedRoomTypeId &&
-                  selectedRoomInventory?.isLowStock &&
-                  !selectedRoomInventory?.isSoldOut &&
-                  !hasDateOverlap &&
-                  !hasBlockedDateOverlap && (
-                    <div
-                      className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
-                      data-testid="limited-availability-info"
+                  {canReview && (
+                    <Dialog
+                      open={reviewDialogOpen}
+                      onOpenChange={setReviewDialogOpen}
                     >
-                      <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
-                        Limited availability for selected dates
-                      </p>
-                      <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                        Only {selectedRoomInventory.availableRooms} room
-                        {selectedRoomInventory.availableRooms !== 1
-                          ? "s"
-                          : ""}{" "}
-                        available for this room type. Book now to secure your
-                        stay!
+                      <DialogTrigger asChild>
+                        <Button data-testid="button-write-review">
+                          Write a Review
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle>Write a Review</DialogTitle>
+                          <DialogDescription>
+                            Share your experience with other travelers
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...reviewForm}>
+                          <form
+                            onSubmit={reviewForm.handleSubmit(
+                              handleReviewSubmit,
+                            )}
+                            className="space-y-4"
+                          >
+                            <FormField
+                              control={reviewForm.control}
+                              name="rating"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Rating</FormLabel>
+                                  <FormControl>
+                                    <RadioGroup
+                                      value={String(field.value ?? 5)}
+                                      onValueChange={(value) =>
+                                        field.onChange(Number(value))
+                                      }
+                                      className="flex gap-1"
+                                    >
+                                      {[1, 2, 3, 4, 5].map((star) => (
+                                        <div key={star} className="relative">
+                                          <RadioGroupItem
+                                            value={String(star)}
+                                            id={`rating-${star}`}
+                                            className="peer sr-only"
+                                            data-testid={`button-rating-${star}`}
+                                          />
+                                          <label
+                                            htmlFor={`rating-${star}`}
+                                            className="cursor-pointer hover:scale-110 transition-transform"
+                                          >
+                                            <Star
+                                              className={`h-8 w-8 transition-colors ${
+                                                star <= Number(field.value ?? 5)
+                                                  ? "fill-yellow-500 text-yellow-500"
+                                                  : "text-muted-foreground hover:text-yellow-300"
+                                              }`}
+                                            />
+                                          </label>
+                                        </div>
+                                      ))}
+                                    </RadioGroup>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={reviewForm.control}
+                              name="comment"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Your Review</FormLabel>
+                                  <FormControl>
+                                    <Textarea
+                                      {...field}
+                                      placeholder="Tell us about your stay..."
+                                      rows={6}
+                                      data-testid="textarea-review-comment"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setReviewDialogOpen(false)}
+                                data-testid="button-cancel-review"
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                type="submit"
+                                disabled={submitReviewMutation.isPending}
+                                data-testid="button-submit-review"
+                              >
+                                {submitReviewMutation.isPending
+                                  ? "Submitting..."
+                                  : "Submit Review"}
+                              </Button>
+                            </div>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
+
+                {reviews.length > 0 ? (
+                  <div className="space-y-6">
+                    {reviews.map((review: any) => (
+                      <Card
+                        key={review.id}
+                        data-testid={`card-review-${review.id}`}
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex items-start gap-4">
+                            <Avatar>
+                              <AvatarImage src={review.guestProfileImageUrl} />
+                              <AvatarFallback>
+                                {review.guestFirstName?.[0]}
+                                {review.guestLastName?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 space-y-3">
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <h4
+                                    className="font-semibold"
+                                    data-testid={`text-reviewer-name-${review.id}`}
+                                  >
+                                    {review.guestFirstName}{" "}
+                                    {review.guestLastName}
+                                  </h4>
+                                  <span className="text-sm text-muted-foreground">
+                                    {new Date(
+                                      review.createdAt,
+                                    ).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 mb-2">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={`h-4 w-4 ${
+                                        star <= review.rating
+                                          ? "fill-yellow-500 text-yellow-500"
+                                          : "text-muted-foreground"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              <p
+                                className="text-muted-foreground leading-relaxed"
+                                data-testid={`text-review-comment-${review.id}`}
+                              >
+                                {review.comment}
+                              </p>
+
+                              {review.ownerResponse && (
+                                <div className="mt-4 pl-4 border-l-2 border-muted">
+                                  <p className="text-sm font-semibold mb-1">
+                                    Response from owner
+                                  </p>
+                                  <p
+                                    className="text-sm text-muted-foreground"
+                                    data-testid={`text-owner-response-${review.id}`}
+                                  >
+                                    {review.ownerResponse}
+                                  </p>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-3 pt-2">
+                                <Button
+                                  variant={
+                                    markedHelpfulReviews.has(review.id)
+                                      ? "default"
+                                      : "ghost"
+                                  }
+                                  size="sm"
+                                  onClick={() =>
+                                    helpfulMutation.mutate(review.id)
+                                  }
+                                  disabled={
+                                    helpfulMutation.isPending ||
+                                    markedHelpfulReviews.has(review.id)
+                                  }
+                                  data-testid={`button-helpful-${review.id}`}
+                                >
+                                  <ThumbsUp
+                                    className={`h-4 w-4 mr-1 ${markedHelpfulReviews.has(review.id) ? "fill-current" : ""}`}
+                                  />
+                                  {markedHelpfulReviews.has(review.id)
+                                    ? "Marked Helpful"
+                                    : "Helpful"}{" "}
+                                  {review.helpful > 0 && `(${review.helpful})`}
+                                </Button>
+
+                                {user?.id === property.ownerId &&
+                                  !review.ownerResponse && (
+                                    <Dialog
+                                      open={
+                                        ownerResponseDialogOpen &&
+                                        selectedReviewId === review.id
+                                      }
+                                      onOpenChange={(open) => {
+                                        setOwnerResponseDialogOpen(open);
+                                        if (open) {
+                                          setSelectedReviewId(review.id);
+                                        } else {
+                                          setSelectedReviewId(null);
+                                          ownerResponseForm.reset();
+                                        }
+                                      }}
+                                    >
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          data-testid={`button-respond-${review.id}`}
+                                        >
+                                          Respond
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="sm:max-w-[500px]">
+                                        <DialogHeader>
+                                          <DialogTitle>
+                                            Respond to Review
+                                          </DialogTitle>
+                                          <DialogDescription>
+                                            Share your response with{" "}
+                                            {review.guestFirstName}
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        <Form {...ownerResponseForm}>
+                                          <form
+                                            onSubmit={ownerResponseForm.handleSubmit(
+                                              createOwnerResponseSubmitHandler(
+                                                review.id,
+                                              ),
+                                            )}
+                                            className="space-y-4"
+                                          >
+                                            <FormField
+                                              control={
+                                                ownerResponseForm.control
+                                              }
+                                              name="ownerResponse"
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormControl>
+                                                    <Textarea
+                                                      {...field}
+                                                      placeholder="Thank you for your feedback..."
+                                                      rows={4}
+                                                      data-testid="textarea-owner-response"
+                                                    />
+                                                  </FormControl>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+                                            <div className="flex gap-2 justify-end">
+                                              <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                  setOwnerResponseDialogOpen(
+                                                    false,
+                                                  );
+                                                  setSelectedReviewId(null);
+                                                  ownerResponseForm.reset();
+                                                }}
+                                                data-testid="button-cancel-response"
+                                              >
+                                                Cancel
+                                              </Button>
+                                              <Button
+                                                type="submit"
+                                                disabled={
+                                                  ownerResponseMutation.isPending
+                                                }
+                                                data-testid="button-submit-response"
+                                              >
+                                                {ownerResponseMutation.isPending
+                                                  ? "Posting..."
+                                                  : "Post Response"}
+                                              </Button>
+                                            </div>
+                                          </form>
+                                        </Form>
+                                      </DialogContent>
+                                    </Dialog>
+                                  )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p>No reviews yet. Be the first to review this property!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Booking Card - Hidden on mobile, shown on desktop */}
+            <div className="hidden md:block md:sticky md:top-24 h-fit">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="mb-6">
+                    {roomTypes.length > 0 ? (
+                      <>
+                        {(() => {
+                          const lowestPrice = Math.min(
+                            ...roomTypes.map((rt: any) => Number(rt.basePrice)),
+                          );
+                          const roomWithLowestPrice = roomTypes.find(
+                            (rt: any) => Number(rt.basePrice) === lowestPrice,
+                          );
+                          const hasDiscount =
+                            roomWithLowestPrice?.originalPrice &&
+                            parseFloat(roomWithLowestPrice.originalPrice) >
+                              parseFloat(roomWithLowestPrice.basePrice);
+
+                          return (
+                            <>
+                              <div className="flex items-baseline gap-1 mb-2 flex-wrap">
+                                {hasDiscount && (
+                                  <span className="text-xl text-muted-foreground line-through">
+                                    ₹
+                                    {Number(
+                                      roomWithLowestPrice.originalPrice,
+                                    ).toLocaleString("en-IN")}
+                                  </span>
+                                )}
+                                <span
+                                  className={`text-3xl font-semibold ${hasDiscount ? "text-green-600 dark:text-green-400" : ""}`}
+                                  data-testid="text-price-detail"
+                                >
+                                  ₹{lowestPrice.toLocaleString("en-IN")}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  / night
+                                </span>
+                              </div>
+                              {hasDiscount && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-xs mb-2"
+                                >
+                                  {Math.round(
+                                    (1 -
+                                      lowestPrice /
+                                        Number(
+                                          roomWithLowestPrice.originalPrice,
+                                        )) *
+                                      100,
+                                  )}
+                                  % OFF
+                                </Badge>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                Starting from
+                              </p>
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">
+                          No rooms available
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Please check back later
+                        </p>
+                      </div>
+                    )}
+                    {property.rating && Number(property.rating) > 0 && (
+                      <div className="flex items-center gap-1 text-sm mt-2">
+                        <Star className="h-4 w-4 fill-current text-yellow-500" />
+                        <span className="font-semibold">
+                          {Number(property.rating).toFixed(1)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          ({property.reviewCount} reviews)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="text-sm font-semibold block mb-2">
+                        Check-in
+                      </label>
+                      <Popover
+                        open={checkInPopoverOpen}
+                        onOpenChange={setCheckInPopoverOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                            data-testid="input-checkin-booking"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {checkIn ? (
+                              format(parseLocalDate(checkIn), "PPP")
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Select date
+                              </span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={
+                              checkIn ? parseLocalDate(checkIn) : undefined
+                            }
+                            onSelect={(date) => {
+                              // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
+                              const dateStr = date
+                                ? format(date, "yyyy-MM-dd")
+                                : "";
+                              setCheckIn(dateStr);
+                              if (
+                                checkOut &&
+                                date &&
+                                parseLocalDate(checkOut) <= date
+                              ) {
+                                setCheckOut("");
+                              }
+                              // Close check-in and auto-open check-out using requestAnimationFrame to prevent race condition
+                              if (date) {
+                                setCheckInPopoverOpen(false);
+                                requestAnimationFrame(() => {
+                                  requestAnimationFrame(() => {
+                                    setCheckOutPopoverOpen(true);
+                                  });
+                                });
+                              }
+                            }}
+                            disabled={(date) => {
+                              const today = new Date(
+                                new Date().setHours(0, 0, 0, 0),
+                              );
+                              if (date < today) return true;
+
+                              // Check availability using the new calendar availability data
+                              // Only disable if availableRooms === 0
+                              const dateStr = format(date, "yyyy-MM-dd");
+                              const availability =
+                                availabilityByDate.get(dateStr);
+                              if (
+                                availability &&
+                                availability.availableRooms === 0
+                              ) {
+                                return true;
+                              }
+
+                              // Also check owner-blocked dates
+                              const currentDate = new Date(date);
+                              currentDate.setHours(0, 0, 0, 0);
+                              const isBlocked = blockedDates.some((blocked) => {
+                                const blockStart = new Date(blocked.startDate);
+                                const blockEnd = new Date(blocked.endDate);
+                                blockStart.setHours(0, 0, 0, 0);
+                                blockEnd.setHours(0, 0, 0, 0);
+                                return (
+                                  currentDate >= blockStart &&
+                                  currentDate < blockEnd
+                                );
+                              });
+                              return isBlocked;
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold block mb-2">
+                        Check-out
+                      </label>
+                      <Popover
+                        open={checkOutPopoverOpen}
+                        onOpenChange={setCheckOutPopoverOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                            data-testid="input-checkout-booking"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {checkOut ? (
+                              format(parseLocalDate(checkOut), "PPP")
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Select date
+                              </span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={
+                              checkOut ? parseLocalDate(checkOut) : undefined
+                            }
+                            onSelect={(date) => {
+                              // Use format() to preserve local timezone instead of toISOString() which shifts to UTC
+                              setCheckOut(
+                                date ? format(date, "yyyy-MM-dd") : "",
+                              );
+                              if (date) {
+                                setCheckOutPopoverOpen(false);
+                              }
+                            }}
+                            disabled={(date) => {
+                              const today = new Date(
+                                new Date().setHours(0, 0, 0, 0),
+                              );
+                              if (date <= today) return true;
+                              if (checkIn && date <= parseLocalDate(checkIn))
+                                return true;
+
+                              // Check availability using the new calendar availability data
+                              // Only disable if availableRooms === 0
+                              const dateStr = format(date, "yyyy-MM-dd");
+                              const availability =
+                                availabilityByDate.get(dateStr);
+                              if (
+                                availability &&
+                                availability.availableRooms === 0
+                              ) {
+                                return true;
+                              }
+
+                              // Also check owner-blocked dates
+                              const currentDate = new Date(date);
+                              currentDate.setHours(0, 0, 0, 0);
+                              const isBlocked = blockedDates.some((blocked) => {
+                                const blockStart = new Date(blocked.startDate);
+                                const blockEnd = new Date(blocked.endDate);
+                                blockStart.setHours(0, 0, 0, 0);
+                                blockEnd.setHours(0, 0, 0, 0);
+                                return (
+                                  currentDate >= blockStart &&
+                                  currentDate < blockEnd
+                                );
+                              });
+                              return isBlocked;
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold block mb-2">
+                        Guests
+                      </label>
+                      <Popover
+                        open={guestsPopoverOpen}
+                        onOpenChange={setGuestsPopoverOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-between text-left font-normal"
+                            data-testid="input-guests-booking"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              <span>
+                                {adults} Adult{adults !== 1 ? "s" : ""},{" "}
+                                {children} Child{children !== 1 ? "ren" : ""}
+                              </span>
+                            </div>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-4" align="start">
+                          <div className="space-y-4">
+                            {/* Adults */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">Adults</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Ages 13 or above
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setAdults(Math.max(1, adults - 1));
+                                  }}
+                                  disabled={adults <= 1}
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  data-testid="button-adults-minus"
+                                >
+                                  <Minus className="h-4 w-4 text-gray-600" />
+                                </button>
+                                <span
+                                  className="w-6 text-center font-medium"
+                                  data-testid="text-adults-count"
+                                >
+                                  {adults}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (adults + children < absoluteMaxGuests) {
+                                      setAdults(adults + 1);
+                                    }
+                                  }}
+                                  disabled={
+                                    adults + children >= absoluteMaxGuests
+                                  }
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  data-testid="button-adults-plus"
+                                >
+                                  <Plus className="h-4 w-4 text-gray-600" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Children */}
+                            <div className="flex items-center justify-between border-t pt-4">
+                              <div>
+                                <div className="font-medium">Children</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Ages 2–12
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setChildren(Math.max(0, children - 1));
+                                  }}
+                                  disabled={children <= 0}
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  data-testid="button-children-minus"
+                                >
+                                  <Minus className="h-4 w-4 text-gray-600" />
+                                </button>
+                                <span
+                                  className="w-6 text-center font-medium"
+                                  data-testid="text-children-count"
+                                >
+                                  {children}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (adults + children < absoluteMaxGuests) {
+                                      setChildren(children + 1);
+                                    }
+                                  }}
+                                  disabled={
+                                    adults + children >= absoluteMaxGuests
+                                  }
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  data-testid="button-children-plus"
+                                >
+                                  <Plus className="h-4 w-4 text-gray-600" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Rooms */}
+                            <div className="flex items-center justify-between border-t pt-4">
+                              <div>
+                                <div className="font-medium">Rooms</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {requiredRooms > 1
+                                    ? `Min ${requiredRooms} for ${guests} guests`
+                                    : "Number of rooms"}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    // Cannot reduce below requiredRooms
+                                    setRooms(
+                                      Math.max(requiredRooms, rooms - 1),
+                                    );
+                                  }}
+                                  disabled={rooms <= requiredRooms}
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  data-testid="button-rooms-minus"
+                                >
+                                  <Minus className="h-4 w-4 text-gray-600" />
+                                </button>
+                                <span
+                                  className="w-6 text-center font-medium"
+                                  data-testid="text-rooms-count"
+                                >
+                                  {rooms}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setRooms(Math.min(5, rooms + 1));
+                                  }}
+                                  disabled={rooms >= 5}
+                                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  data-testid="button-rooms-plus"
+                                >
+                                  <Plus className="h-4 w-4 text-gray-600" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Max guests info */}
+                            <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                              Max {maxGuestsPerRoom} guests per room (
+                              {maxAllowedGuests} total for {rooms} room
+                              {rooms > 1 ? "s" : ""})
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Room Type Selection — Option A: dropdown + always-visible meal plan */}
+                    {roomTypes.length > 0 && (
+                      <RoomTypeSelect
+                        roomTypes={roomTypes.filter(
+                          (rt: any) => rt.isActive !== false,
+                        )}
+                        selectedRoomTypeId={selectedRoomTypeId}
+                        selectedMealOptionId={selectedMealOptionId}
+                        onRoomTypeSelect={(id) => {
+                          setSelectedRoomTypeId(id);
+                          setSelectedMealOptionId(null);
+                        }}
+                        onMealOptionSelect={setSelectedMealOptionId}
+                        inventoryMap={Object.fromEntries(
+                          roomInventory.map((ri: any) => [
+                            ri.roomTypeId,
+                            {
+                              roomTypeId: ri.roomTypeId,
+                              availableRooms: ri.availableRooms,
+                              isSoldOut: ri.isSoldOut || false,
+                              isLowStock: ri.isLowStock || false,
+                            },
+                          ]),
+                        )}
+                        showDatesContext={!!(checkIn && checkOut)}
+                        adults={adults}
+                      />
+                    )}
+
+                    {/* Guest/Room calculation helper and warnings */}
+                    {selectedRoomType && (
+                      <div className="space-y-2">
+                        {/* Helper text showing auto-calculated rooms */}
+                        <div
+                          className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+                          data-testid="room-calculation-helper"
+                        >
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            <span className="font-medium">
+                              {guests} guest{guests !== 1 ? "s" : ""} · {rooms}{" "}
+                              room{rooms !== 1 ? "s" : ""}
+                            </span>
+                            {requiredRooms !== rooms && (
+                              <span className="ml-2 text-blue-600 dark:text-blue-300">
+                                ({requiredRooms} room
+                                {requiredRooms !== 1 ? "s" : ""} needed for{" "}
+                                {adults} adult{adults !== 1 ? "s" : ""})
+                              </span>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Low inventory warning */}
+                        {isLowInventory && !hasInsufficientRooms && (
+                          <div
+                            className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
+                            data-testid="low-inventory-warning"
+                          >
+                            <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                              Only {availableRoomsForType} room
+                              {availableRoomsForType !== 1 ? "s" : ""} left for
+                              this room type!
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Insufficient rooms error */}
+                        {hasInsufficientRooms && (
+                          <div
+                            className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg"
+                            data-testid="insufficient-rooms-error"
+                          >
+                            <p className="text-sm text-destructive font-medium">
+                              Only {availableRoomsForType} room
+                              {availableRoomsForType !== 1 ? "s" : ""} available
+                              for selected dates.
+                            </p>
+                            <p className="text-xs text-destructive/80 mt-1">
+                              Please reduce the number of guests or select a
+                              different room type.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {hasDateOverlap && (
+                    <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <p className="text-sm text-destructive font-medium">
+                        Selected dates are not available. Please choose
+                        different dates.
                       </p>
                     </div>
                   )}
 
-                {nights > 0 &&
-                  totalPrice > 0 &&
-                  !hasDateOverlap &&
-                  !hasBlockedDateOverlap &&
-                  selectedRoomTypeId &&
-                  bookingStep === "select" &&
-                  (() => {
-                    const rt = roomTypes.find(
-                      (rt: any) => rt.id === selectedRoomTypeId,
-                    );
-                    if (!rt) return null;
+                  {hasBlockedDateOverlap && !hasDateOverlap && (
+                    <div
+                      className="mb-4 p-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg"
+                      data-testid="blocked-dates-warning"
+                    >
+                      <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                        {blockedDateInfo?.type === "hold" &&
+                          "This property is temporarily not accepting bookings for these dates."}
+                        {blockedDateInfo?.type === "sold_out" &&
+                          "This property is fully booked for these dates."}
+                        {blockedDateInfo?.type === "maintenance" &&
+                          "This property is under maintenance during these dates."}
+                      </p>
+                      {blockedDateInfo?.type === "hold" && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                          The owner has placed a temporary hold on bookings.
+                          Please select different dates or contact the owner.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
-                    const adultsPerRoom = Math.ceil(adults / rooms);
-                    let occupancyLabel = "";
-                    if (adultsPerRoom >= 3 && rt.tripleOccupancyPrice) {
-                      occupancyLabel = "Triple occupancy";
-                    } else if (adultsPerRoom >= 2 && rt.doubleOccupancyPrice) {
-                      occupancyLabel = "Double occupancy";
-                    } else if (rt.singleOccupancyPrice) {
-                      occupancyLabel = "Single occupancy";
-                    }
+                  {/* Limited availability info label - shown when selected room type has low stock */}
+                  {selectedRoomTypeId &&
+                    selectedRoomInventory?.isLowStock &&
+                    !selectedRoomInventory?.isSoldOut &&
+                    !hasDateOverlap &&
+                    !hasBlockedDateOverlap && (
+                      <div
+                        className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+                        data-testid="limited-availability-info"
+                      >
+                        <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                          Limited availability for selected dates
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
+                          Only {selectedRoomInventory.availableRooms} room
+                          {selectedRoomInventory.availableRooms !== 1
+                            ? "s"
+                            : ""}{" "}
+                          available for this room type. Book now to secure your
+                          stay!
+                        </p>
+                      </div>
+                    )}
 
-                    let mealOptionName = "";
-                    let mealOptionPrice = 0;
-                    if (selectedMealOptionId && rt.mealOptions) {
-                      const sel = rt.mealOptions.find(
-                        (opt: any) => opt.id === selectedMealOptionId,
+                  {nights > 0 &&
+                    totalPrice > 0 &&
+                    !hasDateOverlap &&
+                    !hasBlockedDateOverlap &&
+                    selectedRoomTypeId &&
+                    bookingStep === "select" &&
+                    (() => {
+                      const rt = roomTypes.find(
+                        (rt: any) => rt.id === selectedRoomTypeId,
                       );
-                      if (sel) {
-                        mealOptionName = sel.name;
-                        mealOptionPrice = Number(sel.priceAdjustment);
+                      if (!rt) return null;
+
+                      const adultsPerRoom = Math.ceil(adults / rooms);
+                      let occupancyLabel = "";
+                      if (adultsPerRoom >= 3 && rt.tripleOccupancyPrice) {
+                        occupancyLabel = "Triple occupancy";
+                      } else if (
+                        adultsPerRoom >= 2 &&
+                        rt.doubleOccupancyPrice
+                      ) {
+                        occupancyLabel = "Double occupancy";
+                      } else if (rt.singleOccupancyPrice) {
+                        occupancyLabel = "Single occupancy";
                       }
-                    }
 
-                    const mealSubtotal = nights * mealOptionPrice * guests;
-                    // roomSubtotal derived from override-aware totalPrice
-                    const roomSubtotal = totalPrice - mealSubtotal;
+                      let mealOptionName = "";
+                      let mealOptionPrice = 0;
+                      if (selectedMealOptionId && rt.mealOptions) {
+                        const sel = rt.mealOptions.find(
+                          (opt: any) => opt.id === selectedMealOptionId,
+                        );
+                        if (sel) {
+                          mealOptionName = sel.name;
+                          mealOptionPrice = Number(sel.priceAdjustment);
+                        }
+                      }
 
-                    return (
-                      <div className="mb-4 p-4 bg-muted rounded-lg space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            <span className="font-medium">{rt.name}</span>
-                            {occupancyLabel ? ` (${occupancyLabel})` : ""}
-                            {" × "}
-                            {nights}N × {rooms}R
-                          </span>
-                          <span className="font-semibold">
-                            ₹{roomSubtotal.toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                        {mealOptionPrice > 0 && (
+                      const mealSubtotal = nights * mealOptionPrice * guests;
+                      // roomSubtotal derived from override-aware totalPrice
+                      const roomSubtotal = totalPrice - mealSubtotal;
+
+                      return (
+                        <div className="mb-4 p-4 bg-muted rounded-lg space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">
-                              {mealOptionName} × {guests} guests × {nights}N
+                              <span className="font-medium">{rt.name}</span>
+                              {occupancyLabel ? ` (${occupancyLabel})` : ""}
+                              {" × "}
+                              {nights}N × {rooms}R
                             </span>
                             <span className="font-semibold">
-                              ₹{mealSubtotal.toLocaleString("en-IN")}
+                              ₹{roomSubtotal.toLocaleString("en-IN")}
                             </span>
                           </div>
-                        )}
-                        <div className="flex justify-between text-base font-semibold pt-2 border-t">
-                          <span>Total</span>
-                          <span data-testid="text-total-price">
-                            ₹{totalPrice.toLocaleString("en-IN")}
-                          </span>
+                          {mealOptionPrice > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {mealOptionName} × {guests} guests × {nights}N
+                              </span>
+                              <span className="font-semibold">
+                                ₹{mealSubtotal.toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-base font-semibold pt-2 border-t">
+                            <span>Total</span>
+                            <span data-testid="text-total-price">
+                              ₹{totalPrice.toLocaleString("en-IN")}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })()}
-
-                {bookingStep === "details" &&
-                  nights > 0 &&
-                  selectedRoomTypeId &&
-                  (() => {
-                    const rt = roomTypes.find(
-                      (rt: any) => rt.id === selectedRoomTypeId,
-                    );
-                    if (!rt) return null;
-
-                    const adultsPerRoom = Math.ceil(adults / rooms);
-                    let occupancyLabel = "";
-                    if (adultsPerRoom >= 3 && rt.tripleOccupancyPrice) {
-                      occupancyLabel = "Triple occupancy";
-                    } else if (adultsPerRoom >= 2 && rt.doubleOccupancyPrice) {
-                      occupancyLabel = "Double occupancy";
-                    } else if (rt.singleOccupancyPrice) {
-                      occupancyLabel = "Single occupancy";
-                    }
-
-                    let originalPrice: number | null = null;
-                    if (
-                      rt.originalPrice &&
-                      parseFloat(rt.originalPrice) > parseFloat(rt.basePrice)
-                    ) {
-                      originalPrice = Number(rt.originalPrice);
-                    }
-
-                    let mealOptionName = "";
-                    let mealOptionPrice = 0;
-                    if (selectedMealOptionId && rt.mealOptions) {
-                      const sel = rt.mealOptions.find(
-                        (opt: any) => opt.id === selectedMealOptionId,
                       );
-                      if (sel) {
-                        mealOptionName = sel.name;
-                        mealOptionPrice = Number(sel.priceAdjustment);
+                    })()}
+
+                  {bookingStep === "details" &&
+                    nights > 0 &&
+                    selectedRoomTypeId &&
+                    (() => {
+                      const rt = roomTypes.find(
+                        (rt: any) => rt.id === selectedRoomTypeId,
+                      );
+                      if (!rt) return null;
+
+                      const adultsPerRoom = Math.ceil(adults / rooms);
+                      let occupancyLabel = "";
+                      if (adultsPerRoom >= 3 && rt.tripleOccupancyPrice) {
+                        occupancyLabel = "Triple occupancy";
+                      } else if (
+                        adultsPerRoom >= 2 &&
+                        rt.doubleOccupancyPrice
+                      ) {
+                        occupancyLabel = "Double occupancy";
+                      } else if (rt.singleOccupancyPrice) {
+                        occupancyLabel = "Single occupancy";
                       }
-                    }
 
-                    // Use override-aware totalPrice for the breakdown
-                    const mealSubtotal = nights * mealOptionPrice * guests;
-                    const basePrice = nights > 0 ? (totalPrice - mealSubtotal) / (nights * rooms) : 0;
+                      let originalPrice: number | null = null;
+                      if (
+                        rt.originalPrice &&
+                        parseFloat(rt.originalPrice) > parseFloat(rt.basePrice)
+                      ) {
+                        originalPrice = Number(rt.originalPrice);
+                      }
 
-                    return (
-                      <div className="space-y-4" ref={travellerDetailsRef}>
-                        <GuestDetailsForm
-                          user={user}
-                          adults={adults}
-                          children={children}
-                          onValidChange={handleGuestDetailsChange}
-                        />
-                        <BookingPriceSummary
-                          breakdown={{
-                            roomTypeName: rt.name,
-                            basePrice,
-                            occupancyAdjustment: 0,
-                            occupancyLabel,
-                            mealOptionName,
-                            mealOptionPrice,
-                            nights,
-                            rooms,
-                            guests,
-                            adults,
-                            children,
-                            originalPrice,
-                            bulkDiscountPercent: 0,
-                          }}
-                        />
-                      </div>
-                    );
-                  })()}
+                      let mealOptionName = "";
+                      let mealOptionPrice = 0;
+                      if (selectedMealOptionId && rt.mealOptions) {
+                        const sel = rt.mealOptions.find(
+                          (opt: any) => opt.id === selectedMealOptionId,
+                        );
+                        if (sel) {
+                          mealOptionName = sel.name;
+                          mealOptionPrice = Number(sel.priceAdjustment);
+                        }
+                      }
 
-                {bookingStep === "details" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mb-2"
-                    onClick={() => setBookingStep("select")}
-                    data-testid="button-back-to-select"
-                  >
-                    Back to Room Selection
-                  </Button>
-                )}
+                      const breakdownData = getPriceBreakdownComponents();
+                      if (!breakdownData) return null;
 
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={handleBooking}
-                  disabled={
-                    bookingMutation.isPending ||
-                    !checkIn ||
-                    !checkOut ||
-                    !selectedRoomTypeId ||
-                    hasDateOverlap ||
-                    hasBlockedDateOverlap ||
-                    isBookingDisabled ||
-                    (bookingStep === "details" && !guestDetailsValid)
-                  }
-                  data-testid="button-reserve"
-                >
-                  {bookingMutation.isPending
-                    ? "Processing..."
-                    : !selectedRoomTypeId
-                      ? "Select Room Type"
-                      : isBookingDisabled
-                        ? "Not Available"
-                        : bookingStep === "select"
-                          ? "Reserve"
-                          : "Confirm Booking"}
-                </Button>
+                      return (
+                        <div className="space-y-4" ref={travellerDetailsRef}>
+                          <GuestDetailsForm
+                            user={user}
+                            adults={adults}
+                            children={children}
+                            onValidChange={handleGuestDetailsChange}
+                          />
+                          <BookingPriceSummary breakdown={breakdownData} />
+                        </div>
+                      );
+                    })()}
 
-                <div className="text-center mt-2 space-y-1">
-                  <p
-                    className="text-sm text-muted-foreground"
-                    data-testid="text-no-payment-now"
-                  >
-                    No payment required now
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Pay directly at the hotel
-                  </p>
-                </div>
-
-                {property.status === "published" && (
-                  <div className="flex flex-col gap-2 mt-3">
+                  {bookingStep === "details" && (
                     <Button
-                      className="w-full"
                       variant="outline"
-                      size="lg"
-                      onClick={() => {
-                        if (!user) {
-                          toast({
-                            title: "Login Required",
-                            description: "Please login to chat with the owner",
-                            variant: "destructive",
-                          });
-                          setTimeout(() => {
-                            window.location.href = "/login";
-                          }, 500);
-                          return;
-                        }
-                        if (property && (property as any).ownerId === (user as any).id) {
-                          toast({
-                            title: "Cannot Chat With Yourself",
-                            description: "You cannot start a conversation with yourself",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        if (!(user as any).phone) {
-                          setPendingContactAction("chat");
-                          setProfileDialogOpen(true);
-                          return;
-                        }
-                        contactOwnerMutation.mutate();
-                      }}
-                      disabled={contactOwnerMutation.isPending}
-                      data-testid="button-contact-owner"
+                      size="sm"
+                      className="w-full mb-2"
+                      onClick={() => setBookingStep("select")}
+                      data-testid="button-back-to-select"
                     >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      {contactOwnerMutation.isPending
-                        ? "Loading..."
-                        : "Chat with Owner"}
+                      Back to Room Selection
                     </Button>
-                    {(property as any).ownerContact?.canCall && (
+                  )}
+
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={handleBooking}
+                    disabled={
+                      bookingMutation.isPending ||
+                      !checkIn ||
+                      !checkOut ||
+                      !selectedRoomTypeId ||
+                      hasDateOverlap ||
+                      hasBlockedDateOverlap ||
+                      isBookingDisabled ||
+                      (bookingStep === "details" && !guestDetailsValid)
+                    }
+                    data-testid="button-reserve"
+                  >
+                    {bookingMutation.isPending
+                      ? "Processing..."
+                      : !selectedRoomTypeId
+                        ? "Select Room Type"
+                        : isBookingDisabled
+                          ? "Not Available"
+                          : bookingStep === "select"
+                            ? "Reserve"
+                            : "Confirm Booking"}
+                  </Button>
+
+                  <div className="text-center mt-2 space-y-1">
+                    <p
+                      className="text-sm text-muted-foreground"
+                      data-testid="text-no-payment-now"
+                    >
+                      No payment required now
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Pay directly at the hotel
+                    </p>
+                  </div>
+
+                  {property.status === "published" && (
+                    <div className="flex flex-col gap-2 mt-3">
                       <Button
                         className="w-full"
                         variant="outline"
                         size="lg"
                         onClick={() => {
-                          if (!(user as any)?.phone) {
-                            setPendingContactAction("call");
+                          if (!user) {
+                            toast({
+                              title: "Login Required",
+                              description:
+                                "Please login to chat with the owner",
+                              variant: "destructive",
+                            });
+                            setTimeout(() => {
+                              window.location.href = "/login";
+                            }, 500);
+                            return;
+                          }
+                          if (
+                            property &&
+                            (property as any).ownerId === (user as any).id
+                          ) {
+                            toast({
+                              title: "Cannot Chat With Yourself",
+                              description:
+                                "You cannot start a conversation with yourself",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          if (!(user as any).phone) {
+                            setPendingContactAction("chat");
                             setProfileDialogOpen(true);
                             return;
                           }
-                          window.location.href = `tel:${(property as any).ownerContact.phone}`;
+                          contactOwnerMutation.mutate();
                         }}
-                        data-testid="button-call-owner"
+                        disabled={contactOwnerMutation.isPending}
+                        data-testid="button-contact-owner"
                       >
-                        <Phone className="h-4 w-4 mr-2" />
-                        Call Owner
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        {contactOwnerMutation.isPending
+                          ? "Loading..."
+                          : "Chat with Owner"}
                       </Button>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      {(property as any).ownerContact?.canCall && (
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          size="lg"
+                          onClick={() => {
+                            if (!(user as any)?.phone) {
+                              setPendingContactAction("call");
+                              setProfileDialogOpen(true);
+                              return;
+                            }
+                            window.location.href = `tel:${(property as any).ownerContact.phone}`;
+                          }}
+                          data-testid="button-call-owner"
+                        >
+                          <Phone className="h-4 w-4 mr-2" />
+                          Call Owner
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
+
+        {/* Mobile Booking Bar - Airbnb style */}
+        <MobileBookingBar
+          property={{
+            id: property.id,
+            name: property.title,
+            rating: property.rating ? Number(property.rating) : undefined,
+            reviewCount: property.reviewCount || undefined,
+            minPrice: minPrice,
+          }}
+          roomTypes={roomTypes}
+          roomInventory={roomInventory.map((ri: any) => ({
+            roomTypeId: ri.roomTypeId,
+            availableRooms: ri.availableRooms,
+            isSoldOut: ri.isSoldOut || false,
+            isLowStock: ri.isLowStock || false,
+          }))}
+          checkIn={checkIn}
+          checkOut={checkOut}
+          adults={adults}
+          children={children}
+          rooms={rooms}
+          selectedRoomTypeId={selectedRoomTypeId}
+          selectedMealOptionId={selectedMealOptionId}
+          onCheckInChange={setCheckIn}
+          onCheckOutChange={setCheckOut}
+          onAdultsChange={setAdults}
+          onChildrenChange={setChildren}
+          onRoomsChange={setRooms}
+          onRoomTypeSelect={setSelectedRoomTypeId}
+          onMealOptionSelect={setSelectedMealOptionId}
+          onReserve={handleBooking}
+          isReserving={bookingMutation.isPending}
+          isDisabled={
+            isBookingDisabled ||
+            !checkIn ||
+            !checkOut ||
+            !selectedRoomTypeId ||
+            hasDateOverlap ||
+            hasBlockedDateOverlap ||
+            (bookingStep === "details" && !guestDetailsValid)
+          }
+          disabledReason={
+            !selectedRoomTypeId
+              ? "Select Room Type"
+              : isBookingDisabled
+                ? "Not Available"
+                : bookingStep === "select"
+                  ? "Reserve"
+                  : !guestDetailsValid
+                    ? "Fill Traveller Details"
+                    : "Confirm Booking"
+          }
+          totalPrice={totalPrice}
+          nights={nights}
+          hasDateOverlap={hasDateOverlap}
+          hasBlockedDateOverlap={hasBlockedDateOverlap}
+          bookedDates={bookedDatesForCalendar}
+          blockedDates={blockedDatesForCalendar}
+          bookingStep={bookingStep}
+          onBackToSelect={() => setBookingStep("select")}
+          detailsContent={
+            bookingStep === "details" && selectedRoomTypeId
+              ? (() => {
+                  const breakdownData = getPriceBreakdownComponents();
+                  if (!breakdownData) return null;
+
+                  return (
+                    <>
+                      <GuestDetailsForm
+                        user={user}
+                        adults={adults}
+                        children={children}
+                        onValidChange={handleGuestDetailsChange}
+                      />
+                      <BookingPriceSummary breakdown={breakdownData} />
+                    </>
+                  );
+                })()
+              : undefined
+          }
+        />
       </div>
 
-      {/* Mobile Booking Bar - Airbnb style */}
-      <MobileBookingBar
-        property={{
-          id: property.id,
-          name: property.title,
-          rating: property.rating ? Number(property.rating) : undefined,
-          reviewCount: property.reviewCount || undefined,
-          minPrice: minPrice,
+      <ProfileCompletionDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        user={user as any}
+        actionLabel={
+          pendingContactAction === "call" ? "Save & Call Owner" : "Save & Chat"
+        }
+        onComplete={() => {
+          if (pendingContactAction === "chat") {
+            contactOwnerMutation.mutate();
+          } else if (pendingContactAction === "call") {
+            window.location.href = `tel:${(property as any)?.ownerContact?.phone}`;
+          }
+          setPendingContactAction(null);
         }}
-        roomTypes={roomTypes}
-        roomInventory={roomInventory.map((ri: any) => ({
-          roomTypeId: ri.roomTypeId,
-          availableRooms: ri.availableRooms,
-          isSoldOut: ri.isSoldOut || false,
-          isLowStock: ri.isLowStock || false,
-        }))}
-        checkIn={checkIn}
-        checkOut={checkOut}
-        adults={adults}
-        children={children}
-        rooms={rooms}
-        selectedRoomTypeId={selectedRoomTypeId}
-        selectedMealOptionId={selectedMealOptionId}
-        onCheckInChange={setCheckIn}
-        onCheckOutChange={setCheckOut}
-        onAdultsChange={setAdults}
-        onChildrenChange={setChildren}
-        onRoomsChange={setRooms}
-        onRoomTypeSelect={setSelectedRoomTypeId}
-        onMealOptionSelect={setSelectedMealOptionId}
-        onReserve={handleBooking}
-        isReserving={bookingMutation.isPending}
-        isDisabled={
-          isBookingDisabled ||
-          !checkIn ||
-          !checkOut ||
-          !selectedRoomTypeId ||
-          hasDateOverlap ||
-          hasBlockedDateOverlap ||
-          (bookingStep === "details" && !guestDetailsValid)
-        }
-        disabledReason={
-          !selectedRoomTypeId
-            ? "Select Room Type"
-            : isBookingDisabled
-              ? "Not Available"
-              : bookingStep === "select"
-                ? "Reserve"
-                : !guestDetailsValid
-                  ? "Fill Traveller Details"
-                  : "Confirm Booking"
-        }
-        totalPrice={totalPrice}
-        nights={nights}
-        hasDateOverlap={hasDateOverlap}
-        hasBlockedDateOverlap={hasBlockedDateOverlap}
-        bookedDates={bookedDatesForCalendar}
-        blockedDates={blockedDatesForCalendar}
-        bookingStep={bookingStep}
-        onBackToSelect={() => setBookingStep("select")}
-        detailsContent={
-          bookingStep === "details" && selectedRoomTypeId
-            ? (() => {
-                const rt = roomTypes.find(
-                  (rt: any) => rt.id === selectedRoomTypeId,
-                );
-                if (!rt) return null;
-
-                const adultsPerRoom = Math.ceil(adults / rooms);
-                let occupancyLabel = "";
-                if (adultsPerRoom >= 3 && rt.tripleOccupancyPrice) {
-                  occupancyLabel = "Triple occupancy";
-                } else if (adultsPerRoom >= 2 && rt.doubleOccupancyPrice) {
-                  occupancyLabel = "Double occupancy";
-                } else if (rt.singleOccupancyPrice) {
-                  occupancyLabel = "Single occupancy";
-                }
-
-                let originalPrice: number | null = null;
-                if (
-                  rt.originalPrice &&
-                  parseFloat(rt.originalPrice) > parseFloat(rt.basePrice)
-                ) {
-                  originalPrice = Number(rt.originalPrice);
-                }
-
-                let mealOptionName = "";
-                let mealOptionPrice = 0;
-                if (selectedMealOptionId && rt.mealOptions) {
-                  const mo = rt.mealOptions.find(
-                    (opt: any) => opt.id === selectedMealOptionId,
-                  );
-                  if (mo) {
-                    mealOptionName = mo.name;
-                    mealOptionPrice = Number(mo.priceAdjustment);
-                  }
-                }
-
-                // Use override-aware totalPrice for the breakdown
-                const mealSubtotal = nights * mealOptionPrice * guests;
-                const basePrice = nights > 0 ? (totalPrice - mealSubtotal) / (nights * rooms) : 0;
-
-                return (
-                  <>
-                    <GuestDetailsForm
-                      user={user}
-                      adults={adults}
-                      children={children}
-                      onValidChange={handleGuestDetailsChange}
-                    />
-                    <BookingPriceSummary
-                      breakdown={{
-                        roomTypeName: rt.name,
-                        basePrice,
-                        occupancyAdjustment: 0,
-                        occupancyLabel,
-                        mealOptionName,
-                        mealOptionPrice,
-                        nights,
-                        rooms,
-                        guests,
-                        adults,
-                        children,
-                        originalPrice,
-                        bulkDiscountPercent: 0,
-                      }}
-                    />
-                  </>
-                );
-              })()
-            : undefined
-        }
       />
-    </div>
-
-    <ProfileCompletionDialog
-      open={profileDialogOpen}
-      onOpenChange={setProfileDialogOpen}
-      user={user as any}
-      actionLabel={
-        pendingContactAction === "call" ? "Save & Call Owner" : "Save & Chat"
-      }
-      onComplete={() => {
-        if (pendingContactAction === "chat") {
-          contactOwnerMutation.mutate();
-        } else if (pendingContactAction === "call") {
-          window.location.href = `tel:${(property as any)?.ownerContact?.phone}`;
-        }
-        setPendingContactAction(null);
-      }}
-    />
     </>
   );
 }
