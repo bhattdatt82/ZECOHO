@@ -26,6 +26,7 @@ import { useKycGuard } from "@/hooks/useKycGuard";
 import { RestrictedAccess } from "@/components/RestrictedAccess";
 import { MultiSelectFilter } from "@/components/MultiSelectFilter";
 import { Helmet } from "react-helmet-async";
+import type { SearchParams } from "@/components/SearchBar";
 
 export default function Search() {
   const { user, isOwner } = useAuth();
@@ -58,31 +59,31 @@ export default function Search() {
 
   const [searchDestination, setSearchDestination] = useState("");
   const [initialSearchValues, setInitialSearchValues] = useState({
-    destination: "",
-    checkIn: "",
-    checkOut: "",
+    city: "",
+    checkin: "",
+    checkout: "",
     guests: 2,
     adults: 2,
     children: 0,
     rooms: 1,
   });
 
-  // Parse URL query parameters on mount
+  // Parse URL query parameters on mount and on every navigation
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    const destination = searchParams.get("destination") || "";
-    const checkIn = searchParams.get("checkIn") || "";
-    const checkOut = searchParams.get("checkOut") || "";
+    const city = searchParams.get("city") || "";
+    const checkin = searchParams.get("checkin") || "";
+    const checkout = searchParams.get("checkout") || "";
     const guests = searchParams.get("guests");
     const adults = searchParams.get("adults");
     const children = searchParams.get("children");
     const rooms = searchParams.get("rooms");
 
-    setSearchDestination(destination);
+    setSearchDestination(city);
     setInitialSearchValues({
-      destination,
-      checkIn,
-      checkOut,
+      city,
+      checkin,
+      checkout,
       guests: guests ? parseInt(guests) : 2,
       adults: adults ? parseInt(adults) : 2,
       children: children ? parseInt(children) : 0,
@@ -92,7 +93,7 @@ export default function Search() {
 
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
-    refetchInterval: 300000, // Refresh every 60 seconds for price/availability updates
+    refetchInterval: 300000,
   });
 
   const { data: amenities = [] } = useQuery<Amenity[]>({
@@ -151,7 +152,6 @@ export default function Search() {
   ];
 
   // Get unique localities from properties that match the search destination (city)
-  // Only show localities when a city/destination is selected
   const hasSearchDestination =
     searchDestination && searchDestination.trim().length > 0;
 
@@ -161,7 +161,6 @@ export default function Search() {
           properties
             .filter((p) => {
               if (!p.propLocality) return false;
-              // Only include localities from properties matching the search destination
               const searchLower = searchDestination.toLowerCase().trim();
               const destinationLower = (p.destination || "").toLowerCase();
               const cityLower = (p.propCity || "").toLowerCase();
@@ -182,45 +181,23 @@ export default function Search() {
     setSelectedLocality("");
   }, [searchDestination]);
 
+  // Update local state immediately when SearchBar fires onSearch (faster than waiting for URL re-parse)
   const handleSearch = useCallback(
-    ({
-      destination,
-      checkIn,
-      checkOut,
-      guests,
-      adults,
-      children,
-      rooms,
-    }: {
-      destination?: string;
-      checkIn?: string;
-      checkOut?: string;
-      guests?: number;
-      adults?: number;
-      children?: number;
-      rooms?: number;
-    }) => {
-      if (destination !== undefined) {
-        // Handle Near Me navigation
-        if (destination.toLowerCase() === "near me") {
-          window.location.href = "/search?nearMe=true";
-          return;
-        }
-        setSearchDestination(destination);
-        setInitialSearchValues((prev) => ({
-          ...prev,
-          destination,
-          ...(checkIn !== undefined && { checkIn }),
-          ...(checkOut !== undefined && { checkOut }),
-          ...(guests !== undefined && { guests }),
-          ...(adults !== undefined && { adults }),
-          ...(children !== undefined && { children }),
-          ...(rooms !== undefined && { rooms }),
-        }));
-      }
+    ({ city, checkin, checkout, rooms, adults, children }: SearchParams) => {
+      setSearchDestination(city);
+      setInitialSearchValues({
+        city,
+        checkin,
+        checkout,
+        guests: adults + children,
+        adults,
+        children,
+        rooms,
+      });
     },
     [],
   );
+
   const filteredProperties = properties.filter((property) => {
     if (property.status !== "published") return false;
 
@@ -269,12 +246,6 @@ export default function Search() {
       );
       if (!matchesRating) return false;
     }
-
-    // Star rating filter - currently not implemented as property doesn't have starRating field
-    // TODO: Add starRating field to properties schema when hotel brands feature is ready
-
-    // Amenities filter - currently not implemented as requires junction table lookup
-    // TODO: Implement amenities filtering with property amenities relationship
 
     // Locality filter
     if (selectedLocality && property.propLocality !== selectedLocality) {
@@ -402,15 +373,16 @@ export default function Search() {
         {searchDestination && (
           <link
             rel="canonical"
-            href={`https://www.zecoho.com/search?destination=${encodeURIComponent(searchDestination)}`}
+            href={`https://www.zecoho.com/search?city=${encodeURIComponent(searchDestination)}`}
           />
         )}
       </Helmet>
-      {/* MakeMyTrip-style Sticky Search Summary with Edit Option */}
+
+      {/* Sticky search summary — already has fixed/sticky CSS built in */}
       <StickySearchSummary
-        destination={initialSearchValues.destination}
-        checkIn={initialSearchValues.checkIn}
-        checkOut={initialSearchValues.checkOut}
+        city={initialSearchValues.city}
+        checkin={initialSearchValues.checkin}
+        checkout={initialSearchValues.checkout}
         adults={initialSearchValues.adults}
         children={initialSearchValues.children}
         rooms={initialSearchValues.rooms}
@@ -419,7 +391,7 @@ export default function Search() {
       {/* Spacer for fixed search bar on mobile */}
       <div className="h-20 md:h-0" />
 
-      {/* Horizontal Filters Bar - MakeMyTrip style - scrolls with content */}
+      {/* Horizontal Filters Bar - MakeMyTrip style */}
       <div className="border-b bg-muted/30">
         <div className="container px-4 md:px-6 py-3">
           {/* Mobile: Filter Toggle Button */}
@@ -469,7 +441,7 @@ export default function Search() {
             )}
           </div>
 
-          {/* Filters Row - Always visible on desktop, toggle on mobile */}
+          {/* Filters Row */}
           <div className={`${showMoreFilters ? "block" : "hidden"} md:block`}>
             <div className="flex items-end gap-3 overflow-x-auto pb-2 lg:overflow-x-visible lg:flex-nowrap scrollbar-thin">
               {/* Property Type Filter */}
@@ -655,7 +627,7 @@ export default function Search() {
                 </Select>
               </div>
 
-              {/* Localities Filter - Only enabled when city/destination is selected */}
+              {/* Localities Filter */}
               <div className="flex-shrink-0 min-w-[140px]">
                 <Label className="text-sm font-medium mb-2 block whitespace-nowrap">
                   Localities
@@ -697,7 +669,7 @@ export default function Search() {
                 </Select>
               </div>
 
-              {/* Clear Filters Button - inline with filters (desktop only) */}
+              {/* Clear Filters Button */}
               {hasActiveFilters && (
                 <div className="flex-shrink-0 self-end hidden md:block">
                   <Button
@@ -718,7 +690,6 @@ export default function Search() {
       </div>
 
       <div className="container px-4 md:px-6 py-6">
-        {/* Results */}
         <div className="w-full">
           {/* Results header: count + sort + view toggle */}
           <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
@@ -827,8 +798,8 @@ export default function Search() {
                       isWishlisted: wishlistedPropertyIds.has(property.id),
                     }}
                     searchParams={{
-                      checkIn: initialSearchValues.checkIn,
-                      checkOut: initialSearchValues.checkOut,
+                      checkIn: initialSearchValues.checkin,
+                      checkOut: initialSearchValues.checkout,
                       guests: initialSearchValues.guests,
                       adults: initialSearchValues.adults,
                       children: initialSearchValues.children,
@@ -848,8 +819,8 @@ export default function Search() {
                       isWishlisted: wishlistedPropertyIds.has(property.id),
                     }}
                     searchParams={{
-                      checkIn: initialSearchValues.checkIn,
-                      checkOut: initialSearchValues.checkOut,
+                      checkIn: initialSearchValues.checkin,
+                      checkOut: initialSearchValues.checkout,
                       guests: initialSearchValues.guests,
                       adults: initialSearchValues.adults,
                       children: initialSearchValues.children,
