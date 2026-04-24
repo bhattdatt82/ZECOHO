@@ -1625,6 +1625,13 @@ export default function PropertyDetails() {
                 <Handshake className="h-3 w-3 mr-1" />
                 Direct Negotiation
               </Badge>
+              <Badge
+                className="text-white border-0"
+                style={{ backgroundColor: "#1D9E75" }}
+                data-testid="badge-zero-commission-top"
+              >
+                0% Commission
+              </Badge>
             </div>
           </div>
 
@@ -2567,6 +2574,13 @@ export default function PropertyDetails() {
                               <p className="text-xs text-muted-foreground">
                                 Starting from
                               </p>
+                              <Badge
+                                className="text-white border-0 mt-2"
+                                style={{ backgroundColor: "#1D9E75" }}
+                                data-testid="badge-zero-commission-sidebar"
+                              >
+                                0% Commission
+                              </Badge>
                             </>
                           );
                         })()}
