@@ -195,7 +195,7 @@ export default function DestinationDetails() {
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">
-                            {property.name}
+                            {property.title}
                           </h4>
                           <p className="text-sm text-muted-foreground capitalize">
                             {property.propertyType}
@@ -208,7 +208,7 @@ export default function DestinationDetails() {
                           </div>
                           <p className="text-sm font-semibold text-primary mt-1">
                             From ₹
-                            {property.startingPrice?.toLocaleString() || "N/A"}
+                            {property.pricePerNight ? Number(property.pricePerNight).toLocaleString("en-IN") : "N/A"}
                             /night
                           </p>
                         </div>

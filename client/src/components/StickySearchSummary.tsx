@@ -137,7 +137,7 @@ export function StickySearchSummary({
             data-testid="expanded-search-form"
           >
             <SearchBar
-              onSearch={(params) => handleSearchSubmit(params, false)}
+              onSearch={(params) => handleSearchSubmit(params)}
               showDates={true}
               showGuests={true}
               initialDestination={destination}

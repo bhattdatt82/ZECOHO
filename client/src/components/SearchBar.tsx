@@ -673,7 +673,6 @@ export function SearchBar({
       adults,
       children,
       rooms,
-      isExplicitSearch: true, // ← flag to tell parent this was a button click
     });
     if (isAuthenticated && destination.trim()) {
       saveSearchMutation.mutate({

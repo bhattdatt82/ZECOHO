@@ -194,7 +194,7 @@ export default function ListProperty() {
       ...personalData,
       ...data,
       userRole: "owner",
-    });
+    } as any);
     setCurrentStep(3);
   };
 

@@ -157,7 +157,7 @@ export default function KYC() {
         email: kycApplication.email || "",
         phone: kycApplication.phone || "",
         businessName: kycApplication.businessName || "",
-        businessAddress: kycApplication.businessAddress || "",
+        businessAddress: (kycApplication as any).streetAddress || "",
         city: kycApplication.city || "",
         state: kycApplication.state || "",
         pincode: kycApplication.pincode || "",

@@ -329,6 +329,7 @@ export function RoomTypeSelect({
                 name={opt.name}
                 description={opt.inclusions ?? opt.description ?? undefined}
                 priceAdjustment={opt.priceAdjustment}
+                mealPlanType={(opt as any).mealPlanType ?? null}
                 isSelected={selectedMealOptionId === opt.id}
                 onSelect={() => onMealOptionSelect(opt.id)}
                 testId={`option-meal-${opt.id}`}
@@ -341,11 +342,19 @@ export function RoomTypeSelect({
   );
 }
 
+const MEAL_PLAN_LABELS: Record<string, string> = {
+  ep: "EP",
+  cp: "CP",
+  map: "MAP",
+  ap: "AP",
+};
+
 function MealPlanRow({
   id,
   name,
   description,
   priceAdjustment,
+  mealPlanType,
   isSelected,
   onSelect,
   testId,
@@ -354,6 +363,7 @@ function MealPlanRow({
   name: string;
   description?: string;
   priceAdjustment: string;
+  mealPlanType?: string | null;
   isSelected: boolean;
   onSelect: () => void;
   testId?: string;
@@ -381,7 +391,14 @@ function MealPlanRow({
 
       {/* Name + description */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm ${isSelected ? "font-medium" : ""}`}>{name}</p>
+        <p className={`text-sm ${isSelected ? "font-medium" : ""} flex items-center gap-1.5 flex-wrap`}>
+          {name}
+          {mealPlanType && MEAL_PLAN_LABELS[mealPlanType] && (
+            <span className="text-[10px] font-semibold px-1 py-0.5 rounded bg-muted text-muted-foreground border border-border leading-none">
+              {MEAL_PLAN_LABELS[mealPlanType]}
+            </span>
+          )}
+        </p>
         {description && (
           <p className="text-xs text-muted-foreground truncate">
             {description}
@@ -692,8 +709,30 @@ export function RoomTypeCards({
 
                 {/* Min stay notice */}
                 {rt.minimumStay && rt.minimumStay > 1 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-2">
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">
                     Minimum stay: {rt.minimumStay} nights
+                  </p>
+                )}
+
+                {/* Cancellation policy */}
+                {(rt as any).cancellationPolicyType === "free" &&
+                  (rt as any).freeCancellationHours && (
+                    <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-0.5 mb-2">
+                      <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
+                      Free cancellation up to {(rt as any).freeCancellationHours}
+                      h before check-in
+                    </p>
+                  )}
+                {(rt as any).cancellationPolicyType === "partial" && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-0.5 mb-2">
+                    <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                    Partial refund on cancellation
+                  </p>
+                )}
+                {(rt as any).cancellationPolicyType === "non_refundable" && (
+                  <p className="text-xs text-destructive flex items-center gap-0.5 mb-2">
+                    <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                    Non-refundable
                   </p>
                 )}
 
@@ -762,6 +801,7 @@ export function RoomTypeCards({
                         name={opt.name}
                         description={opt.inclusions ?? opt.description ?? undefined}
                         priceAdjustment={opt.priceAdjustment}
+                        mealPlanType={(opt as any).mealPlanType ?? null}
                         isSelected={isSelected && selectedMealOptionId === opt.id}
                         onSelect={() => {
                           if (!isSelected) handleRoomSelect(rt.id);

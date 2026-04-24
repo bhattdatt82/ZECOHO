@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { PropertyCard } from "@/components/PropertyCard";
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
+import { X, SlidersHorizontal, ChevronDown, ChevronUp, LayoutList, LayoutGrid, ArrowUpDown } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -53,6 +53,8 @@ export default function Search() {
   const [selectedLocality, setSelectedLocality] = useState<string>("");
   // More filters toggle for mobile
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [sortBy, setSortBy] = useState("recommended");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const [searchDestination, setSearchDestination] = useState("");
   const [initialSearchValues, setInitialSearchValues] = useState({
@@ -322,6 +324,29 @@ export default function Search() {
 
     return true;
   });
+
+  const sortedProperties = useMemo(() => {
+    const arr = [...filteredProperties];
+    if (sortBy === "price_asc") {
+      return arr.sort((a, b) => {
+        const pa = Number((a as any).startingRoomPrice || a.pricePerNight || 0);
+        const pb = Number((b as any).startingRoomPrice || b.pricePerNight || 0);
+        return pa - pb;
+      });
+    }
+    if (sortBy === "price_desc") {
+      return arr.sort((a, b) => {
+        const pa = Number((a as any).startingRoomPrice || a.pricePerNight || 0);
+        const pb = Number((b as any).startingRoomPrice || b.pricePerNight || 0);
+        return pb - pa;
+      });
+    }
+    if (sortBy === "rating")
+      return arr.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+    if (sortBy === "reviews")
+      return arr.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+    return arr;
+  }, [filteredProperties, sortBy]);
 
   const clearAllFilters = () => {
     setSelectedTypes([]);
@@ -695,64 +720,145 @@ export default function Search() {
       <div className="container px-4 md:px-6 py-6">
         {/* Results */}
         <div className="w-full">
-          <div className="mb-6">
-            <h1 className="text-3xl font-semibold mb-2">
-              {filteredProperties.length}{" "}
-              {filteredProperties.length === 1 ? "stay" : "stays"} available
-            </h1>
-            {searchDestination && (
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-sm text-muted-foreground">
-                  Searching for:
-                </span>
-                <Badge
-                  variant="secondary"
-                  className="gap-1"
-                  data-testid="badge-destination-filter"
-                >
-                  {searchDestination}
-                  <button
-                    onClick={() => setSearchDestination("")}
-                    className="ml-1 hover:bg-muted rounded-full p-0.5"
-                    data-testid="button-clear-destination"
+          {/* Results header: count + sort + view toggle */}
+          <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h1 className="text-xl font-semibold">
+                {sortedProperties.length}{" "}
+                {sortedProperties.length === 1 ? "stay" : "stays"} available
+                {searchDestination && ` in ${searchDestination}`}
+              </h1>
+              {searchDestination && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge
+                    variant="secondary"
+                    className="gap-1 text-xs"
+                    data-testid="badge-destination-filter"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
+                    {searchDestination}
+                    <button
+                      onClick={() => setSearchDestination("")}
+                      className="ml-1 hover:bg-muted rounded-full p-0.5"
+                      data-testid="button-clear-destination"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger
+                  className="h-9 w-auto gap-1.5 text-sm pr-3"
+                  data-testid="select-sort"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="recommended">Recommended</SelectItem>
+                  <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                  <SelectItem value="rating">Top Rated</SelectItem>
+                  <SelectItem value="reviews">Most Reviewed</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex border rounded-md overflow-hidden h-9">
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none h-full px-2.5 border-0"
+                  onClick={() => setViewMode("list")}
+                  data-testid="button-view-list"
+                  title="List view"
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "grid" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none h-full px-2.5 border-0"
+                  onClick={() => setViewMode("grid")}
+                  data-testid="button-view-grid"
+                  title="Grid view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
               </div>
-            )}
+            </div>
           </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="space-y-3">
-                  <Skeleton className="aspect-[4/3] rounded-lg" />
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : filteredProperties.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProperties.map((property) => (
-                <PropertyCard
-                  key={property.id}
-                  property={{
-                    ...property,
-                    isWishlisted: wishlistedPropertyIds.has(property.id),
-                  }}
-                  searchParams={{
-                    checkIn: initialSearchValues.checkIn,
-                    checkOut: initialSearchValues.checkOut,
-                    guests: initialSearchValues.guests,
-                    adults: initialSearchValues.adults,
-                    children: initialSearchValues.children,
-                    rooms: initialSearchValues.rooms,
-                  }}
-                />
-              ))}
-            </div>
+            viewMode === "list" ? (
+              <div className="flex flex-col gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex gap-0 h-44 rounded-xl overflow-hidden border">
+                    <Skeleton className="w-48 h-full flex-shrink-0" />
+                    <div className="flex-1 p-4 space-y-3">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-8 w-28 mt-auto" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="space-y-3">
+                    <Skeleton className="aspect-[4/3] rounded-lg" />
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            )
+          ) : sortedProperties.length > 0 ? (
+            viewMode === "list" ? (
+              <div className="flex flex-col gap-4">
+                {sortedProperties.map((property) => (
+                  <PropertyCard
+                    key={property.id}
+                    variant="list"
+                    property={{
+                      ...property,
+                      isWishlisted: wishlistedPropertyIds.has(property.id),
+                    }}
+                    searchParams={{
+                      checkIn: initialSearchValues.checkIn,
+                      checkOut: initialSearchValues.checkOut,
+                      guests: initialSearchValues.guests,
+                      adults: initialSearchValues.adults,
+                      children: initialSearchValues.children,
+                      rooms: initialSearchValues.rooms,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sortedProperties.map((property) => (
+                  <PropertyCard
+                    key={property.id}
+                    variant="grid"
+                    property={{
+                      ...property,
+                      isWishlisted: wishlistedPropertyIds.has(property.id),
+                    }}
+                    searchParams={{
+                      checkIn: initialSearchValues.checkIn,
+                      checkOut: initialSearchValues.checkOut,
+                      guests: initialSearchValues.guests,
+                      adults: initialSearchValues.adults,
+                      children: initialSearchValues.children,
+                      rooms: initialSearchValues.rooms,
+                    }}
+                  />
+                ))}
+              </div>
+            )
           ) : (
             <div className="text-center py-16">
               <p className="text-lg text-muted-foreground mb-4">

@@ -3276,7 +3276,7 @@ export async function registerRoutes(
 
       // Batch fetch — 2 queries total instead of 2 per property (N+1 fix)
       const propertyIds = properties.map((p) => p.id);
-      const uniqueOwnerIds = [...new Set(properties.map((p) => p.ownerId))];
+      const uniqueOwnerIds = Array.from(new Set(properties.map((p) => p.ownerId)));
 
       const [allRoomTypes, allOwners] = await Promise.all([
         storage.getRoomTypesByPropertyIds(propertyIds),
@@ -4652,24 +4652,28 @@ export async function registerRoutes(
             name: "Room Only (Best Price)",
             priceAdjustment: "0",
             inclusions: "No meals included",
+            mealPlanType: "ep",
             isActive: true,
           },
           {
             name: "Breakfast Included",
             priceAdjustment: "300",
             inclusions: "Daily breakfast buffet",
+            mealPlanType: "cp",
             isActive: false,
           },
           {
             name: "Breakfast + Dinner/Lunch",
             priceAdjustment: "600",
             inclusions: "Breakfast and dinner or lunch included",
+            mealPlanType: "map",
             isActive: false,
           },
           {
             name: "All Meals Included",
             priceAdjustment: "900",
             inclusions: "All meals included (breakfast, lunch, dinner)",
+            mealPlanType: "ap",
             isActive: false,
           },
         ];
@@ -4681,6 +4685,7 @@ export async function registerRoutes(
               name: mealOpt.name,
               priceAdjustment: mealOpt.priceAdjustment,
               inclusions: mealOpt.inclusions,
+              mealPlanType: (mealOpt as any).mealPlanType ?? "custom",
               isActive: mealOpt.isActive,
             });
           } catch (mealError) {
@@ -5143,6 +5148,19 @@ export async function registerRoutes(
             .json({ message: "Selected room type not found" });
         }
 
+        // Enforce minimum stay at booking time
+        const bookingNights = Math.ceil(
+          (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        if (roomType.minimumStay && bookingNights < roomType.minimumStay) {
+          return res.status(400).json({
+            message: `This room type requires a minimum stay of ${roomType.minimumStay} night${roomType.minimumStay > 1 ? "s" : ""}`,
+            code: "MINIMUM_STAY_REQUIRED",
+            minimumStay: roomType.minimumStay,
+            nights: bookingNights,
+          });
+        }
+
         const totalRoomsDefault = roomType.totalRooms || 1;
         const requestedRooms = validatedData.rooms || 1;
         const guests = validatedData.guests || 1;
@@ -5162,21 +5180,28 @@ export async function registerRoutes(
           });
         }
 
-        // ONLY count ACTIVE bookings: confirmed (owner_accepted), customer_confirmed, checked_in
-        // Do NOT count: pending, rejected, cancelled, checked_out, completed
-        // This allows multiple pending bookings for the same date - inventory locks only after owner accepts
+        // Count ACTIVE bookings + recent pending (< 15 min old) to prevent last-room race conditions.
+        // Confirmed/customer_confirmed/checked_in always block inventory.
+        // Pending bookings older than 15 min are ignored so they don't permanently hold rooms.
         const ACTIVE_BOOKING_STATUSES = [
           "confirmed",
           "customer_confirmed",
           "checked_in",
         ];
+        const recentPendingCutoff = new Date(Date.now() - 15 * 60 * 1000);
         const allBookings = await storage.getBookingsByProperty(
           validatedData.propertyId,
         );
         const activeBookingsForRoomType = allBookings.filter((booking: any) => {
-          if (!ACTIVE_BOOKING_STATUSES.includes(booking.status)) return false;
           if (booking.roomTypeId !== validatedData.roomTypeId) return false;
-          return true;
+          if (ACTIVE_BOOKING_STATUSES.includes(booking.status)) return true;
+          if (booking.status === "pending") {
+            const createdAt = new Date(
+              booking.bookingCreatedAt || booking.createdAt,
+            );
+            return createdAt > recentPendingCutoff;
+          }
+          return false;
         });
 
         // Get availability overrides for this room type
@@ -5325,21 +5350,29 @@ export async function registerRoutes(
           (o: any) => !o.roomTypeId,
         );
 
-        // For simple properties, check for overlapping ACTIVE bookings (single unit capacity)
+        // For simple properties, check for overlapping ACTIVE bookings + recent pending (< 15 min).
         const ACTIVE_BOOKING_STATUSES = [
           "confirmed",
           "customer_confirmed",
           "checked_in",
         ];
+        const recentPendingCutoffSimple = new Date(Date.now() - 15 * 60 * 1000);
         const allBookings = await storage.getBookingsByProperty(
           validatedData.propertyId,
         );
         const overlappingActiveBookings = allBookings.filter((booking: any) => {
-          if (!ACTIVE_BOOKING_STATUSES.includes(booking.status)) return false;
           const bookingStart = new Date(booking.checkIn);
           const bookingEnd = new Date(booking.checkOut);
-          // Check for overlap: booking.checkIn < checkOut AND booking.checkOut > checkIn
-          return bookingStart < checkOut && bookingEnd > checkIn;
+          const overlaps = bookingStart < checkOut && bookingEnd > checkIn;
+          if (!overlaps) return false;
+          if (ACTIVE_BOOKING_STATUSES.includes(booking.status)) return true;
+          if (booking.status === "pending") {
+            const createdAt = new Date(
+              booking.bookingCreatedAt || booking.createdAt,
+            );
+            return createdAt > recentPendingCutoffSimple;
+          }
+          return false;
         });
 
         if (overlappingActiveBookings.length > 0) {
@@ -5396,12 +5429,23 @@ export async function registerRoutes(
 
       let mealSubtotal = 0;
       let roomSubtotal = nights * Number(property.pricePerNight) * roomsCount;
+      let occupancyTier: string | null = null;
+      let pricePerNight: number | null = null;
 
       // If room type is selected, use room type pricing with per-night overrides
       if (validatedData.roomTypeId) {
         const roomType = await storage.getRoomType(validatedData.roomTypeId);
         if (roomType) {
           const adultsPerRoom = Math.ceil(adultsCount / roomsCount);
+
+          // Determine which occupancy tier was applied
+          if (adultsPerRoom >= 3 && roomType.tripleOccupancyPrice) {
+            occupancyTier = "triple";
+          } else if (adultsPerRoom >= 2 && roomType.doubleOccupancyPrice) {
+            occupancyTier = "double";
+          } else {
+            occupancyTier = "single";
+          }
 
           // Fetch day-level price overrides for the booking date range
           const startKey = checkIn.toISOString().split("T")[0];
@@ -5442,6 +5486,11 @@ export async function registerRoutes(
             checkOut,
             overridesMap,
           );
+          // Effective per-room per-night rate (for owner visibility)
+          pricePerNight =
+            nights > 0 && roomsCount > 0
+              ? roomSubtotal / nights / roomsCount
+              : null;
 
           // Meal option price: per-night with day-level overrides applied
           if (validatedData.roomOptionId) {
@@ -5498,6 +5547,8 @@ export async function registerRoutes(
         advanceAmount: advanceAmount.toString(),
         adults: validatedData.adults || null,
         childrenCount: validatedData.childrenCount || null,
+        occupancyTier,
+        pricePerNight: pricePerNight !== null ? pricePerNight.toString() : null,
       });
 
       // STATE: CREATED - Send state-driven booking emails
@@ -5789,7 +5840,20 @@ export async function registerRoutes(
           .json({ message: "Not authorized to view this booking" });
       }
 
-      res.json(booking);
+      let roomTypeName: string | null = null;
+      let mealOptionName: string | null = null;
+
+      if (booking.roomTypeId) {
+        const rt = await storage.getRoomType(booking.roomTypeId);
+        if (rt) roomTypeName = rt.name;
+      }
+
+      if (booking.roomOptionId) {
+        const ro = await storage.getRoomOption(booking.roomOptionId);
+        if (ro) mealOptionName = ro.name;
+      }
+
+      res.json({ ...booking, roomTypeName, mealOptionName });
     } catch (error) {
       console.error("Error fetching booking:", error);
       res.status(500).json({ message: "Failed to fetch booking" });

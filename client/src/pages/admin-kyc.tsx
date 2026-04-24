@@ -519,7 +519,7 @@ export default function AdminKYC() {
 
                 <div>
                   <Label className="text-muted-foreground">Business Address</Label>
-                  <p className="font-medium">{selectedApp.businessAddress}</p>
+                  <p className="font-medium">{selectedApp.streetAddress}</p>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">

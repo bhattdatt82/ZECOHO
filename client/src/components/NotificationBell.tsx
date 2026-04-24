@@ -44,7 +44,7 @@ function getNotificationLink(notification: Notification, isOwner: boolean): stri
     if (isOwner) {
       // Owner: route to the owner bookings page
       // booking_request → land on the Pending tab and highlight the specific booking
-      const bookingId = notification.bookingId || notification.entityId;
+      const bookingId = notification.entityId;
       if (notification.type === "booking_request") {
         return bookingId
           ? `/owner/bookings?tab=pending&highlight=${bookingId}`

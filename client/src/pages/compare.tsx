@@ -340,7 +340,7 @@ export default function ComparePage() {
                           <span className="text-xs text-muted-foreground">
                             / 5
                           </span>
-                          {property.reviewCount > 0 && (
+                          {(property.reviewCount ?? 0) > 0 && (
                             <span className="text-xs text-muted-foreground">
                               ({property.reviewCount})
                             </span>

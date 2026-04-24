@@ -91,6 +91,7 @@ const parseLocalDate = (dateStr: string): Date => {
 import type { LucideIcon } from "lucide-react";
 import { PropertyMap } from "@/components/PropertyMap";
 import { MobileBookingBar } from "@/components/MobileBookingBar";
+import { PropertyCard } from "@/components/PropertyCard";
 import {
   RoomTypeSelect,
   RoomTypeCards,
@@ -392,6 +393,23 @@ export default function PropertyDetails() {
     enabled: !!propertyId,
   });
 
+  const { data: allProperties = [] } = useQuery<any[]>({
+    queryKey: ["/api/properties"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const similarProperties = useMemo(() => {
+    if (!property) return [];
+    return allProperties
+      .filter(
+        (p) =>
+          p.id !== property.id &&
+          p.status === "published" &&
+          p.destination === property.destination,
+      )
+      .slice(0, 3);
+  }, [allProperties, property]);
+
   // Fetch per-date calendar availability (total rooms vs available rooms)
   interface CalendarAvailability {
     date: string;
@@ -458,7 +476,8 @@ export default function PropertyDetails() {
   });
 
   // Fetch price overrides for selected date range + room type (for accurate display)
-  const { data: priceOverridesMap } = useQuery<Map<string, number>>({
+  type PriceOverrideEntry = { base?: number; double?: number; triple?: number };
+  const { data: priceOverridesMap } = useQuery<Map<string, PriceOverrideEntry>>({
     queryKey: [
       "/api/properties",
       propertyId,
@@ -481,8 +500,8 @@ export default function PropertyDetails() {
         (r: any) => r.roomTypeId === selectedRoomTypeId,
       );
       if (!rt?.overrides) return new Map();
-      return new Map<string, number>(
-        Object.entries(rt.overrides).map(([d, p]) => [d, Number(p)]),
+      return new Map<string, PriceOverrideEntry>(
+        Object.entries(rt.overrides) as [string, PriceOverrideEntry][],
       );
     },
     enabled: !!propertyId && !!checkIn && !!checkOut && !!selectedRoomTypeId,
@@ -1025,12 +1044,28 @@ export default function PropertyDetails() {
       occupancyLabel = "Single occupancy";
     }
 
+    // Compute per-night effective base (single-rate) for the breakdown average.
+    // Tier-specific day overrides: if a day has a double/triple override,
+    // back-calculate what the single base would be so the occupancyAdjustment
+    // shown in the breakdown remains consistent.
     let totalBaseRoomCost = 0;
     const cursor = new Date(start);
     while (cursor < end) {
       const dateKey = cursor.toISOString().split("T")[0];
-      const overrideBase = priceOverridesMap?.get(dateKey);
-      const base = overrideBase !== undefined ? overrideBase : singleBase;
+      const ov = priceOverridesMap?.get(dateKey);
+      let base: number;
+      if (ov !== undefined) {
+        if (adultsPerRoom >= 3 && ov.triple !== undefined) {
+          // Back out occupancy increment so the breakdown shows base + adj
+          base = ov.triple - occupancyIncrement;
+        } else if (adultsPerRoom >= 2 && ov.double !== undefined) {
+          base = ov.double - occupancyIncrement;
+        } else {
+          base = ov.base !== undefined ? ov.base : singleBase;
+        }
+      } else {
+        base = singleBase;
+      }
       totalBaseRoomCost += base;
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -1110,14 +1145,28 @@ export default function PropertyDetails() {
       }
     }
 
-    // Sum nightly room costs: override base + occupancy increment (MMT-style)
+    // Sum nightly room costs: mirror backend resolveOccupancyPrice logic
+    // (tier-specific day overrides take precedence; otherwise base+increment)
     let roomCost = 0;
     const cursor = new Date(start);
     while (cursor < end) {
       const dateKey = cursor.toISOString().split("T")[0];
-      const overrideBase = priceOverridesMap?.get(dateKey);
-      const base = overrideBase !== undefined ? overrideBase : singleBase;
-      roomCost += (base + occupancyIncrement) * rooms;
+      const ov = priceOverridesMap?.get(dateKey);
+      let nightlyPrice: number;
+      if (ov !== undefined) {
+        if (adultsPerRoom >= 3 && ov.triple !== undefined) {
+          nightlyPrice = ov.triple;
+        } else if (adultsPerRoom >= 2 && ov.double !== undefined) {
+          nightlyPrice = ov.double;
+        } else if (ov.base !== undefined) {
+          nightlyPrice = ov.base + occupancyIncrement;
+        } else {
+          nightlyPrice = singleBase + occupancyIncrement;
+        }
+      } else {
+        nightlyPrice = singleBase + occupancyIncrement;
+      }
+      roomCost += nightlyPrice * rooms;
       cursor.setDate(cursor.getDate() + 1);
     }
 
@@ -1460,7 +1509,7 @@ export default function PropertyDetails() {
           {/* Image Gallery */}
           <div className="mb-8">
             {additionalImages.length > 0 ? (
-              <div className="grid grid-cols-4 gap-2 rounded-xl overflow-hidden h-[500px]">
+              <div className="relative grid grid-cols-4 gap-2 rounded-xl overflow-hidden h-[500px]">
                 <div
                   className="col-span-4 md:col-span-2 md:row-span-2 cursor-pointer"
                   onClick={() => {
@@ -1492,6 +1541,17 @@ export default function PropertyDetails() {
                     />
                   </div>
                 ))}
+                {/* View all photos button */}
+                {(property.images?.length ?? 0) > 5 && (
+                  <button
+                    className="absolute bottom-4 right-4 bg-white/95 text-foreground rounded-lg px-3 py-1.5 text-sm font-medium shadow-md flex items-center gap-1.5 hover:bg-white transition-colors border border-border/50"
+                    onClick={() => { setLightboxIndex(0); setLightboxOpen(true); }}
+                    data-testid="button-view-all-photos"
+                  >
+                    <span className="text-base leading-none">⊞</span>
+                    View all {property.images?.length} photos
+                  </button>
+                )}
               </div>
             ) : (
               <div
@@ -2944,7 +3004,7 @@ export default function PropertyDetails() {
                       return (
                         <div className="space-y-4" ref={travellerDetailsRef}>
                           <GuestDetailsForm
-                            user={user}
+                            user={user ?? null}
                             adults={adults}
                             children={children}
                             onValidChange={handleGuestDetailsChange}
@@ -3076,6 +3136,20 @@ export default function PropertyDetails() {
               </Card>
             </div>
           </div>
+
+          {/* Similar Properties */}
+          {similarProperties.length > 0 && (
+            <div className="mt-10">
+              <h2 className="text-xl font-semibold mb-4">
+                Similar stays in {property.destination}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {similarProperties.map((p) => (
+                  <PropertyCard key={p.id} property={p} variant="grid" />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Mobile Booking Bar - Airbnb style */}
@@ -3147,7 +3221,7 @@ export default function PropertyDetails() {
                   return (
                     <>
                       <GuestDetailsForm
-                        user={user}
+                        user={user ?? null}
                         adults={adults}
                         children={children}
                         onValidChange={handleGuestDetailsChange}

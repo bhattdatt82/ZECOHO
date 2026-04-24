@@ -242,14 +242,12 @@ export default function Profile() {
       typeof preferences === "object" &&
       "tripPurpose" in preferences
     ) {
-      setValue("tripPurpose", preferences.tripPurpose || "");
-      setValue("budgetMin", preferences.budgetMin || "0");
-      setValue("budgetMax", preferences.budgetMax || "89000");
-      setValue(
-        "preferredPropertyTypes",
-        preferences.preferredPropertyTypes || [],
-      );
-      setValue("preferredAmenities", preferences.preferredAmenities || []);
+      const p = preferences as any;
+      setValue("tripPurpose", p.tripPurpose || "");
+      setValue("budgetMin", p.budgetMin || "0");
+      setValue("budgetMax", p.budgetMax || "89000");
+      setValue("preferredPropertyTypes", p.preferredPropertyTypes || []);
+      setValue("preferredAmenities", p.preferredAmenities || []);
     }
   }, [preferences, setValue]);
 

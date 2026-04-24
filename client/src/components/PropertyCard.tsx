@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Check,
   GitCompare,
+  CheckCircle2,
 } from "lucide-react";
 import type { Property } from "@shared/schema";
 import { Link, useLocation } from "wouter";
@@ -48,12 +49,14 @@ interface PropertyCardProps {
   };
   onWishlistToggle?: (propertyId: string) => void;
   searchParams?: SearchParams;
+  variant?: "grid" | "list";
 }
 
 export function PropertyCard({
   property,
   onWishlistToggle,
   searchParams,
+  variant = "grid",
 }: PropertyCardProps) {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
@@ -208,6 +211,162 @@ export function PropertyCard({
   const isPublished = property.status === "published";
   const hasOwnerPhone = Boolean(property.ownerContact?.canCall);
 
+  // Shared price calc for both variants
+  const displayPrice = property.startingRoomPrice
+    ? Number(property.startingRoomPrice)
+    : Number(property.pricePerNight);
+  const originalPrice = property.startingRoomOriginalPrice
+    ? Number(property.startingRoomOriginalPrice)
+    : property.originalPrice
+      ? Number(property.originalPrice)
+      : null;
+  const hasDiscount = Boolean(originalPrice && originalPrice > displayPrice);
+  const discountPercent =
+    hasDiscount && originalPrice
+      ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100)
+      : 0;
+  const isFreeCancellation = (property as any).cancellationPolicyType === "flexible";
+
+  // ── LIST VARIANT ───────────────────────────────────────────────────────────
+  if (variant === "list") {
+    return (
+      <Link href={propertyUrl}>
+        <Card className="group overflow-hidden border shadow-sm hover:shadow-md cursor-pointer transition-all duration-200 rounded-xl">
+          <div className="flex flex-col sm:flex-row h-auto sm:h-44">
+            {/* Image */}
+            <div className="relative w-full sm:w-52 h-44 sm:h-full flex-shrink-0 overflow-hidden rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none">
+              <img
+                src={mainImage}
+                alt={property.title}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                data-testid={`img-property-${property.id}`}
+              />
+              {hasDiscount && (
+                <Badge className="absolute top-2 left-2 bg-red-500 text-white border-0 text-xs font-bold shadow">
+                  -{discountPercent}%
+                </Badge>
+              )}
+              <Badge className="absolute bottom-2 left-2 bg-emerald-500/90 text-white border-0 text-xs shadow">
+                <BadgeCheck className="h-3 w-3 mr-1" />
+                Verified
+              </Badge>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between min-w-0">
+              <div className="space-y-1">
+                {/* Title + Rating */}
+                <div className="flex items-start justify-between gap-2">
+                  <h3
+                    className="font-semibold text-base line-clamp-1"
+                    data-testid={`text-title-${property.id}`}
+                  >
+                    {property.title}
+                  </h3>
+                  {property.rating && Number(property.rating) > 0 && (
+                    <div className="flex items-center gap-1 flex-shrink-0 bg-primary text-primary-foreground px-1.5 py-0.5 rounded text-xs font-bold">
+                      <Star className="h-3 w-3 fill-current" />
+                      {Number(property.rating).toFixed(1)}
+                      {(property.reviewCount ?? 0) > 0 && (
+                        <span className="font-normal opacity-80">
+                          · {property.reviewCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                  <span className="line-clamp-1">{property.destination}</span>
+                </div>
+
+                {/* Quick info */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                  <span className="capitalize font-medium text-foreground/70">
+                    {property.propertyType}
+                  </span>
+                  <span>·</span>
+                  <span>{property.maxGuests} guests</span>
+                  <span>·</span>
+                  <span>
+                    {property.bedrooms} bed{property.bedrooms !== 1 ? "s" : ""}
+                  </span>
+                  <span>·</span>
+                  <span>
+                    {property.bathrooms} bath{property.bathrooms !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Policy badges */}
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {isFreeCancellation && (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Free Cancellation
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    <BadgeCheck className="h-3 w-3" />
+                    Zero Commission
+                  </span>
+                </div>
+              </div>
+
+              {/* Price + CTA */}
+              <div className="flex items-end justify-between mt-2 gap-3">
+                <div>
+                  {hasDiscount && originalPrice && (
+                    <p className="text-xs text-muted-foreground line-through leading-none mb-0.5">
+                      ₹{originalPrice.toLocaleString("en-IN")}
+                    </p>
+                  )}
+                  {displayPrice > 0 ? (
+                    <>
+                      <div className="flex items-baseline gap-1">
+                        <span
+                          className="text-lg font-bold"
+                          data-testid={`text-price-${property.id}`}
+                        >
+                          ₹{displayPrice.toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          / night
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        + taxes & fees
+                      </p>
+                    </>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      Price on request
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  className="shrink-0 group/btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setLocation(`/properties/${property.id}`);
+                  }}
+                  data-testid={`button-book-direct-${property.id}`}
+                >
+                  Book Direct
+                  <ArrowRight className="h-3.5 w-3.5 ml-1 transition-transform group-hover/btn:translate-x-0.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Link>
+    );
+  }
+
+  // ── GRID VARIANT (default) ─────────────────────────────────────────────────
   return (
     <Link href={propertyUrl}>
       <Card className="group overflow-visible border-0 shadow-md hover:shadow-xl cursor-pointer h-full transition-all duration-300 rounded-2xl">
@@ -265,7 +424,7 @@ export function PropertyCard({
                 <span className="font-semibold">
                   {Number(property.rating).toFixed(1)}
                 </span>
-                {property.reviewCount > 0 && (
+                {(property.reviewCount ?? 0) > 0 && (
                   <span className="text-muted-foreground">
                     ({property.reviewCount})
                   </span>
@@ -339,43 +498,26 @@ export function PropertyCard({
           })()}
 
           <div className="pt-2 border-t">
-            {/* Price display - uses room-type pricing with strike-off */}
-            {(() => {
-              const displayPrice = property.startingRoomPrice
-                ? Number(property.startingRoomPrice)
-                : Number(property.pricePerNight);
-              const originalPrice = property.startingRoomOriginalPrice
-                ? Number(property.startingRoomOriginalPrice)
-                : property.originalPrice
-                  ? Number(property.originalPrice)
-                  : null;
-              const hasDiscount = originalPrice && originalPrice > displayPrice;
-
-              if (!displayPrice || displayPrice <= 0) {
-                return (
-                  <span className="text-sm text-muted-foreground">
-                    Price not available
+            {displayPrice > 0 ? (
+              <div className="flex items-baseline gap-2 flex-wrap">
+                {hasDiscount && originalPrice && (
+                  <span className="text-base text-muted-foreground line-through">
+                    ₹{originalPrice.toLocaleString("en-IN")}
                   </span>
-                );
-              }
-
-              return (
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  {hasDiscount && (
-                    <span className="text-base text-muted-foreground line-through">
-                      ₹{originalPrice.toLocaleString("en-IN")}
-                    </span>
-                  )}
-                  <span
-                    className="text-xl font-semibold"
-                    data-testid={`text-price-${property.id}`}
-                  >
-                    ₹{displayPrice.toLocaleString("en-IN")}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/ night</span>
-                </div>
-              );
-            })()}
+                )}
+                <span
+                  className="text-xl font-semibold"
+                  data-testid={`text-price-${property.id}`}
+                >
+                  ₹{displayPrice.toLocaleString("en-IN")}
+                </span>
+                <span className="text-sm text-muted-foreground">/ night</span>
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Price not available
+              </span>
+            )}
           </div>
 
           {/* Book Direct CTA Button */}

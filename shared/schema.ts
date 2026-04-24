@@ -709,6 +709,9 @@ export const roomTypes = pgTable(
     minimumStay: integer("minimum_stay").notNull().default(1), // min nights
     sortOrder: integer("sort_order").notNull().default(0), // display ranking
     isActive: boolean("is_active").notNull().default(true),
+    // Cancellation policy at room-type level (overrides property-level if set)
+    cancellationPolicyType: varchar("cancellation_policy_type", { length: 20 }), // "free" | "partial" | "non_refundable"
+    freeCancellationHours: integer("free_cancellation_hours"), // hours before check-in for free cancellation
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
@@ -736,6 +739,7 @@ export const roomOptions = pgTable(
     }),
     refundable: boolean("refundable").notNull().default(true),
     inclusions: text("inclusions"),
+    mealPlanType: varchar("meal_plan_type", { length: 10 }).default("custom"), // "ep" | "cp" | "map" | "ap" | "custom"
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -826,6 +830,9 @@ export const bookings = pgTable("bookings", {
   ),
   gstAmount: decimal("gst_amount", { precision: 10, scale: 2 }).default("0"),
   advanceAmount: decimal("advance_amount", { precision: 10, scale: 2 }),
+  // Occupancy tier applied at booking time (for owner visibility and auditing)
+  occupancyTier: varchar("occupancy_tier", { length: 10 }), // "single" | "double" | "triple"
+  pricePerNight: decimal("price_per_night", { precision: 10, scale: 2 }), // effective nightly rate used
   status: bookingStatusEnum("status").notNull().default("pending"),
   ownerResponseMessage: text("owner_response_message"),
   respondedAt: timestamp("responded_at"),
