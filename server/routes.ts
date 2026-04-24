@@ -6233,24 +6233,35 @@ export async function registerRoutes(
           return res.status(404).json({ message: "Booking not found" });
         }
 
-        const property = await storage.getProperty(booking.propertyId);
-
-        if (booking.guestId !== userId && property?.ownerId !== userId) {
+        // Only the guest who made the booking may use this endpoint.
+        // Property owners must use PATCH /api/owner/bookings/:id/status which
+        // enforces proper role and workflow checks.
+        if (booking.guestId !== userId) {
           return res
             .status(403)
             .json({ message: "Not authorized to update this booking" });
         }
 
         const { status } = req.body;
-        if (
-          !["pending", "confirmed", "cancelled", "completed"].includes(status)
-        ) {
-          return res.status(400).json({ message: "Invalid status" });
+
+        // Guests are only permitted to cancel their own pending bookings.
+        // All other status transitions (confirm, complete, etc.) are owner
+        // responsibilities and must go through the owner endpoint.
+        if (status !== "cancelled") {
+          return res
+            .status(403)
+            .json({ message: "Guests may only cancel bookings" });
+        }
+
+        if (booking.status !== "pending") {
+          return res
+            .status(400)
+            .json({ message: "Only pending bookings can be cancelled by the guest" });
         }
 
         const updated = await storage.updateBookingStatus(
           req.params.id,
-          status,
+          "cancelled",
         );
         res.json(updated);
       } catch (error) {
