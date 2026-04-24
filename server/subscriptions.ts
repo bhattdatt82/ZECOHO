@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { storage } from "./storage";
+import { isAuthenticated } from "./replitAuth";
+import { requireAdmin, getRequestUserId, AuthenticatedRequest } from "./adminAuth";
+
 const router = Router();
 
 /* PUBLIC — get plans */
@@ -14,7 +17,7 @@ router.get("/subscription-plans", async (req, res) => {
 });
 
 /* ADMIN — get all plans including inactive */
-router.get("/admin/subscription-plans", async (req, res) => {
+router.get("/admin/subscription-plans", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     const includeInactive = req.query.includeInactive === "true";
     const plans = await storage.getAllSubscriptionPlans(includeInactive);
@@ -42,7 +45,7 @@ router.get("/owner/subscription-status/:ownerId", async (req, res) => {
 router.get("/owner/plan-features", async (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const ownerId = (req.user as any).claims?.sub ?? (req.user as any).id;
+    const ownerId = getRequestUserId(req as AuthenticatedRequest);
     const features = await storage.getOwnerActivePlanFeatures(ownerId);
     res.json(features ?? {
       bookingManagementEnabled: false,
@@ -60,7 +63,7 @@ router.get("/owner/plan-features", async (req, res) => {
 
 /* ADMIN — create plan */
 /* ADMIN — create plan */
-router.post("/admin/subscription-plans", async (req, res) => {
+router.post("/admin/subscription-plans", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     console.log("Create plan payload:", req.body);
     const body = {
@@ -81,10 +84,10 @@ router.post("/admin/subscription-plans", async (req, res) => {
     console.error("Stack:", error instanceof Error ? error.stack : "");
     res.status(500).json({ error: "Failed to create subscription plan" });
   }
-}); // ← this was missing
+});
 
 /* ADMIN — update plan */
-router.patch("/admin/subscription-plans/:id", async (req, res) => {
+router.patch("/admin/subscription-plans/:id", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     console.log("PATCH plan id:", req.params.id);
     console.log("PATCH body received:", JSON.stringify(req.body));
@@ -108,7 +111,7 @@ router.patch("/admin/subscription-plans/:id", async (req, res) => {
   }
 });
 /* ADMIN — list owner subscriptions */
-router.get("/admin/owner-subscriptions", async (req, res) => {
+router.get("/admin/owner-subscriptions", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     const subs = await storage.getAllOwnerSubscriptionsForAdmin();
     res.json(subs);
@@ -130,7 +133,7 @@ router.post("/owner/subscribe", async (req, res) => {
       screenshotUrl,
       paymentMethod,
     } = req.body;
-    const ownerId = (req.user as any).claims?.sub ?? (req.user as any).id;
+    const ownerId = getRequestUserId(req as AuthenticatedRequest);
 
     // Block submission if no payment proof provided
     if (!transactionId || !transactionId.trim()) {
@@ -177,7 +180,7 @@ router.post("/owner/subscribe", async (req, res) => {
   }
 });
 /* ADMIN — delete plan */
-router.delete("/admin/subscription-plans/:id", async (req, res) => {
+router.delete("/admin/subscription-plans/:id", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     await storage.deleteSubscriptionPlan(req.params.id);
     res.json({ success: true });
@@ -186,7 +189,7 @@ router.delete("/admin/subscription-plans/:id", async (req, res) => {
   }
 });
 /* ADMIN — activate */
-router.post("/admin/owner-subscriptions/:id/extend", async (req, res) => {
+router.post("/admin/owner-subscriptions/:id/extend", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     const { days } = req.body;
     if (!days || isNaN(Number(days)) || Number(days) < 1) {
@@ -219,10 +222,10 @@ router.post("/admin/owner-subscriptions/:id/extend", async (req, res) => {
     res.status(500).json({ error: "Failed to extend subscription" });
   }
 });
-router.post("/admin/owner-subscriptions/:id/activate", async (req, res) => {
+router.post("/admin/owner-subscriptions/:id/activate", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     const { note, startDate, endDate } = req.body;
-    const adminId = (req.user as any).claims?.sub ?? (req.user as any)?.id;
+    const adminId = getRequestUserId(req as AuthenticatedRequest);
     await storage.updateOwnerSubscriptionDates(
       req.params.id,
       new Date(startDate),
@@ -411,7 +414,7 @@ router.post("/admin/owner-subscriptions/:id/activate", async (req, res) => {
 });
 
 /* ADMIN — cancel */
-router.post("/admin/owner-subscriptions/:id/cancel", async (req, res) => {
+router.post("/admin/owner-subscriptions/:id/cancel", isAuthenticated, requireAdmin, async (req, res) => {
   try {
     const sub = await storage.cancelOwnerSubscription(
       req.params.id,
@@ -424,9 +427,9 @@ router.post("/admin/owner-subscriptions/:id/cancel", async (req, res) => {
 });
 
 /* ADMIN — waive */
-router.post("/admin/owner-subscriptions/:id/waive", async (req, res) => {
+router.post("/admin/owner-subscriptions/:id/waive", isAuthenticated, requireAdmin, async (req, res) => {
   try {
-    const adminId = (req.user as any).claims?.sub ?? (req.user as any)?.id;
+    const adminId = getRequestUserId(req as AuthenticatedRequest);
     const days = parseInt(req.body.days, 10);
     if (!days || days < 1 || days > 3650) {
       return res.status(400).json({ error: "days must be between 1 and 3650" });
