@@ -1,6 +1,7 @@
 // Referenced from blueprint:javascript_log_in_with_replit
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { OAuth2Client } from "google-auth-library";
 import { storage } from "./storage";
 import { db, pool } from "./db";
 import { eq, sql, inArray, desc, and, gte, lte } from "drizzle-orm";
@@ -234,6 +235,44 @@ export async function registerRoutes(
   await setupAuth(app);
   app.use("/api", subscriptionRoutes);
 
+  // Helper: verify a Firebase ID token by checking signature against Google's public certs
+  async function verifyFirebaseIdToken(idToken: string): Promise<Record<string, any>> {
+    // Prefer the server-scoped FIREBASE_PROJECT_ID env var; fall back to the
+    // shared VITE_FIREBASE_PROJECT_ID that is already set in this environment.
+    const projectId =
+      process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+    if (!projectId) {
+      throw new Error(
+        "Firebase project ID not configured on server. " +
+        "Set the FIREBASE_PROJECT_ID environment variable.",
+      );
+    }
+
+    // Fetch Firebase's X.509 public certs (keyed by kid, cached by Google with Cache-Control)
+    const certsUrl =
+      "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
+    const certsResponse = await fetch(certsUrl);
+    if (!certsResponse.ok) {
+      throw new Error("Failed to fetch Firebase public certificates");
+    }
+    const certs: Record<string, string> = await certsResponse.json();
+
+    const client = new OAuth2Client(projectId);
+    const ticket = await client.verifySignedJwtWithCertsAsync(
+      idToken,
+      certs,
+      projectId,
+      [`https://securetoken.google.com/${projectId}`],
+    );
+
+    const payload = ticket.getPayload();
+    if (!payload) throw new Error("Empty token payload");
+    if (payload["email_verified"] !== true) {
+      throw new Error("Email address is not verified");
+    }
+    return payload;
+  }
+
   // Google Sign-in endpoint
   app.post("/api/auth/google", async (req: any, res) => {
     try {
@@ -242,17 +281,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "ID token is required" });
       }
 
-      // Verify token with Firebase Admin would be ideal but requires Admin SDK
-      // Instead decode the JWT to get user info (safe since Firebase signed it)
-      const base64Url = idToken.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const claims = JSON.parse(Buffer.from(base64, "base64").toString());
+      // Verify the Firebase ID token signature and claims before trusting any data
+      let claims: Record<string, any>;
+      try {
+        claims = await verifyFirebaseIdToken(idToken);
+      } catch (verifyErr: any) {
+        console.error("Firebase token verification failed:", verifyErr.message);
+        return res.status(401).json({ message: "Invalid or expired ID token" });
+      }
 
-      const email = claims.email;
-      const firstName = claims.given_name || claims.name?.split(" ")[0] || "";
+      const email = claims.email as string | undefined;
+      const firstName = (claims.given_name || claims.name?.split(" ")[0] || "") as string;
       const lastName =
-        claims.family_name || claims.name?.split(" ").slice(1).join(" ") || "";
-      const profileImageUrl = claims.picture || null;
+        ((claims.family_name || claims.name?.split(" ").slice(1).join(" ")) ?? "") as string;
+      const profileImageUrl = (claims.picture as string | null) ?? null;
 
       if (!email) {
         return res.status(400).json({ message: "Email not found in token" });
@@ -1071,9 +1113,15 @@ export async function registerRoutes(
     }
   });
 
-  // Admin promotion endpoint - requires email in body
-  app.post("/api/admin/promote", async (req: any, res) => {
+  // Admin promotion endpoint - requires an existing admin session
+  app.post("/api/admin/promote", isAuthenticated, async (req: any, res) => {
     try {
+      // Only existing admins may promote other users
+      const { user: callerUser, ok } = await canAdminAccess(req);
+      if (!ok || callerUser?.userRole !== "admin") {
+        return res.status(403).json({ message: "Forbidden: admin access required" });
+      }
+
       const { email } = req.body;
 
       if (!email) {

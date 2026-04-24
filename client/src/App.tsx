@@ -65,7 +65,6 @@ import Destinations from "@/pages/destinations";
 import DestinationDetails from "@/pages/destination-details";
 import AdminProperties from "@/pages/admin-properties";
 import AdminKYC from "@/pages/admin-kyc";
-import AdminAccess from "@/pages/admin-access";
 import AdminSubAdmins from "@/pages/admin-sub-admins";
 import AdminExports from "@/pages/admin-exports";
 import AdminPolicies from "@/pages/admin-policies";
@@ -183,7 +182,6 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/list-property" component={ListPropertyWizard} />
-      <Route path="/admin-access" component={AdminAccess} />
       <Route path="/dev-admin" component={DevAdminLogin} />
       <Route path="/kyc" component={KYC} />
       <Route path="/search" component={Search} />
